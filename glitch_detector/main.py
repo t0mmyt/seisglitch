@@ -3,14 +3,18 @@
 
 #----------------------------------------------------------------------
 #   Filename:  main.py
-""" Functions for seismological applications, using Python & ObsPy. """
+""" Useful functions for glitch detection, including plot scripts. """
 #   Author:    John - Robert Scholz
-#   Date:      Jan 2014 - present
 #   Email:     john.robert.scholz@gmail.com
-#   License:   GPLv3
+#   Date:      Jan 2019 - present
+#   License:   TBD
 #---------------------------------------------------------------------
 
 
+from toolbox import Stream2, quick_plot, snr, ppol_calc 		#missing martin's mars_tool !
+
+
+### useful functions
 def glitch_detector(RAW_UVW, stepwin_length_total=80, threshold=1e-7, ACCfilter=3, glitch_mindist=5, glitch_length=25, plot=True):
 	
 
@@ -64,10 +68,6 @@ def glitch_detector(RAW_UVW, stepwin_length_total=80, threshold=1e-7, ACCfilter=
 
 
 	# DOES IT MAKES SENSE --> ZNE in RAW? Should rather remove gain?
-
-
-
-
 	st = Stream2(stRAW+stDIS+stVEL+stACC+stACC_fil+stCON)
 	st.taper(5) 				# in per cent
 
@@ -455,4 +455,10 @@ def glitch_detector(RAW_UVW, stepwin_length_total=80, threshold=1e-7, ACCfilter=
 		quick_plot(stCON[2], stACC_fil[2], stRAW[2], stDIS[2], stVEL[2], stACC[2], data_labels=('W CON','W ACC-FIL','W RAW','W DIS','W VEL','W ACC'), title='%s glitches' % glitch_counter, verts=glitch_starts_W, xlabel='Time', ylabel='Amplitude')
 		#quick_plot(stCON[2], stACC_fil[2], stACC_fil2[2],  stRAW[2], data_labels=('W CON', 'W ACC FIL', 'W ACC FIL2', 'W RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_W, xlabel='Time', ylabel='Amplitude')
 		#quick_plot(stACC_fil[0], stACC_fil2[0],  stRAW[0], data_labels=('U ACC FIL', 'U ACC FIL2', 'U RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_U, xlabel='Time', ylabel='Amplitude')
-		#quick_plot(*stCON, *stACC_fil, *stRAW, data_labels=('U CON', 'V CON', 'W CON', 'U ACC FIL', 'V ACC FIL', 'W ACC FIL', 'U RAW', 'V RAW', 'W RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_all, xlabel='Time', ylabel='Amplitude')
+		#quick_plot(*stCON, *stACC_fil, *stRAW, data_labels=('U CON', 'V CON', 'W CON', 'U ACC FIL', 'V ACC FIL', 'W ACC FIL', 'U RAW', 'V RAW', 'W RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_all, xlabel='Time', ylabel='Amplitude' )
+
+
+
+### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  
+if __name__ == "__main__":	
+	print('Define Testing')

@@ -1,4 +1,4 @@
-Gltich Detector
+Glitch Detector
 ---------------
 
-Add more information.
+Add more information. Describe functionality.

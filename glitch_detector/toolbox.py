@@ -7,7 +7,7 @@
 #   Author:    John - Robert Scholz
 #   Date:      Jan 2014 - present
 #   Email:     john.robert.scholz@gmail.com
-#   License:   GPLv3
+#   License:   TBD
 #---------------------------------------------------------------------
 
 
