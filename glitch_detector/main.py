@@ -11,11 +11,379 @@
 #---------------------------------------------------------------------
 
 
-from toolbox import Stream2, quick_plot, snr, ppol_calc 		#missing martin's mars_tool !
+from toolbox import Stream2, moving_window, snr, ppol_calc, solify, UTCify, quick_plot
 
 
-### useful functions
-def glitch_detector(RAW_UVW, stepwin_length_total=80, threshold=1e-7, ACCfilter=3, glitch_mindist=5, glitch_length=25, plot=True):
+### two different glitch detectors
+def glitch_detector1(RAW_UVW, window=5, step_in_samples=10, input_polar=None, threshold=0.97, glitch_length=25, plot=False):
+
+	"""
+
+	---------------------------------------------------------
+	|                                                       |
+	|   Hello ! Are you sure about getting into glitches?   |
+	|                                                       |
+	---------------------------------------------------------
+
+
+	This script can be run in two different ways.
+	For both ways, the script expects `seismic_file` (absolute path)
+	to contain at least three seismic components (UVW or ZNE).
+	No matter which one is passed, two streams are created; one with ZNE &
+	one with UVW. Decide if you want `correct_gain` (True or False).
+	Note: the file is read as an ObsPy `Stream2` object - a self-written class.
+	Note: for rotating the components, the `_get_inventory()` method
+	(see Stream2 class) attempts to read an inventory file that follows
+	are certain naming in a certain folder. Please adjust line 421!
+
+	Way 1): `input_polar` = None
+
+		Using a 3-D PCA (function `ppol_moving`), the rectinilinearity (polarisation)
+		and other measures are calculated for each moving window of length `window`, 
+		in seconds, stepping `step_in_samples`. These polarisations are written into 
+		`output_polar`.
+		BE AWARE: For many data (few days), this step may take a while!
+
+
+	Way 2): `input_polar` = output of way 1)
+
+		The calculated polarisations for each window (see way 1) are 
+		looped over and glitches are extracted.
+		The glitch condition is: `POLRZ` > `threshold` and
+		glitch start time is later than the end time of previous glitch.
+		
+		==> Here one can perhaps find a better condition!
+		(`POLRZ` is 13th column of output file of way 1)
+		
+		Once a glitch start time is detected, a window around it is extracted:
+		  --> 60s before glitch start + `glitch_length` + 60 s after. This window is demeaned
+		and then another 3-D PCA (same code) is run over ONLY the glitch to detect all glitch parameters
+		(amplitudes of ZNEUVW, BAZ+err, INC+err, rectinilineairty, SNR ...).
+		All glitch parameters are written to `output_glitch`.
+		You may want to plot the result if you wish, `plot`=True.
+
+
+	SUGGESTIONS:
+	  - For VBB, I worked with: window=5, step_in_samples=10, threshold=0.97
+	  - Since I saw (too) many polarised signals on SP, maybe window (way 1) and threshold (way 2)
+	    could be increased
+	  - data could be filtered prior to running this code, perhaps this can improve
+	    the performance, too
+	  - A more fancy and elaborated glitch condition can probably be found - why not?
+	  - the code doesn't handle data gaps, so run the code only on files having no gaps
+	    (see e.g. function `pierce_stream`)
+	"""
+
+
+	### ENTRY OF SCRIPT
+	now           = time.time()
+	stUVW         = read2(RAW_UVW)
+	stUVW._set_inventory()
+	stUVW.filtering(4)
+	output_polar  = os.path.join( os.path.dirname(stUVW.origin), 'polarization_' + '.'.join(os.path.basename(stUVW.origin).split('.')[:-1]) + '.txt' )
+	output_glitch = os.path.join( os.path.dirname(stUVW.origin), 'glitches_'     + '.'.join(os.path.basename(stUVW.origin).split('.')[:-1]) + '.txt' )
+	output_plot   = os.path.join( os.path.dirname(stUVW.origin), 'plot_'         + '.'.join(os.path.basename(stUVW.origin).split('.')[:-1]) + '.png' )
+
+
+
+	stZNE = stUVW.copy()
+	streamZNE.rotate('->ZNE', inventory=stZNE.inventory, components='UVW')
+	stZNE.sort(reverse=True)	# sorted: Z, N, E
+	stUVW.sort(reverse=False)	# sorted: U, V, W
+	print()
+	print('INPUT STREAMS:')
+	print(streamUVW)
+	print(streamZNE)
+
+
+	### CREATE POLARIZATION DATA TO LATER DETECT GLITCHES ON 
+	if not input_polar:
+
+
+		# SMALL SHELL OUTPUT
+		print()
+		print(u'DATA ANALYSIS:  %s - %s' % (streamVBB[0].stats.starttime, streamVBB[0].stats.endtime))
+		print(u'Running moving windows of P-wave polarization ..')
+
+
+		# MOVING P-WAVE POLARIZATION
+		stZNE.trim_common()
+		stream_string  = stZNE[0].id[:-1] + '?'
+
+
+		# EXTRACT VARIABLES NEEDED FROM STREAM OBJECT
+		starttime      = stZNE[0].stats.starttime
+		endtime        = stZNE[0].stats.endtime
+		duration       = endtime - starttime
+		samples        = int( (endtime-starttime)/delta+1)
+		delta          = stZNE[0].stats.delta
+		SPS            = stZNE[0].stats.sampling_rate
+		
+		window_step    = step_in_samples*delta
+		window_overlap = window-window_step
+		window_counter = 0
+		
+		#data_Z = stZNE.select(component='[Z]'  )[0].data
+		#data_N = stZNE.select(component='[N1X]')[0].data
+		#data_E = stZNE.select(component='[E2Y]')[0].data
+		data_Z = stZNE[0].data
+		data_N = stZNE[1].data
+		data_E = stZNE[2].data	
+		
+
+		# LOOP (MOVING WINDOWS)
+		pol_values     = []
+		line_formatter = '%6.2f %6.2f %5.2f %5.2f %6.2f %5.2f %6.2f %5.2f %7.1f %7.1f %5.3f %5.3f %5.3f %23s %23s'
+
+		for mwindow in moving_window(data_Z, data_N, data_E, window_length_in_samples=window*SPS, step_in_samples=step_in_samples, equal_end=True):
+
+			window_index_start = mwindow[0]
+			window_index_end   = mwindow[1]
+			window_Z           = mwindow[2]
+			window_N           = mwindow[3]
+			window_E           = mwindow[4]
+			
+			start              = starttime + window_index_start*delta
+			end                = start + window
+
+			# P-POL RESULT FOR WINDOW
+			window_pol = ppol_calc(window_N, window_E, window_Z)[:13] + (start, end)
+			pol_values.append( line_formatter % window_pol )
+
+			# small output into shell
+			window_counter += 1
+			if window_counter%100==0:
+				print(u'Window %7d:  %s - %s' % (window_counter, start, end))		
+
+
+		# OUTPUT FILE
+		header  = 'Polarizations  %s  (DATA_RANGE:  %s  %s)\n' % (stream_string, starttime, endtime)
+		header += 'PH2D   PH3D 2DERR 3DERR  INC2D 2DERR  INC3D 3DERR SNR_HOR  SNR_RZ POL3D  POLH POLRZ                       START                         END'
+		np.savetxt(output_polar, pol_values, header=header, fmt='%s', delimiter=None)
+
+
+		# OUTPUT SHELL, IF WISHED
+		print()
+		print(u'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -')
+		print(u'Data start:       %s'          % starttime )
+		print(u'Data end:         %s'          % endtime )
+		print(u'Data length:      %s (h:m:s)'  % sec2hms(duration) )
+		print(u'Data SPS:         %sHz (%ss)'  % (SPS, delta) )
+		print(u'Data samples      %s'          % samples )
+		print()
+		print(u'Window length:    %ss'         % window)
+		print(u'Window overlap:   %ss'         % window_overlap)
+		print(u'Window step:      %ss'         % window_step)
+		print(u'Windows total:    %s'          % window_counter)
+		print(u'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -')
+		print(u'Done in:          %s (h:m:s).' % sec2hms( float( time.time()-now )) )
+		print(u'Output polar.:    %s'          % output_polar)
+
+
+
+	### DETECT GLITCHES ON ALREADY CALCULATED POLARIZATIONS
+	else:
+
+
+		# assign needed variables
+		data_start                 = str(stZNE[0].stats.starttime)
+		data_end                   = str(stZNE[0].stats.endtime)
+		data_delta                 = stZNE[0].stats.delta
+		
+		polarizations              = np.loadtxt(input_polar, dtype='str')		
+		polarizations_start        = UTCDateTime(polarizations[0][-2])
+		polarizations_end          = UTCDateTime(polarizations[-1][-1])
+		polarizations_num          = len(polarizations)
+		
+		pol_start_sorted           = sorted(polarizations[:,-2])
+		pol_end_sorted             = sorted(polarizations[:,-1])
+		pol_min_start, pol_max_end = min(pol_start_sorted), max(pol_end_sorted)
+
+		if data_end<=pol_min_start or data_start>=pol_max_end:
+			# if data do not at all overlap with polarization windows, return
+			print(u'Data start/end times do not overlap with polarization start/end times. Return.')
+			return
+		else:
+			print()
+			print(u'DATA ANALYSIS:  %s - %s' % (data_start, data_end))
+			print(u'Running glitch analyses on polarizations ..')
+
+		window                     = UTCDateTime(polarizations[0][-1])-UTCDateTime(polarizations[0][-2])
+		window_overlap             = UTCDateTime(polarizations[0][-1])-UTCDateTime(polarizations[1][-2]) 
+		window_step                = round(window-window_overlap, 6)
+
+
+		# prepare data outputs
+		header                     = ' NUM    POL                START                  END      Z-AMP      N-AMP      E-AMP      U-AMP      V-AMP      W-AMP      SNR    DIR  DERR    INC  IERR'
+		line_formatter             = '%05d:  %5.3f  %15s  %15s  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %7.1f  %5.1f  %4.1f  %5.1f  %4.1f'
+		print('# '+header)
+		
+
+		# prepare loop variables (loop over polarization windows)
+		glitch_starts, glitch_ends = [], []
+		glitches                   = []
+		glitch_end, glitch_counter = 0, 0
+
+		for i in range(1, len(polarizations)):
+
+			if not (polarizations[i-1][-2]>=data_start and polarizations[i-1][-1]<=data_end):
+				# if data do not fully overlap with polarization window, continue
+				continue
+			
+			pol_value_b = float(polarizations[i-1][12])
+			pol_start_b = UTCDateTime(polarizations[i-1][-2])
+			pol_end_b   = UTCDateTime(polarizations[i-1][-1])
+			
+			pol_value   = float(polarizations[i][12])
+			pol_start   = UTCDateTime(polarizations[i][-2])
+			pol_end     = UTCDateTime(polarizations[i][-1])
+			pol_mid     = pol_start+(pol_end-pol_start)/2.
+			
+			try: 
+				# GLITCH CONDITION
+				#print(pol_value, threshold, pol_value_b)
+				if not (pol_value_b<threshold and pol_value>=threshold and pol_start>=glitch_end and pol_mid+glitch_length<=polarizations_end):
+					raise Exception
+			except Exception:
+				continue 
+
+
+			# PREPARE DATA FOR GLITCH PARAMETERS
+			glitch_start     = pol_mid
+			
+			streamZNE_window = stZNE.copy()
+			streamUVW_window = stUVW.copy()
+			streamZNE_window.trim(starttime=glitch_start-60, endtime=glitch_start+glitch_length+60)
+			streamUVW_window.trim(starttime=glitch_start-60, endtime=glitch_start+glitch_length+60)
+			 
+			streamZNE_window.detrend('demean')
+			streamUVW_window.detrend('demean')
+			
+			streamZNE_window.trim(starttime=glitch_start, endtime=glitch_start+glitch_length)
+			streamUVW_window.trim(starttime=glitch_start, endtime=glitch_start+glitch_length)
+
+			data_Z          = streamZNE_window[0].data
+			data_N          = streamZNE_window[1].data
+			data_E          = streamZNE_window[2].data
+			data_U          = streamUVW_window[0].data
+			data_V          = streamUVW_window[1].data
+			data_W          = streamUVW_window[2].data
+
+			ppol_results    = ppol_calc(data_N, data_E, data_Z, fix_angles='AMP', Xoffset_in_samples_for_amplitude=int(.25*glitch_length/data_delta))[:-4] 	# no data, eigen vectors or eigen values return
+			phi_2D          = ppol_results[0]
+			phi_3D          = ppol_results[1]
+			err_phi_2D      = ppol_results[2]
+			err_phi_3D      = ppol_results[3]
+			INCapp_2D       = ppol_results[4]
+			err_INCapp_2D   = ppol_results[5]
+
+
+			INCapp_3D       = ppol_results[6]
+			err_INCapp_3D   = ppol_results[7]
+			SNR_hori        = ppol_results[8]
+			SNR_2D_radZ     = ppol_results[9]
+			Rect_3D         = ppol_results[10]
+			Rect_H          = ppol_results[11]
+			Rect_RZ         = ppol_results[12]
+
+
+			# GLITCH PARAMETERS
+			glitch_counter += 1
+
+			glitch_polar    = Rect_3D
+			glitch_start    = glitch_start
+			glitch_end      = glitch_start+glitch_length
+			glitch_amp_Z    = data_Z[int(.25*glitch_length/data_delta):][np.argmax(np.abs(data_Z[int(.25*glitch_length/data_delta):]))]		# skip first quarter of glitch length for amplitude determination due to
+			glitch_amp_N    = data_N[int(.25*glitch_length/data_delta):][np.argmax(np.abs(data_N[int(.25*glitch_length/data_delta):]))]		# occasional FIR precursor ringings at beginning of glitch!
+			glitch_amp_E    = data_E[int(.25*glitch_length/data_delta):][np.argmax(np.abs(data_E[int(.25*glitch_length/data_delta):]))]
+			glitch_amp_U    = data_U[int(.25*glitch_length/data_delta):][np.argmax(np.abs(data_U[int(.25*glitch_length/data_delta):]))]
+			glitch_amp_V    = data_V[int(.25*glitch_length/data_delta):][np.argmax(np.abs(data_V[int(.25*glitch_length/data_delta):]))]
+			glitch_amp_W    = data_W[int(.25*glitch_length/data_delta):][np.argmax(np.abs(data_W[int(.25*glitch_length/data_delta):]))]
+			glitch_SNR      = SNR_2D_radZ
+			glitch_pol      = phi_3D
+			glitch_pol_err  = err_phi_3D
+			glitch_inc      = INCapp_3D
+			glitch_inc_err  = err_INCapp_3D
+
+			glitch = glitch_counter, \
+					 glitch_polar, \
+					 glitch_start.strftime('%Y-%m-%dT%H:%M:%S'), \
+					 glitch_end.strftime('%Y-%m-%dT%H:%M:%S'), \
+					 glitch_amp_Z, \
+					 glitch_amp_N, \
+					 glitch_amp_E, \
+					 glitch_amp_U, \
+					 glitch_amp_V, \
+					 glitch_amp_W, \
+					 glitch_SNR, \
+					 glitch_pol, \
+					 glitch_pol_err, \
+					 glitch_inc, \
+					 glitch_inc_err  
+
+			glitches.append(line_formatter % glitch)
+			print(line_formatter % glitch)
+
+
+			# for plotting, if wished
+			if plot:
+				glitch_starts  += [glitch_start]
+				glitch_ends    += [glitch_end]
+
+
+		# OUTPUT FILE
+		try:
+			np.savetxt(output_glitch, glitches, fmt='%s', header=header)
+		except ValueError: # no glitches found
+			pass
+
+
+		# OUTPUT SHELL
+		print()
+		print(u'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -')
+		print(u'Polarizations start: %s'               % polarizations_start)
+		print(u'Polarizations end:   %s'               % polarizations_end)
+		print(u'Polarizations #:     %s'               % polarizations_num)
+		print()		
+		print(u'Data start:          %s'               % data_start)
+		print(u'Data end:            %s'               % data_end)
+		print(u'Data length:         %s (h:m:s)'       % sec2hms( UTCDateTime(data_end)-UTCDateTime(data_start) ))
+		print(u'Data SPS:            %sHz (%ss)'       % (1./data_delta, data_delta))
+		print()
+		print(u'Window length:       %ss'              % window)
+		print(u'Window overlap:      %ss'              % window_overlap)
+		print(u'Window step:         %ss (%s samples)' % (window_step,int(window_step/data_delta)))
+		print(u'Number runs:         %s'               % len(polarizations))
+		print()
+		print(u'Threshold:           %s'               % threshold)
+		print(u'Glitch length:       %ss'              % glitch_length)
+		print(u'Glitches #:          %s'               % glitch_counter)
+		print(u'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -')
+		print(u'Done in:             %s (h:m:s).'      % sec2hms( float( time.time()-now )) )
+		print(u'Input polarizations: %s'               % input_polar)
+		print(u'Outfile glitches:    %s'               % output_glitch)
+
+
+		### PLOT
+		if plot:
+
+			x    = np.linspace(0, 10, num=len(polarizations))
+			y    = polarizations[:,12].astype('float')
+			
+			#f    = scipy.interpolate.interp1d(x, y, kind='linear')
+			#xnew = np.linspace(0, 10, num=len(polarizations)*window_step/data_delta-window/data_delta)
+
+			# hack, assign results to dummy stream object (so I have the datetimes), plotting data then works
+			stream         = streamZNE[0:1].copy()
+			#stream[0].data = f(xnew)
+			stream[0].data = np.repeat(polarizations[:,12].astype('float'), window_step/data_delta)
+			stream[0].stats.starttime = polarizations_start+window/2.
+
+			# plotting
+			streamZNE.normalise([-1,0])
+			stream.normalise([0,1])
+			quick_plot(*streamZNE, *stream, data_labels=(streamZNE[0].id, streamZNE[1].id, streamZNE[2].id, 'Rectinilinearity'), verts=glitch_starts, title='%s glitches' % len(glitch_starts), xlabel='Time', ylabel='Normalized Amplitude', show=False, outfile=output_plot)
+def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e-7, glitch_mindist=5, glitch_length=25, plot=True):
 	
 
 	"""
@@ -456,6 +824,9 @@ def glitch_detector(RAW_UVW, stepwin_length_total=80, threshold=1e-7, ACCfilter=
 		#quick_plot(stCON[2], stACC_fil[2], stACC_fil2[2],  stRAW[2], data_labels=('W CON', 'W ACC FIL', 'W ACC FIL2', 'W RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_W, xlabel='Time', ylabel='Amplitude')
 		#quick_plot(stACC_fil[0], stACC_fil2[0],  stRAW[0], data_labels=('U ACC FIL', 'U ACC FIL2', 'U RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_U, xlabel='Time', ylabel='Amplitude')
 		#quick_plot(*stCON, *stACC_fil, *stRAW, data_labels=('U CON', 'V CON', 'W CON', 'U ACC FIL', 'V ACC FIL', 'W ACC FIL', 'U RAW', 'V RAW', 'W RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_all, xlabel='Time', ylabel='Amplitude' )
+
+
+### plot scripts to visualise detected glitches
 
 
 
