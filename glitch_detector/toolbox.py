@@ -11,19 +11,18 @@
 #---------------------------------------------------------------------
 
 
-
-###############  python 3 modules import  ######################
+#####  python modules import  #####
 import os
 import re
 import sys
 import copy
 import time
+import glob
 import scipy
 import datetime
 import numpy as np
 
-
-###############  matplotlib modules import  ######################
+#####  matplotlib modules import  #####
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 plt.switch_backend('TKAgg')
@@ -31,17 +30,23 @@ import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
 from matplotlib.widgets import TextBox
 from matplotlib.patches import Arc, FancyArrowPatch
-from matplotlib.colors import Normalize
+from mpl_toolkits.mplot3d import Axes3D, proj3d
 
-
-###############  obspy modules import  ######################
-from obspy import read, UTCDateTime
+#####  obspy modules import  #####
+from obspy import read, read_inventory, UTCDateTime
 from obspy.core.stream import Stream
+from obspy.core.trace import Trace
 from obspy.core.inventory import Inventory
 from obspy.signal import rotate
 
 
+
 # Extended Obspy Stream class (adding some more functionality)
+def read2(file=None):
+	# wrapper to make to return Stream2 objects instead of (ObsPy's) Stream object.
+	st = read(file)
+	st = Stream2(st, file=file)
+	return st
 class Stream2(Stream):
 
 	"""	Extended class for ObsPy's stream object. """
@@ -78,11 +83,11 @@ class Stream2(Stream):
 		"""
 		Takes a ObsPy stream object and returns its station code of the format: network.station.location.channel.
 		If this is non-unique, i.e., either of them is non-unique, i.e., the stream object contains more than one
-		specific component, this script returns `False`. If it is unique, returns `True`.
+		specific component, this script returns `False`. If it is unique, it returns `True`.
 
 		This script can be used to make sure there is only one component within the passed stream.
 		This is useful when checking for gaps/overlaps or for any other application
-		where it's mandatory for correct processing to have only one component contained.
+		where it's mandatory for correct processing to have only one component within the stream.
 		"""
 
 		networks  = []
@@ -119,7 +124,7 @@ class Stream2(Stream):
 	def trim(self, *args, **kwargs):
 
 		"""
-		Use Obspy's trim fucntion and improve sliglhty.
+		Use Obspy's trim fucntion and improve slightly.
 		Improvement is that you don't have to type
 		`UTCDateTime` every time you specify a time.
 		"""
@@ -143,7 +148,8 @@ class Stream2(Stream):
 		except KeyError:
 			pass
 
-		return super().trim(*args, **kwargs)
+		super().trim(*args, **kwargs)
+		self.times = self._get_times()
 	def trim_common(self):
 
 		"""
@@ -217,7 +223,7 @@ class Stream2(Stream):
 				for processed_step in processed_steps:
 					matches = re.findall(r'(\w*\(.*\))\Z',processed_step)						
 					for match in matches:
-						for i in range( M.ceil(len(match)/truncate) ):
+						for i in range( np.ceil(len(match)/truncate) ):
 							if i == 0:
 								print('    %s' % match[i*truncate:(i+1)*truncate])
 							else:
@@ -230,7 +236,7 @@ class Stream2(Stream):
 	def gain_correction(self): 
 		if self.inventory:
 			print()
-			print(u'GAIN CORRECTION APPLIED')
+			print(u'GAIN CORRECTION APPLIED:')
 			try:
 
 				if not self.gain_removed:
@@ -306,7 +312,6 @@ class Stream2(Stream):
 		components = '*'
 		try:
 			components = sorted( list( set( [tr.stats.channel[-1] for tr in self] )), reverse=True)
-			components = ''.join(components)
 		except AttributeError:
 			pass
 
@@ -322,7 +327,7 @@ class Stream2(Stream):
 	def _get_ids(self):
 		ids = '*'
 		try:
-			ids = sorted( list( set( [tr.id for tr in self] )), reverse=False)
+			ids = sorted( set( [tr.id for tr in self] ), reverse=False)
 		except AttributeError:
 			pass
 
@@ -348,26 +353,25 @@ class Stream2(Stream):
 
 		inv = Inventory()
 
-		if re.search(r'BH|MH|SH', 'XXX'.join([tr.id for tr in self])):
-			inv_file  = max( glob.glob( file ), key=os.path.getctime) 	# latest download
-			inventory = read_inventory(inv_file)
-			for trace in self:
-				network, station, location, channel = trace.id.split('.')
-				inv += inventory.select(network   = network, 
-										station   = station, 
-										location  = location, 
-										channel   = channel, 
-										starttime = self.times[0], 
-										endtime   = self.times[1])
+		inv_file  = max( glob.glob( file ), key=os.path.getctime) 	# latest download
+		inventory = read_inventory(inv_file)
+		for trace in self:
+			network, station, location, channel = trace.id.split('.')
+			inv += inventory.select(network   = network, 
+									station   = station, 
+									location  = location, 
+									channel   = channel, 
+									starttime = self.times[0], 
+									endtime   = self.times[1])
 
-			#print('Read inventory file between %s - %s:' % (self.times[0], self.times[1]))
-			#print(inv_file)
+		#print('Read inventory file between %s - %s:' % (self.times[0], self.times[1]))
+		#print(inv_file)
 
 		return inv
 	def _set_inventory(self, inventory=None):
 
 		if not inventory:
-			inventory      = self._get_inventory()
+			inventory = self._get_inventory()
 
 		self.inventory = inventory
 	def rotate_2D(self, angle, components='NE', new_components='12', clockwise=False):
@@ -380,8 +384,8 @@ class Stream2(Stream):
 			print('component letters. You gave %s' % len(components))
 
 		self.trim_common()
-		comp_1 = self.select(component=components[0])
-		comp_2 = self.select(component=components[1])
+		comp_1 = self.select2(component=components[0])
+		comp_2 = self.select2(component=components[1])
 		if comp_1 and comp_2:
 			comp_1[0].data, comp_2[0].data = rotate_2D(comp_1[0].data, comp_2[0].data, angle, clockwise=clockwise)
 			comp_1[0].stats.channel        = comp_1[0].stats.channel[:-1] + new_components[0]
@@ -392,7 +396,7 @@ class Stream2(Stream):
 			print('No rotation performed, as `components` (%s)' % components)
 			print('are not contained in stream.')
 	def select2(self, *args, **kwargs):
-		st_obs_select              = self.obs_select(*args, **kwargs)
+		st_obs_select              = self.select(*args, **kwargs)
 		st_obs_select.origin       = self.origin   
 		st_obs_select.original     = self.original
 		st_obs_select.removed      = self.removed
@@ -408,9 +412,9 @@ class Stream2(Stream):
 		"""
 
 		### get data ready
-		stream_N = self.select(component='N') or self.select(component='Q')  or self.select(component='U') or self.select(component='1') or self.select(component='T')
-		stream_E = self.select(component='E') or self.select(component='T')  or self.select(component='V') or self.select(component='2') or self.select(component='R')
-		stream_Z = self.select(component='Z') or self.select(component='L')  or self.select(component='W') or self.select(component='3')
+		stream_N = self.select(component='N') or self.select(component='Q') or self.select(component='U') or self.select(component='1') or self.select(component='T')
+		stream_E = self.select(component='E') or self.select(component='T') or self.select(component='V') or self.select(component='2') or self.select(component='R')
+		stream_Z = self.select(component='Z') or self.select(component='L') or self.select(component='W') or self.select(component='3')
 
 		if not (stream_N and stream_E):
 			print('')
@@ -478,7 +482,7 @@ class Stream2(Stream):
 			ncols = 1
 
 
-		### Rreturn 
+		### Return, if wished
 		if return_results:
 			return phi_2D, phi_3D, err_phi_2D, err_phi_3D, INCapp_2D, err_INCapp_2D, INCapp_3D, err_INCapp_3D, SNR_hori, SNR_2D_radZ, Rect_3D, Rect_H, Rect_RZ, comp_R, comp_T, eigvecs, eigvals
 
@@ -505,7 +509,7 @@ class Stream2(Stream):
 		ax.spines['bottom'].set_color('none')	
 		
 		xx      = np.linspace(-maxi, maxi, 100)
-		yy      = 1/np.tan(phi_2D*M.pi/180) * xx
+		yy      = 1/np.tan(phi_2D*np.pi/180) * xx
 	
 		# black lines
 		ax.plot([-maxi, maxi], [0, 0], 'k', lw=1)
@@ -519,10 +523,10 @@ class Stream2(Stream):
 		ax.add_patch( Arc([0,0], maxi,  maxi, 90, -phi_2D, 0, color='indianred', lw=1.5, zorder=10 ))
 		
 		# arrows at end of arcs
-		x  = maxi/2*M.sin( (phi_2D-7)*M.pi/180 )
-		y  = maxi/2*M.cos( (phi_2D-7)*M.pi/180 )
-		x2 = maxi/2*M.sin( (phi_2D+2)*M.pi/180 )
-		y2 = maxi/2*M.cos( (phi_2D+2)*M.pi/180 )
+		x  = maxi/2*np.sin( (phi_2D-7)*np.pi/180 )
+		y  = maxi/2*np.cos( (phi_2D-7)*np.pi/180 )
+		x2 = maxi/2*np.sin( (phi_2D+2)*np.pi/180 )
+		y2 = maxi/2*np.cos( (phi_2D+2)*np.pi/180 )
 		a  = FancyArrowPatch([x,y], [x2,y2], mutation_scale=20, lw=1.5, arrowstyle="-|>", color="indianred", zorder=15)
 		ax.add_artist(a)		
 
@@ -552,7 +556,7 @@ class Stream2(Stream):
 			ax.spines['bottom'].set_color('none')	
 		
 			xx2 = np.linspace(-maxi2/1.05*0.9, maxi2/1.05*0.9, 100)
-			yy2 = 1/np.tan( INCapp_2D*M.pi/180) * xx2
+			yy2 = 1/np.tan( INCapp_2D*np.pi/180) * xx2
 		
 			ax.plot([-maxi2, maxi2], [0, 0], 'k', lw=1)
 			ax.plot( [0, 0], [-maxi2, maxi2], 'k', lw=1)
@@ -561,10 +565,10 @@ class Stream2(Stream):
 			ax.add_patch( Arc([0,0], maxi2,  maxi2, 90, -INCapp_2D, 0, color='indianred', lw=1.5, zorder=10 ))
 
 			# arrows
-			x  = maxi2/2*M.sin( (INCapp_2D-7)*M.pi/180 )
-			y  = maxi2/2*M.cos( (INCapp_2D-7)*M.pi/180 )
-			x2 = maxi2/2*M.sin( (INCapp_2D+2)*M.pi/180 )
-			y2 = maxi2/2*M.cos( (INCapp_2D+2)*M.pi/180 )
+			x  = maxi2/2*np.sin( (INCapp_2D-7)*np.pi/180 )
+			y  = maxi2/2*np.cos( (INCapp_2D-7)*np.pi/180 )
+			x2 = maxi2/2*np.sin( (INCapp_2D+2)*np.pi/180 )
+			y2 = maxi2/2*np.cos( (INCapp_2D+2)*np.pi/180 )
 			a  = FancyArrowPatch([x,y], [x2,y2], mutation_scale=20, lw=1.5, arrowstyle="-|>", color="indianred", zorder=15)
 			ax.add_artist(a)
 
@@ -583,7 +587,7 @@ class Stream2(Stream):
 			mean_N   = np.average(trace_N.data)
 			mean_Z   = np.average(trace_Z.data)
 			maxi3    = max( list(np.abs(trace_E.data))+list(np.abs(trace_N.data))+list(np.abs(trace_Z.data)) ) * 1.05
-			max_dist = M.sqrt(3*(maxi3*2)**2)
+			max_dist = np.sqrt(3*(maxi3*2)**2)
 
 			ax = fig.add_subplot(133, projection='3d')
 			ax.set_xlabel(trace_E.stats.channel[-1], labelpad=5, fontsize=11)
@@ -1382,42 +1386,38 @@ class Stream2(Stream):
 			# show plot
 			plt.show() 
 
-# convenient helpers
+# Convenient helpers
 def sec2hms(seconds, digits=0):
 
 	"""
 	Convert seconds given as float into hours, minutes and seconds.
 	Optional 'digits' determines position after decimal point.
 
-	If variable 'seconds' is not understood, this function returns
-	zeroes.
-	
-	:type sting: unicode string
-	:return string: formated seconds (hh:mm:ss or hh:mm:ss.sss ..)
+	Returns string.
 	"""
 
+
+	string = str( datetime.timedelta(seconds=seconds) )
+	parts  = string.split('.')
+
 	try:
-		seconds = float(seconds)
-		m, s    = divmod(round(seconds,digits), 60)
-		h, m    = divmod(m, 60)
+		frac_sec = parts[1]
+		parts[1] = frac_sec[:digits]
 
-		mask    = "{0:.%sf}" % digits
-		s       = mask.format(s).zfill(digits+3)
+	except IndexError:
+		if digits>0:
+			parts += [digits*'0']
 
-		if digits == 0:
-			return u'%s:%s:%s' % (str( int(h) ).zfill(2), str( int(m) ).zfill(2), str( int( round( float(s) ))).zfill(2))
-		else:
-			return u'%s:%s:%s' % (str( int(h) ).zfill(2), str( int(m) ).zfill(2), s)
+	string = '.'.join(parts)
+	string = string.rstrip('.')
 
-	except Exception:
-		return sec2hms(0, digits=digits)
+	return string
 def moving_window(*data, window_length_in_samples=100, step_in_samples=50, equal_end=True):
 
 	"""
 	Yield data of moving windows according to given parameters.
 	"""
 
-	
 	i = 0
 	while True:
 
@@ -1440,7 +1440,7 @@ def moving_window(*data, window_length_in_samples=100, step_in_samples=50, equal
 
 		yield (index_window_start, index_window_end, *yield_data)
 
-# mathematical
+# Mathematical
 def covariance_matrix(*observables):
 	
 	"""
@@ -1512,8 +1512,8 @@ def rotate_2D(comp_1, comp_2, angle, clockwise=False):
 		angle = 360-angle				# convert angle to as it would be clockwise rotation
 
 
-	comp_1_new =  comp_1*M.cos(angle*M.pi/180) + comp_2*M.sin(angle*M.pi/180)
-	comp_2_new = -comp_1*M.sin(angle*M.pi/180) + comp_2*M.cos(angle*M.pi/180)
+	comp_1_new =  comp_1*np.cos(angle*np.pi/180) + comp_2*np.sin(angle*np.pi/180)
+	comp_2_new = -comp_1*np.sin(angle*np.pi/180) + comp_2*np.cos(angle*np.pi/180)
 
 	return comp_1_new, comp_2_new
 def ppol_calc(comp_1, comp_2, comp_Z=[], fix_angles='EQ', Xoffset_in_samples_for_amplitude=None):
@@ -1566,8 +1566,8 @@ def ppol_calc(comp_1, comp_2, comp_Z=[], fix_angles='EQ', Xoffset_in_samples_for
 	eig_vec_2D_hori_1                = eig_vec_2D_hori[:,0]
 
 	# derived
-	phi_2D                           = (np.arctan2( eig_vec_2D_hori_1[1], eig_vec_2D_hori_1[0] ) * 180/M.pi )%360
-	err_phi_2D                       = np.arctan( np.sqrt( eig_val_2D_hori[1]/eig_val_2D_hori[0] )) * 180/M.pi 	    # ...
+	phi_2D                           = (np.arctan2( eig_vec_2D_hori_1[1], eig_vec_2D_hori_1[0] ) * 180/np.pi )%360
+	err_phi_2D                       = np.arctan( np.sqrt( eig_val_2D_hori[1]/eig_val_2D_hori[0] )) * 180/np.pi 	    # ...
 	SNR_hori                         = (eig_val_2D_hori[0] - eig_val_2D_hori[1]) / eig_val_2D_hori[1]				# De Meersman et al. (2006)
 	Rect_H                           = 1 - eig_val_2D_hori[1]/eig_val_2D_hori[0]									# rectilinearity in horizontal plane (1 for linearised, 0 for circular polarisation). Jurkevics (1988)
 
@@ -1628,8 +1628,8 @@ def ppol_calc(comp_1, comp_2, comp_Z=[], fix_angles='EQ', Xoffset_in_samples_for
 		eig_vec_3D_1                     = eig_vec_3D[:,0]
 
 		# derived
-		phi_3D                           = (np.arctan2( eig_vec_3D_1[1], eig_vec_3D_1[0] ) * 180/M.pi) % 360
-		err_phi_3D                       = np.arctan( np.sqrt( eig_val_3D[2]/(eig_val_3D[1]+eig_val_3D[0]) )) * 180/M.pi 		# ...
+		phi_3D                           = (np.arctan2( eig_vec_3D_1[1], eig_vec_3D_1[0] ) * 180/np.pi) % 360
+		err_phi_3D                       = np.arctan( np.sqrt( eig_val_3D[2]/(eig_val_3D[1]+eig_val_3D[0]) )) * 180/np.pi 		# ...
 		Rect_3D                          = 1 - ( eig_val_3D[1]+eig_val_3D[2] )/( 2*eig_val_3D[0] )					# rectilinearity in 3-D. (1 for linearised, 0 for circular polarisation). Jurkevics (1988)
 		#ccon                             = eig_val_3D[0] / ( eig_val_3D[1]+eig_val_3D[2] )
 
@@ -1644,8 +1644,8 @@ def ppol_calc(comp_1, comp_2, comp_Z=[], fix_angles='EQ', Xoffset_in_samples_for
 		eig_vec_2D_radZ_1                = eig_vec_2D_radZ[:,0]
 
 		# derived
-		INCapp_3D                        = np.arctan( eig_vec_2D_radZ_1[1] / eig_vec_2D_radZ_1[0] ) * 180/M.pi
-		err_INCapp_3D                    = np.arctan( np.sqrt( eig_val_2D_radZ[1]/eig_val_2D_radZ[0] )) * 180/M.pi
+		INCapp_3D                        = np.arctan( eig_vec_2D_radZ_1[1] / eig_vec_2D_radZ_1[0] ) * 180/np.pi
+		err_INCapp_3D                    = np.arctan( np.sqrt( eig_val_2D_radZ[1]/eig_val_2D_radZ[0] )) * 180/np.pi
 
 
 		### 2-D phi, radial & Z-comp plane
@@ -1658,8 +1658,8 @@ def ppol_calc(comp_1, comp_2, comp_Z=[], fix_angles='EQ', Xoffset_in_samples_for
 		eig_vec_2D_radZ_1                = eig_vec_2D_radZ[:,0]
 
 		# derived
-		INCapp_2D                        = np.arctan( eig_vec_2D_radZ_1[1] / eig_vec_2D_radZ_1[0] ) * 180/M.pi
-		err_INCapp_2D                    = np.arctan( np.sqrt( eig_val_2D_radZ[1]/eig_val_2D_radZ[0] )) * 180/M.pi
+		INCapp_2D                        = np.arctan( eig_vec_2D_radZ_1[1] / eig_vec_2D_radZ_1[0] ) * 180/np.pi
+		err_INCapp_2D                    = np.arctan( np.sqrt( eig_val_2D_radZ[1]/eig_val_2D_radZ[0] )) * 180/np.pi
 		SNR_2D_radZ                      = (eig_val_2D_radZ[0] - eig_val_2D_radZ[1]) / eig_val_2D_radZ[1]			# De Meersman et al. (2006)
 		Rect_RZ                          = 1 - eig_val_2D_radZ[1]/eig_val_2D_radZ[0]								# rectilinearity in radial-vertical plane (1 for linearised, 0 for circular polarisation). Jurkevics (1988)
 
@@ -1723,19 +1723,23 @@ def normalise(data, scale_to_between=[]):
 	"""
 	Normalise passed data (array-like).
 	`scale_to_between` is list with 2 elements.
+
+	Returns data as was if length of data is one or two.
 	"""
 
+	data = np.asarray( data )
 	
-	if len(data) == 0:
+	if len(data)==0 or len(data)==1:
 		return data
 
-	data = np.array(data)
+	if isinstance(scale_to_between, (int, float)):
+		scale_to_between = [scale_to_between]
 
 	if scale_to_between:
+		if len(scale_to_between) == 1:
+			scale_to_between = [0, scale_to_between[0]]
 		scale_to_between.sort()
-		if len(data) == 1:
-			data /= data * scale_to_between[1]
-			return data
+
 		scale  = abs(scale_to_between[-1]-scale_to_between[0]) / 2.
 		drange = max(data)-min(data)
 		data   = data * 2 / drange
@@ -1744,9 +1748,6 @@ def normalise(data, scale_to_between=[]):
 		data  += scale_to_between[-1]-scale 	# eacht trace has y values filling range `scale_to_between`
 	
 	else:
-		if len(data) == 1:
-			data /= data
-			return data
 		data /= max(abs(data))
 
 	return data
@@ -1761,7 +1762,7 @@ def snr(data, axis=0, ddof=1):
 	sd_d = data.std(axis=axis, ddof=ddof)
 	return np.where(sd_d==0, 0, mean/sd_d)
 
-#InSight time conversions
+# InSight time conversions
 def solify(UTC_time, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
 
 	"""
@@ -1772,8 +1773,12 @@ def solify(UTC_time, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
 	    None
 	"""
 
+	SEC_PER_DAY_EARTH = 86400
+	SEC_PER_DAY_MARS  = 88775.2440 #before: 88775.244147	
+
 	MIT = (UTC_time - sol0) / SEC_PER_DAY_MARS
 	t   = UTCDateTime((MIT - 1) * SEC_PER_DAY_EARTH)
+
 	return t
 def UTCify(LMST_time, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
 	"""
@@ -1783,12 +1788,101 @@ def UTCify(LMST_time, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
 	:license:
 	    None
 	"""
+	SEC_PER_DAY_EARTH = 86400
+	SEC_PER_DAY_MARS  = 88775.2440 #before: 88775.244147
 
 	MIT      = float(LMST_time) / SEC_PER_DAY_EARTH + 1
 	UTC_time = UTCDateTime(MIT * SEC_PER_DAY_MARS + float(sol0))
-	return UTC_time
 
-# illustrational
+	return UTC_time
+def sol2UTC(sol):
+	# Convert a float, interpreted as InSight sol, to UTC.
+	return UTCify(UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=sol-1))
+def ptime(time=None):
+
+	"""
+	PRINT TIME
+
+	Small script to display current UTC time in most common ways.
+	Pass a terrestrial time if you pass one.
+	"""
+
+	if time:
+		print(u'TIME GIVEN')
+		print(u'----------')
+		if isinstance(time, float):										# MATLAB
+			time = mdates.num2date(time)
+		elif isinstance(time, int):										# sol
+			time = sol2UTC(time).datetime
+		elif isinstance(time, (UTCDateTime,datetime.datetime,str)):		# typical obspy str
+			time = UTCDateTime(time).datetime
+		else:															# others
+			print(u'Passed time variable has no valid format (float, str, datetime.datetime, or UTCDateTime.)')
+	else:
+		print(u'TIME UTC NOW')
+		print(u'------------')
+		time = datetime.datetime.utcnow()
+
+	print(u'MatLab:         %s'                % mdates.date2num(time))
+	print(u'DateTime:       %s'                % time.__repr__())
+	print(u"UTCDateTime:    UTCDateTime('%s')" % UTCDateTime(time))
+	print(u'LocalMeanSolar: %sM%s'             % (solify(UTCDateTime(time)).julday, solify(UTCDateTime(time)).strftime('%H:%M:%S')))
+def ltime(hms, sols_range=[], is_UTC=False):
+
+	"""
+	LIST TIME
+	
+	Small script to display a range of time. Useful e.g.
+	when having to check data at a specific UTC or LMST
+	each day / sol.
+
+	`sol_range` can be a list or single numer, e.g.:
+	   - sols_range=[17,193] (displays these sols)
+	   - sols_range=17       (displays last 17 sols)
+	If no `sols_range` specified, the last 10 sols are displayed by default.
+
+	`is_UTC`=True means `hms` is given as UTC and you would like to
+	see the corresponding LMST with respect to `sols_range`.
+	`is_UTC`=False means `hms` is given as LMST and you would like to
+	see the corresponding UTC with respect to `sols_range`.
+	"""
+
+	## VARIABLES
+	hms = '%06d' % ( int(hms)*10**(6-len(str(hms))) )
+
+	if isinstance(sols_range, (float, int)):
+		sols_range = [sols_range]
+	if not sols_range or len(sols_range)==1:
+		UTC_now    = UTCDateTime( time.time() )
+		LMST_now   = solify(UTC_now)
+
+		if len(sols_range)==1:
+			sols_range = [LMST_now.julday-sols_range[0], LMST_now.julday-1]
+		else:
+			sols_range = [LMST_now.julday-10,            LMST_now.julday-1]
+
+
+	## PRINTS
+	print('UTC                    LMST')
+	print('---                    ----')	
+	for sol in range(sols_range[0], sols_range[1]+1):
+
+		if is_UTC:
+			time_str_ymd = sol2UTC(sol).strftime('%Y-%m-%d')
+			time_str_HMS = '%s:%s:%s' % (hms[0:2], hms[2:4], hms[4:6])
+
+			UTC_time     = UTCDateTime( time_str_ymd + 'T' + time_str_HMS)
+			LMST_time    = solify(UTC_time)
+
+
+		else:
+			LMST_time    = UTCDateTime('1970-01-01T%s:%s:%s.000000Z' % (hms[:2], hms[2:4], hms[4:])) + datetime.timedelta(days=sol)
+			UTC_time     = UTCify(LMST_time)
+
+
+		print('%s    %sS%s' % (UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), LMST_time.julday, LMST_time.strftime('%H:%M:%S')))
+
+# Illustrational
 def quick_plot(*y, x=[], data_labels=[], lw=1.5, win_title='', title='', xlabel='x-axis', ylabel='y-axis', x_invert=False, y_invert=False, xlim=(), ylim=(), verts=(), outfile=None, show=True):
 
 	"""
@@ -2019,6 +2113,6 @@ class Arrow3D(FancyArrowPatch):
 
 ################  _ _ N A M E _ _ = = " _ _ M A I N _ _ "  ################
 if __name__ == "__main__":
-	#argues = sys.argv
-	#eval(argues[1])
-	pass
+	argues = sys.argv
+	eval(argues[1])
+	#print('Define Testing')

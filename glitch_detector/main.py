@@ -1,20 +1,43 @@
-#!/usr/bin/env python
+#!/usr/bin/env ipython
 # -*- coding: utf-8 -*-
 
-#----------------------------------------------------------------------
+#----------------------------------------------------------------------------
 #   Filename:  main.py
-""" Useful functions for glitch detection, including plot scripts. """
+""" Useful functions for SEIS' VBB & SP glitches, including plot scripts. """
 #   Author:    John - Robert Scholz
 #   Email:     john.robert.scholz@gmail.com
 #   Date:      Jan 2019 - present
 #   License:   TBD
-#---------------------------------------------------------------------
+#----------------------------------------------------------------------------
 
 
-from toolbox import Stream2, moving_window, snr, ppol_calc, solify, UTCify, quick_plot
+#####  python modules import  #####
+import os
+import re
+import sys
+import time
+import datetime
+import numpy as np
+from collections import Counter
+
+#####  matplotlib modules import  #####
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+plt.switch_backend('TKAgg')
+import matplotlib.dates as mdates
+import matplotlib.ticker as mticker
+import matplotlib.cm as cmx
+from mpl_toolkits.mplot3d import Axes3D, proj3d
+
+#####  obspy modules import  #####
+from obspy import UTCDateTime
+
+#####  toolbox modules import  #####
+from toolbox import read2, Stream2, sec2hms, moving_window, snr, normalise, ppol_calc, solify, UTCify, ptime, quick_plot
 
 
-### two different glitch detectors
+
+### GLITCH DETECTION: two different glitch detectors
 def glitch_detector1(RAW_UVW, window=5, step_in_samples=10, input_polar=None, threshold=0.97, glitch_length=25, plot=False):
 
 	"""
@@ -75,25 +98,57 @@ def glitch_detector1(RAW_UVW, window=5, step_in_samples=10, input_polar=None, th
 	"""
 
 
-	### ENTRY OF SCRIPT
-	now           = time.time()
-	stUVW         = read2(RAW_UVW)
-	stUVW._set_inventory()
-	stUVW.filtering(4)
-	output_polar  = os.path.join( os.path.dirname(stUVW.origin), 'polarization_' + '.'.join(os.path.basename(stUVW.origin).split('.')[:-1]) + '.txt' )
-	output_glitch = os.path.join( os.path.dirname(stUVW.origin), 'glitches_'     + '.'.join(os.path.basename(stUVW.origin).split('.')[:-1]) + '.txt' )
-	output_plot   = os.path.join( os.path.dirname(stUVW.origin), 'plot_'         + '.'.join(os.path.basename(stUVW.origin).split('.')[:-1]) + '.png' )
+	now = time.time()
 
 
 
-	stZNE = stUVW.copy()
-	streamZNE.rotate('->ZNE', inventory=stZNE.inventory, components='UVW')
-	stZNE.sort(reverse=True)	# sorted: Z, N, E
-	stUVW.sort(reverse=False)	# sorted: U, V, W
-	print()
-	print('INPUT STREAMS:')
-	print(streamUVW)
-	print(streamZNE)
+	### PREPARE DATA, YA' KNOW, RAW & DIS & VEL & ACC as UVW & ZNE ..
+	stRAW = read(RAW_UVW)
+	stRAW.sort(reverse=False)	# if you change this, god may stand by your side
+	stRAW.trim_common() 		# all start with very same time (not necessary, but still desirable)
+	stRAW.truncate(0.4,0.7)
+	stRAW._set_inventory()		# get & set station inventory for stream (response information)
+
+	stDIS = stRAW.copy()
+	stDIS.remove_response(inventory=stRAW.inventory, output='DISP', pre_filt=None, water_level=60)
+	stZNE = stDIS.copy()
+	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
+	stZNE.sort(reverse=True)
+	stDIS = stDIS + stZNE  		# having in DIS: UVWZNE (in that order)
+
+	stVEL = stRAW.copy()
+	stVEL.remove_response(inventory=stRAW.inventory, output='VEL',  pre_filt=None, water_level=60)
+	stZNE = stVEL.copy()
+	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
+	stZNE.sort(reverse=True)
+	stVEL = stVEL + stZNE  		# having in VEL: UVWZNE (in that order)
+
+	stACC = stRAW.copy()
+	stACC.remove_response(inventory=stRAW.inventory, output='ACC',  pre_filt=None, water_level=60)
+	stACC_fil = stACC.copy()
+	stACC_fil.filtering(ACCfilter)	# LP <1 Hz to better see step in acceleration
+	stACC_fil.filtering(4)	# LP <1 Hz to better see step in acceleration
+	stZNE = stACC.copy()
+	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
+	stZNE.sort(reverse=True)
+	stACC = stACC + stZNE  		# having in ACC: UVWZNE (in that order)
+
+	stCON = stRAW.copy()  		# dummy container having to put convolution into 
+
+	stZNE = stRAW.copy()
+	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
+	stZNE.sort(reverse=True)
+	stRAW = stRAW + stZNE
+	stRAW.origin = stZNE.origin  # having in RAW: UVWZNE (in that order)
+
+	output_glitch        = os.path.join( os.path.dirname(stRAW.origin), 'glitches2_' + '.'.join(os.path.basename(stRAW.origin).split('.')[:-1]) + '.txt' )
+	output_plot          = os.path.join( os.path.dirname(stUVW.origin), 'plot2_'     + '.'.join(os.path.basename(stUVW.origin).split('.')[:-1]) + '.png' )	
+	data_start, data_end = stRAW.times
+	data_delta           = stRAW[0].stats.delta	
+
+
+	print(u'INPUT STREAM:')
+	print( str(stRAW).replace('\n','\n  '))
 
 
 	### CREATE POLARIZATION DATA TO LATER DETECT GLITCHES ON 
@@ -383,65 +438,76 @@ def glitch_detector1(RAW_UVW, window=5, step_in_samples=10, input_polar=None, th
 			streamZNE.normalise([-1,0])
 			stream.normalise([0,1])
 			quick_plot(*streamZNE, *stream, data_labels=(streamZNE[0].id, streamZNE[1].id, streamZNE[2].id, 'Rectinilinearity'), verts=glitch_starts, title='%s glitches' % len(glitch_starts), xlabel='Time', ylabel='Normalized Amplitude', show=False, outfile=output_plot)
-def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e-7, glitch_mindist=5, glitch_length=25, plot=True):
+			print(u'Outfile plot:        %s' % output_plot)
+def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e-7, glitch_mindist=5, glitch_length=25, plot=False):
 	
 
 	"""
+	SETTINGS:
+		VBB: - stepwin_length_total = 100
+		     - threshold = 1e-7
+		 SP: - stepwin_length_total = 150
+		     - threshold = 5e-6
+
 	https://stackoverflow.com/questions/48000663/step-detection-in-one-dimensional-data
+
+	Hard-coded FIR pre-cursor offset of 1 s.
 	"""
 
-	now = time.time()
+	now           = time.time()
+	output_glitch = os.path.join( os.path.dirname(RAW_UVW), 'glitches2_' + '.'.join(os.path.basename(RAW_UVW).split('.')[:-1]) + '.txt' )
+	output_plot   = os.path.join( os.path.dirname(RAW_UVW), 'plot2_'     + '.'.join(os.path.basename(RAW_UVW).split('.')[:-1]) + '.png' )	
 
 
 
 	### PREPARE DATA, YA' KNOW, RAW & DIS & VEL & ACC as UVW & ZNE ..
-	stRAW = read(RAW_UVW)
+	stRAW = read2(RAW_UVW)
 	stRAW.sort(reverse=False)	# if you change this, god may stand by your side
 	stRAW.trim_common() 		# all start with very same time (not necessary, but still desirable)
-	stRAW.truncate(0.4,0.7)
+	#stRAW.truncate(0.4,0.7)
 	stRAW._set_inventory()		# get & set station inventory for stream (response information)
+	data_start, data_end = stRAW.times
+	data_delta           = stRAW[0].stats.delta
+	print()
+	print(u'INPUT STREAM:')
+	print( str(stRAW).replace('\n','\n  '))
+
+	stGAI = stRAW.copy()
+	stGAI.gain_correction()
+	stZNE = stGAI.copy()
+	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
+	stZNE.sort(reverse=True)
+	stGAI += stZNE  			# having in GAI (overall sensitivy and gain corrected): UVWZNE (in that order)
 
 	stDIS = stRAW.copy()
 	stDIS.remove_response(inventory=stRAW.inventory, output='DISP', pre_filt=None, water_level=60)
 	stZNE = stDIS.copy()
 	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
 	stZNE.sort(reverse=True)
-	stDIS = stDIS + stZNE  		# having in DIS: UVWZNE (in that order)
+	stDIS += stZNE  			# having in DIS: UVWZNE (in that order)
 
 	stVEL = stRAW.copy()
 	stVEL.remove_response(inventory=stRAW.inventory, output='VEL',  pre_filt=None, water_level=60)
 	stZNE = stVEL.copy()
 	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
 	stZNE.sort(reverse=True)
-	stVEL = stVEL + stZNE  		# having in VEL: UVWZNE (in that order)
+	stVEL += stZNE  			# having in VEL: UVWZNE (in that order)
 
 	stACC = stRAW.copy()
 	stACC.remove_response(inventory=stRAW.inventory, output='ACC',  pre_filt=None, water_level=60)
 	stACC_fil = stACC.copy()
 	stACC_fil.filtering(ACCfilter)	# LP <1 Hz to better see step in acceleration
-	stACC_fil.filtering(4)	# LP <1 Hz to better see step in acceleration
+	stACC_fil.filtering(4)		    # DOES IT MAKE A DIFFERENCE FOR GLITCH DETECTIONS?
 	stZNE = stACC.copy()
 	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
 	stZNE.sort(reverse=True)
-	stACC = stACC + stZNE  		# having in ACC: UVWZNE (in that order)
+	stACC += stZNE  			# having in ACC: UVWZNE (in that order)
 
-	stCON = stRAW.copy()  		# dummy container having to put convolution into 
-
-	stZNE = stRAW.copy()
-	stZNE.rotate('->ZNE', inventory=stZNE.inventory, components=('UVW'))
-	stZNE.sort(reverse=True)
-	stRAW = stRAW + stZNE
-	stRAW.origin = stZNE.origin  # having in RAW: UVWZNE (in that order)
+	stCON = stRAW.copy()  		# dummy container having to put convolution calculations into 
 
 
-
-	# DOES IT MAKES SENSE --> ZNE in RAW? Should rather remove gain?
-	st = Stream2(stRAW+stDIS+stVEL+stACC+stACC_fil+stCON)
-	st.taper(5) 				# in per cent
-
-	output_glitch        = os.path.join( os.path.dirname(stRAW.origin), 'glitches2_' + '.'.join(os.path.basename(stRAW.origin).split('.')[:-1]) + '.txt' )
-	data_start, data_end = stRAW.times
-	data_delta           = stRAW[0].stats.delta	
+	st = Stream2(stRAW+stGAI+stDIS+stVEL+stACC+stACC_fil+stCON)
+	st.taper(0.05) 				# SHOULD PERHAPS MAKE AT BEGINNING FOR stRAW (to ease response effects at edges of data?!)
 
 
 
@@ -493,9 +559,9 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 
 
 
-	### UNIFY GLITCH START TIMES ACROSS UVW-COMPONENTS
+	### UNIFY GLITCH START TIMES ACROSS UVW-COMPONENTS (using parameter: `glitch_mindist` given in seconds)
 	glitch_start_times = np.array(glitch_start_times)
-	flat_starts        = np.sort( np.hstack(glitch_start_times) )		# np.flatten wouldn't work because sublists contain different of elements
+	flat_starts        = np.sort( np.hstack(glitch_start_times) )	# np.flatten wouldn't work because sublists contain different number of elements ..
 	
 	glitch_starts      = {}
 	shifter_avoid      = 0
@@ -523,7 +589,7 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 
 		try:
 			glitch_starts[str(unified_glitch_start)] += unified_glitch_comps
-		except KeyError: 	# no yet in dictionary
+		except KeyError: 	# not yet in dictionary
 			glitch_starts[str(unified_glitch_start)]  = unified_glitch_comps
 
 		#print(k, shifter_avoid)
@@ -542,16 +608,11 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 
 
 
-	### SHELLING GLITCHES & CALCULATE THEIR PARAMETERS / AMPLITUDES
-	header         = u'   0                    1                    2         3         4         5          6          7          8          9         10         11         12         13         14         15         16         17         18         19         20         21         22         23         24         25         26         27         28         29         30         31         32         33         34         35         36         37         38         39         40         41         42        43          44         45         46         47         48         49         50         51         52         53       54       55       56       57       58       59       60       61       62       63       64       65\n' \
-	                 u' NUM         GLITCH-START           GLITCH-END  U-GLITCH  V-GLITCH  W-GLITCH      U-RAW      V-RAW      W-RAW      Z-RAW      N-RAW      E-RAW      U-DIS      V-DIS      W-DIS      Z-DIS      N-DIS      E-DIS      U-VEL      V-VEL      W-VEL      Z-VEL      N-VEL      E-VEL      U-ACC      V-ACC      W-ACC      Z-ACC      N-ACC      E-ACC  SNR_U-RAW  SNR_V-RAW  SNR_W-RAW  SNR_Z-RAW  SNR_N-RAW  SNR_E-RAW  SNR_U-DIS  SNR_V-DIS  SNR_W-DIS  SNR_Z-DIS  SNR_N-DIS  SNR_E-DIS  SNR_U-VEL  SNR_V-VEL  SNR_W-VEL  SNR_Z-VEL  SNR_N-VEL  SNR_E-VEL  SNR_U-ACC  SNR_V-ACC  SNR_W-ACC  SNR_Z-ACC  SNR_N-ACC  SNR_E-ACC  BAZ-RAW  INC-RAW  POL-RAW  BAZ-DIS  INC-DIS  POL-DIS  BAZ-VEL  INC-VEL  POL-VEL  BAZ-ACC  INC-ACC  POL-ACC\n' \
-	                 u'----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------'
-	line_formatter = u'%05d:  %15s  %15s  %8d  %8d  %8d  %9d  %9d  %9d  %9d  %9d  %9d  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %7.1f  %7.1f  %7.3f  %7.1f  %7.1f  %7.3f  %7.1f  %7.1f  %7.3f  %7.1f  %7.1f  %7.3f'
-
-	print(u'INPUT STREAM:')
-	print(stRAW)
-	#print()
-	#print(u'# '+header)
+	### SHELLING GLITCHES & CALCULATE THEIR AMPLITUDES, SNRs, POLARZATIONS, BACK-AZIMUTH & INCIDENCE ANGLES
+	header         = u'   0                    1                    2         3         4         5          6          7          8          9         10         11         12         13         14         15         16         17         18         19         20         21         22         23         24         25         26         27         28         29         30         31         32         33         34         35         36         37         38         39         40         41         42        43          44         45         46         47         48         49         50         51         52         53         54         55         56         57         58         59       60       61       62       63       64       65       66       67       68       69       70       71\n' \
+	                 u' NUM         GLITCH-START           GLITCH-END  U-GLITCH  V-GLITCH  W-GLITCH      U-RAW      V-RAW      W-RAW      U-GAI      V-GAI      W-GAI      Z-GAI      N-GAI      E-GAI      U-DIS      V-DIS      W-DIS      Z-DIS      N-DIS      E-DIS      U-VEL      V-VEL      W-VEL      Z-VEL      N-VEL      E-VEL      U-ACC      V-ACC      W-ACC      Z-ACC      N-ACC      E-ACC  SNR_U-RAW  SNR_V-RAW  SNR_W-RAW  SNR_U-GAI  SNR_V-GAI  SNR_W-GAI  SNR_Z-GAI  SNR_N-GAI  SNR_E-GAI  SNR_U-DIS  SNR_V-DIS  SNR_W-DIS  SNR_Z-DIS  SNR_N-DIS  SNR_E-DIS  SNR_U-VEL  SNR_V-VEL  SNR_W-VEL  SNR_Z-VEL  SNR_N-VEL  SNR_E-VEL  SNR_U-ACC  SNR_V-ACC  SNR_W-ACC  SNR_Z-ACC  SNR_N-ACC  SNR_E-ACC  BAZ-GAI  INC-GAI  POL-GAI  BAZ-DIS  INC-DIS  POL-DIS  BAZ-VEL  INC-VEL  POL-VEL  BAZ-ACC  INC-ACC  POL-ACC\n' \
+	                 u'----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------'
+	line_formatter = u'%05d:  %15s  %15s  %8d  %8d  %8d  %9d  %9d  %9d  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %7.1f  %7.1f  %7.3f  %7.1f  %7.1f  %7.3f  %7.1f  %7.1f  %7.3f  %7.1f  %7.1f  %7.3f'
 
 	glitches       = []
 	glitch_counter = 0
@@ -564,27 +625,33 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 	
 		# prepare different streams
 		stRAW_window = stRAW.copy()
+		stGAI_window = stGAI.copy()
 		stDIS_window = stDIS.copy()
 		stVEL_window = stVEL.copy()
 		stACC_window = stACC.copy()
 		
 		stRAW_window.trim(starttime=glitch_start-60, endtime=glitch_start+glitch_length+60)
+		stGAI_window.trim(starttime=glitch_start-60, endtime=glitch_start+glitch_length+60)
 		stDIS_window.trim(starttime=glitch_start-60, endtime=glitch_start+glitch_length+60)
 		stVEL_window.trim(starttime=glitch_start-60, endtime=glitch_start+glitch_length+60)
 		stACC_window.trim(starttime=glitch_start-60, endtime=glitch_start+glitch_length+60)
 		 
 		stRAW_window.detrend('demean')
+		stGAI_window.detrend('demean')
 		stDIS_window.detrend('demean')
 		stVEL_window.detrend('demean')
 		stACC_window.detrend('demean')
 
 		# calculate SNRs on demeaned window (SNR=0 means the mean of the data window is zero!)
-		SNR_U_RAW = snr(stDIS_window[0].data, ddof=1)
-		SNR_V_RAW = snr(stDIS_window[1].data, ddof=1)
-		SNR_W_RAW = snr(stDIS_window[2].data, ddof=1)
-		SNR_Z_RAW = snr(stDIS_window[3].data, ddof=1)
-		SNR_N_RAW = snr(stDIS_window[4].data, ddof=1)
-		SNR_E_RAW = snr(stDIS_window[5].data, ddof=1)
+		SNR_U_RAW = snr(stRAW_window[0].data, ddof=1)
+		SNR_V_RAW = snr(stRAW_window[1].data, ddof=1)
+		SNR_W_RAW = snr(stRAW_window[2].data, ddof=1)
+		SNR_U_GAI = snr(stGAI_window[0].data, ddof=1)
+		SNR_V_GAI = snr(stGAI_window[1].data, ddof=1)
+		SNR_W_GAI = snr(stGAI_window[2].data, ddof=1)
+		SNR_Z_GAI = snr(stGAI_window[3].data, ddof=1)
+		SNR_N_GAI = snr(stGAI_window[4].data, ddof=1)
+		SNR_E_GAI = snr(stGAI_window[5].data, ddof=1)
 		SNR_U_DIS = snr(stDIS_window[0].data, ddof=1)
 		SNR_V_DIS = snr(stDIS_window[1].data, ddof=1)
 		SNR_W_DIS = snr(stDIS_window[2].data, ddof=1)
@@ -606,6 +673,7 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 
 		# trim streams further to glitch window for amplitude extractions
 		stRAW_window.trim(starttime=glitch_start, endtime=glitch_start+glitch_length)
+		stGAI_window.trim(starttime=glitch_start, endtime=glitch_start+glitch_length)
 		stDIS_window.trim(starttime=glitch_start, endtime=glitch_start+glitch_length)
 		stVEL_window.trim(starttime=glitch_start, endtime=glitch_start+glitch_length)
 		stACC_window.trim(starttime=glitch_start, endtime=glitch_start+glitch_length)
@@ -613,9 +681,12 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 		data_U_RAW = stRAW_window[0].data
 		data_V_RAW = stRAW_window[1].data
 		data_W_RAW = stRAW_window[2].data
-		data_Z_RAW = stRAW_window[3].data
-		data_N_RAW = stRAW_window[4].data
-		data_E_RAW = stRAW_window[5].data
+		data_U_GAI = stGAI_window[0].data
+		data_V_GAI = stGAI_window[1].data
+		data_W_GAI = stGAI_window[2].data
+		data_Z_GAI = stGAI_window[3].data
+		data_N_GAI = stGAI_window[4].data
+		data_E_GAI = stGAI_window[5].data
 		data_U_DIS = stDIS_window[0].data
 		data_V_DIS = stDIS_window[1].data
 		data_W_DIS = stDIS_window[2].data
@@ -637,7 +708,6 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 
 
 		# glitch flag per UVW-component 
-		versatz      = int(.1*glitch_length/data_delta)	# in samples, to avoid FIR-precursors 
 		if 'U' in comps:
 			U_GLITCH = 1
 		else:
@@ -655,42 +725,47 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 
 
 		# get UVWZNE amplitudes of glitches
-		U_RAW = data_U_RAW[versatz:][np.argmax(np.abs(data_U_RAW[versatz:]))]
-		U_DIS = data_U_DIS[versatz:][np.argmax(np.abs(data_U_DIS[versatz:]))]
-		U_VEL = data_U_VEL[versatz:][np.argmax(np.abs(data_U_VEL[versatz:]))]
-		U_ACC = data_U_ACC[versatz:][np.argmax(np.abs(data_U_ACC[versatz:]))]
+		offset = int(1./data_delta)	# 1 second (in samples) offset to avoid FIR-precursors 
 		
-		V_RAW = data_V_RAW[versatz:][np.argmax(np.abs(data_V_RAW[versatz:]))]
-		V_DIS = data_V_DIS[versatz:][np.argmax(np.abs(data_V_DIS[versatz:]))]
-		V_VEL = data_V_VEL[versatz:][np.argmax(np.abs(data_V_VEL[versatz:]))]
-		V_ACC = data_V_ACC[versatz:][np.argmax(np.abs(data_V_ACC[versatz:]))]
+		U_RAW  = data_U_RAW[offset:][np.argmax(np.abs(data_U_RAW[offset:]))]
+		U_GAI  = data_U_GAI[offset:][np.argmax(np.abs(data_U_GAI[offset:]))]
+		U_DIS  = data_U_DIS[offset:][np.argmax(np.abs(data_U_DIS[offset:]))]
+		U_VEL  = data_U_VEL[offset:][np.argmax(np.abs(data_U_VEL[offset:]))]
+		U_ACC  = data_U_ACC[offset:][np.argmax(np.abs(data_U_ACC[offset:]))]
 		
-		W_RAW = data_W_RAW[versatz:][np.argmax(np.abs(data_W_RAW[versatz:]))]
-		W_DIS = data_W_DIS[versatz:][np.argmax(np.abs(data_W_DIS[versatz:]))]
-		W_VEL = data_W_VEL[versatz:][np.argmax(np.abs(data_W_VEL[versatz:]))]
-		W_ACC = data_W_ACC[versatz:][np.argmax(np.abs(data_W_ACC[versatz:]))]
+		V_RAW  = data_V_RAW[offset:][np.argmax(np.abs(data_V_RAW[offset:]))]
+		V_GAI  = data_V_GAI[offset:][np.argmax(np.abs(data_V_GAI[offset:]))]
+		V_DIS  = data_V_DIS[offset:][np.argmax(np.abs(data_V_DIS[offset:]))]
+		V_VEL  = data_V_VEL[offset:][np.argmax(np.abs(data_V_VEL[offset:]))]
+		V_ACC  = data_V_ACC[offset:][np.argmax(np.abs(data_V_ACC[offset:]))]
 		
-		Z_RAW = data_Z_RAW[versatz:][np.argmax(np.abs(data_Z_RAW[versatz:]))]
-		Z_DIS = data_Z_DIS[versatz:][np.argmax(np.abs(data_Z_DIS[versatz:]))]
-		Z_VEL = data_Z_VEL[versatz:][np.argmax(np.abs(data_Z_VEL[versatz:]))]
-		Z_ACC = data_Z_ACC[versatz:][np.argmax(np.abs(data_Z_ACC[versatz:]))]
+		W_RAW  = data_W_RAW[offset:][np.argmax(np.abs(data_W_RAW[offset:]))]
+		W_GAI  = data_W_GAI[offset:][np.argmax(np.abs(data_W_GAI[offset:]))]
+		W_DIS  = data_W_DIS[offset:][np.argmax(np.abs(data_W_DIS[offset:]))]
+		W_VEL  = data_W_VEL[offset:][np.argmax(np.abs(data_W_VEL[offset:]))]
+		W_ACC  = data_W_ACC[offset:][np.argmax(np.abs(data_W_ACC[offset:]))]
 		
-		N_RAW = data_N_RAW[versatz:][np.argmax(np.abs(data_N_RAW[versatz:]))]
-		N_DIS = data_N_DIS[versatz:][np.argmax(np.abs(data_N_DIS[versatz:]))]
-		N_VEL = data_N_VEL[versatz:][np.argmax(np.abs(data_N_VEL[versatz:]))]
-		N_ACC = data_N_ACC[versatz:][np.argmax(np.abs(data_N_ACC[versatz:]))]
+		Z_GAI  = data_Z_GAI[offset:][np.argmax(np.abs(data_Z_GAI[offset:]))]
+		Z_DIS  = data_Z_DIS[offset:][np.argmax(np.abs(data_Z_DIS[offset:]))]
+		Z_VEL  = data_Z_VEL[offset:][np.argmax(np.abs(data_Z_VEL[offset:]))]
+		Z_ACC  = data_Z_ACC[offset:][np.argmax(np.abs(data_Z_ACC[offset:]))]
 		
-		E_RAW = data_E_RAW[versatz:][np.argmax(np.abs(data_E_RAW[versatz:]))]
-		E_DIS = data_E_DIS[versatz:][np.argmax(np.abs(data_E_DIS[versatz:]))]
-		E_VEL = data_E_VEL[versatz:][np.argmax(np.abs(data_E_VEL[versatz:]))]
-		E_ACC = data_E_ACC[versatz:][np.argmax(np.abs(data_E_ACC[versatz:]))]
+		N_GAI  = data_N_GAI[offset:][np.argmax(np.abs(data_N_GAI[offset:]))]
+		N_DIS  = data_N_DIS[offset:][np.argmax(np.abs(data_N_DIS[offset:]))]
+		N_VEL  = data_N_VEL[offset:][np.argmax(np.abs(data_N_VEL[offset:]))]
+		N_ACC  = data_N_ACC[offset:][np.argmax(np.abs(data_N_ACC[offset:]))]
+		
+		E_GAI  = data_E_GAI[offset:][np.argmax(np.abs(data_E_GAI[offset:]))]
+		E_DIS  = data_E_DIS[offset:][np.argmax(np.abs(data_E_DIS[offset:]))]
+		E_VEL  = data_E_VEL[offset:][np.argmax(np.abs(data_E_VEL[offset:]))]
+		E_ACC  = data_E_ACC[offset:][np.argmax(np.abs(data_E_ACC[offset:]))]
 
 
-		# get glitch BAZ, INC, and POL
-		phi_3D_RAW, INC_3D_RAW, Rec_3D_RAW = np.array( ppol_calc(data_N_RAW, data_E_RAW, data_Z_RAW, fix_angles='AMP', Xoffset_in_samples_for_amplitude=versatz) )[[1,6,10]]
-		phi_3D_DIS, INC_3D_DIS, Rec_3D_DIS = np.array( ppol_calc(data_N_DIS, data_E_DIS, data_Z_DIS, fix_angles='AMP', Xoffset_in_samples_for_amplitude=versatz) )[[1,6,10]]
-		phi_3D_VEL, INC_3D_VEL, Rec_3D_VEL = np.array( ppol_calc(data_N_VEL, data_E_VEL, data_Z_VEL, fix_angles='AMP', Xoffset_in_samples_for_amplitude=versatz) )[[1,6,10]]
-		phi_3D_ACC, INC_3D_ACC, Rec_3D_ACC = np.array( ppol_calc(data_N_ACC, data_E_ACC, data_Z_ACC, fix_angles='AMP', Xoffset_in_samples_for_amplitude=versatz) )[[1,6,10]]
+		# get glitch BAZ, INC, and POL (=rectinilinearity)
+		phi_3D_GAI, INC_3D_GAI, Rec_3D_GAI = np.asarray( ppol_calc(data_N_GAI, data_E_GAI, data_Z_GAI, fix_angles='AMP', Xoffset_in_samples_for_amplitude=offset) )[[1,6,10]]
+		phi_3D_DIS, INC_3D_DIS, Rec_3D_DIS = np.asarray( ppol_calc(data_N_DIS, data_E_DIS, data_Z_DIS, fix_angles='AMP', Xoffset_in_samples_for_amplitude=offset) )[[1,6,10]]
+		phi_3D_VEL, INC_3D_VEL, Rec_3D_VEL = np.asarray( ppol_calc(data_N_VEL, data_E_VEL, data_Z_VEL, fix_angles='AMP', Xoffset_in_samples_for_amplitude=offset) )[[1,6,10]]
+		phi_3D_ACC, INC_3D_ACC, Rec_3D_ACC = np.asarray( ppol_calc(data_N_ACC, data_E_ACC, data_Z_ACC, fix_angles='AMP', Xoffset_in_samples_for_amplitude=offset) )[[1,6,10]]
 
 
 		# assing all to glitch
@@ -703,9 +778,12 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 				 U_RAW, \
 				 V_RAW, \
 				 W_RAW, \
-				 Z_RAW, \
-				 N_RAW, \
-				 E_RAW, \
+				 U_GAI, \
+				 V_GAI, \
+				 W_GAI, \
+				 Z_GAI, \
+				 N_GAI, \
+				 E_GAI, \
 				 U_DIS, \
 				 V_DIS, \
 				 W_DIS, \
@@ -727,9 +805,12 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 				 SNR_U_RAW, \
 				 SNR_V_RAW, \
 				 SNR_W_RAW, \
-				 SNR_Z_RAW, \
-				 SNR_N_RAW, \
-				 SNR_E_RAW, \
+				 SNR_U_GAI, \
+				 SNR_V_GAI, \
+				 SNR_W_GAI, \
+				 SNR_Z_GAI, \
+				 SNR_N_GAI, \
+				 SNR_E_GAI, \
 				 SNR_U_DIS, \
 				 SNR_V_DIS, \
 				 SNR_W_DIS, \
@@ -748,9 +829,9 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 				 SNR_Z_ACC, \
 				 SNR_N_ACC, \
 				 SNR_E_ACC, \
-				 phi_3D_RAW, \
-				 INC_3D_RAW, \
-				 Rec_3D_RAW, \
+				 phi_3D_GAI, \
+				 INC_3D_GAI, \
+				 Rec_3D_GAI, \
 				 phi_3D_DIS, \
 				 INC_3D_DIS, \
 				 Rec_3D_DIS, \
@@ -764,7 +845,7 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 
 		# prapare file output and print into terminal
 		glitches.append(line_formatter % glitch)
-		#print(line_formatter % glitch)
+		print( (line_formatter % glitch)[:111] + ' ..' )
 
 
 
@@ -782,6 +863,7 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 	print(u'Data SPS:            %sHz (%ss)'       % (1./data_delta, data_delta))
 	print()
 	print(u'Step window length:  %s samples'       % stepwin_length_total)
+	print(u'Acceleration filter: %s'               % stACC_fil._get_filter_str())
 	print(u'Threshold:           %s'               % threshold)
 	print(u"Glitches' min dist:  %ss"              % glitch_mindist)
 	print(u"Glitch length (fix): %ss"              % glitch_length)
@@ -820,16 +902,560 @@ def glitch_detector2(RAW_UVW, stepwin_length_total=80, ACCfilter=3, threshold=1e
 		stVEL.normalise([mi-3*mi, ma-3*mi])
 		stACC.normalise([mi-4*mi, ma-4*mi])
 
-		quick_plot(stCON[2], stACC_fil[2], stRAW[2], stDIS[2], stVEL[2], stACC[2], data_labels=('W CON','W ACC-FIL','W RAW','W DIS','W VEL','W ACC'), title='%s glitches' % glitch_counter, verts=glitch_starts_W, xlabel='Time', ylabel='Amplitude')
+		quick_plot(stCON[2], stACC_fil[2], stRAW[2], stDIS[2], stVEL[2], stACC[2], data_labels=('W CON','W ACC-FIL','W RAW','W DIS','W VEL','W ACC'), title='%s glitches' % glitch_counter, verts=glitch_starts_W, xlabel='Time', ylabel='Amplitude', outfile=output_plot)
 		#quick_plot(stCON[2], stACC_fil[2], stACC_fil2[2],  stRAW[2], data_labels=('W CON', 'W ACC FIL', 'W ACC FIL2', 'W RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_W, xlabel='Time', ylabel='Amplitude')
 		#quick_plot(stACC_fil[0], stACC_fil2[0],  stRAW[0], data_labels=('U ACC FIL', 'U ACC FIL2', 'U RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_U, xlabel='Time', ylabel='Amplitude')
 		#quick_plot(*stCON, *stACC_fil, *stRAW, data_labels=('U CON', 'V CON', 'W CON', 'U ACC FIL', 'V ACC FIL', 'W ACC FIL', 'U RAW', 'V RAW', 'W RAW'), title='%s glitches' % glitch_counter, verts=glitch_starts_all, xlabel='Time', ylabel='Amplitude' )
+		print(u'Outfile plot:        %s' % output_plot)
 
 
-### plot scripts to visualise detected glitches
+### GLTICH REMOVAL: three different removal strategies
+
+
+
+
+### GLITCH REMOVAL EVALUATION: five different criteria
+
+
+
+
+### PLOT SCRIPTS TO VISUALIZE
+# first 6 indices are for UVWZNE amplitudes, 7th for backazimuth angle, 8th for incidence angle 
+# (w.r.t. glitch list as created by glitch_detectors)
+columns = {'GAI' : [9, 10,11,12,13,14,60,61],
+		   'DIS' : [15,16,17,18,19,20,63,64],
+		   'VEL' : [21,22,23,24,25,26,66,67],
+		   'ACC' : [27,28,29,30,31,31,69,70]}
+def glitch_overview_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1e-5, UNIT='DIS', outfile=None):
+	
+	"""
+	Plot glitches, based on glitch file produced by function `glitch_detector()`.
+
+	amp parameters apply to all components: UVWZNE
+	min_amp: at least one component amplitude must be larger
+	max_amp: all component amplitudes must be smaller
+
+	UNIT allows to choose which polarizations you wish to plot.
+
+	Matplotlib colorscale:
+	https://matplotlib.org/3.1.1/tutorials/colors/colormaps.html
+	"""
+
+
+	### PICK FUNCTION
+	picked_already = False
+	def onpick(event):
+		nonlocal picked_already
+		if not picked_already:
+			picked_already = True
+			header         = u'#               UTC          LMST      U-{0}      V-{0}      W-{0}      Z-{0}      N-{0}      E-{0}  BAZ-{0}  INC-{0}'.format(UNIT)
+			print(header)
+
+		indices = event.ind
+		for index in indices:
+			print(u'%s  %sS%s  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %7.1f  %7.1f' % (glitch_starts_UTC[index].strftime('%Y-%m-%dT%H:%M:%S'), 
+																			              glitch_starts_SOL[index].julday, 
+																			              glitch_starts_SOL[index].strftime('%H:%M:%S'),
+																			              float(glitches[index,columns[UNIT][0]]),
+																			              float(glitches[index,columns[UNIT][1]]),
+																			              float(glitches[index,columns[UNIT][2]]),
+																			              float(glitches[index,columns[UNIT][3]]),
+																			              float(glitches[index,columns[UNIT][4]]),
+																			              float(glitches[index,columns[UNIT][5]]),
+																			              float(glitches[index,columns[UNIT][6]]),
+																			              float(glitches[index,columns[UNIT][7]]),
+																			              ))
+		print(u'- - -')
+
+
+
+	### READ GLITCH-FILE
+	all_glitches = []
+
+	for glitch_file in glitch_files:
+		glitches      = np.loadtxt(glitch_file, dtype='str')
+		#glitches      = glitch_exclude(glitches, verbose=False)
+		all_glitches += list(glitches)
+
+	all_glitches = np.array(all_glitches)
+	if LMST_hour or LMST_hour==0:
+		all_glitches = np.array( [e for e in all_glitches if solify(UTCDateTime(e[1])).hour == LMST_hour] )
+
+
+
+	### PREPARE DATA
+	all_glitches = all_glitches[((abs(all_glitches[:,columns[UNIT][0]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][1]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][2]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][3]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][4]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][5]].astype('float'))>=min_amp)) & \
+
+								 (abs(all_glitches[:,columns[UNIT][0]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][1]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][2]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][3]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][4]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][5]].astype('float'))<=max_amp)]
+	sols_range   = np.array( [solify(UTCDateTime(e[1])).julday for e in all_glitches]  )
+	ymax_hist    = Counter( [solify(UTCDateTime(e[1])).julday for e in all_glitches] ).most_common()[0][1]
+
+
+
+	### LMST HOUR EXCLUSION, if wished
+	if LMST_hour or LMST_hour==0:
+		LMST_hours   = np.arange(float(str(LMST_hour).split('-')[0]), float(str(LMST_hour).split('-')[-1])+1)
+		all_glitches = np.array( [e for e in all_glitches if solify(UTCDateTime(e[1])).hour in LMST_hours] )
+
+
+
+    ### ASSIGN NEEDED VARIABLES
+	try:
+		glitch_starts_UTC = np.array( [UTCDateTime(e) for e in all_glitches[:,1]] )
+		glitch_starts_SOL = np.array( [solify(e) for e in glitch_starts_UTC] )
+
+		Z_amps            = np.array( [                float(e)  for e in all_glitches[:,columns[UNIT][3]]] )
+		N_amps            = np.array( [                float(e)  for e in all_glitches[:,columns[UNIT][4]]] )
+		E_amps            = np.array( [                float(e)  for e in all_glitches[:,columns[UNIT][5]]] )
+		phis              = np.array( [    np.pi/180 * float(e)  for e in all_glitches[:,columns[UNIT][6]]] )
+		incs              = np.array( [abs(np.pi/180 * float(e)) for e in all_glitches[:,columns[UNIT][7]]] )
+		sols              = np.array( [solify(e).julday for e in glitch_starts_UTC] )
+		
+
+	except IndexError:	#no glitches for chosen conditions
+		glitch_starts_UTC = np.array( [] )
+		glitch_starts_SOL = np.array( [] )
+
+		Z_amps            = np.array( [] )
+		N_amps            = np.array( [] )
+		E_amps            = np.array( [] )
+		phis              = np.array( [] )
+		incs              = np.array( [] )
+		sols              = np.array( [] )
+
+
+
+	### FIGURE
+	if LMST_hour  or LMST_hour==0:
+		title = 'LMST %02s, %s, %s glitches (UVW: %g ≤ 1comp ≤ %g)' % (LMST_hour, UNIT, len(glitches), min_amp, max_amp)
+	else:
+		title = 'LMST 00:00-24:00, %s, %s glitches (UVW: %g ≤ 1comp ≤ %g)' % (UNIT, len(glitches), min_amp, max_amp)		
+	fig = plt.figure(figsize=(10,10))
+	fig.canvas.set_window_title('glitch detector')
+	fig.suptitle(title, fontsize=11, y=0.99)
+	fig.subplots_adjust(wspace=0.4, hspace=0.4)
+	fig.canvas.mpl_connect('pick_event', onpick)
+
+
+	## COLORMAP
+	cmap      = plt.get_cmap('hsv')
+    #norm      = Normalize(vmin=0, vmax=24)
+	norm      = mpl.colors.BoundaryNorm(np.linspace(0,24,25), cmap.N)
+	scalarMap = cmx.ScalarMappable(norm=norm, cmap=cmap)
+	colours   = [scalarMap.to_rgba(glitch_starts_SOL[i].hour) for i in range(len(glitch_starts_SOL))]
+
+	cax = fig.add_axes([0.01, 0.55, 0.01, 0.4])	# left, bottom, width, height
+	cax.yaxis.set_ticks_position('left')
+	cb1 = mpl.colorbar.ColorbarBase(cax, drawedges=True, cmap=cmap, norm=norm, orientation='vertical', ticks=np.linspace(0,24,9), boundaries=np.linspace(0,24,25))
+	cb1.set_label('LMST hour')
+
+	# create hist data and colours
+	glitch_start_hist_SOL_mat = [[] for _ in range(24)]
+	for start in glitch_starts_SOL:
+		glitch_start_hist_SOL_mat[start.hour] += [start.julday]
+	if np.array(glitch_start_hist_SOL_mat).any():
+		colors_hist = [scalarMap.to_rgba(i) for i in range(len(glitch_start_hist_SOL_mat))]
+	else:	# if no glitches, make it still work for plotting
+		colors_hist = [(0,0,0,0)]
+
+	if LMST_hour or LMST_hour==0:	# arrow next to colorbar
+		ax = fig.add_axes([0.017, 0.55, 0.01, 0.4])
+		ax.spines['right'].set_visible(False)
+		ax.spines['left'].set_visible(False)
+		ax.spines['top'].set_visible(False)
+		ax.spines['bottom'].set_visible(False)
+		ax.get_xaxis().set_visible(False)
+		ax.get_yaxis().set_visible(False)
+		#ax.text(1, LMST_hour/24., r'$\rightarrow$' , ha='right', color='k', transform=ax.transAxes, fontsize=20)
+
+
+	## HORIZONTAL POLARIZATIONS (upper left)
+	sizes = np.sqrt( N_amps**2 + E_amps**2 )
+	sizes = normalise(sizes, scale_to_between=[5,20])
+
+	ax   = fig.add_subplot(221, polar=True)
+	ax.set_title('Back-azimuths', pad=20, size=10)
+	ax.spines['polar'].set_visible(False)
+	ax.tick_params(pad=5)
+
+	ax.set_theta_direction(-1)
+	ax.set_theta_zero_location('N')
+	ax.set_thetagrids([0,15,37,70,90,105,114,135,157,180,225,251,255,270,277,345.5], labels=['','LSA/VBBV\n(15°)','LVL1\n(37°)', r'HP$^{3}$'+'\n(70°)','','SP2\n(105°)','WTS E\n(114°)',r'VBBU/Y$_{asm}$'+'\n(135°)','LVL2\n(157°)','',r'X$_{asm}$','WTS W (251°)','VBBW (255°)','','LVL3\n(277°)','SP3/WTS N\n(345°)'], size=8)
+
+	#ax.set_rgrids([0.1,0.4,0.7,1], labels=['Hmin','','','Hmax'], size=6)
+	ax.set_ylim( [min(sols_range)-0.1*(max(sols_range)-min(sols_range)), max(sols_range)+0.1*(max(sols_range)-min(sols_range))] )
+	ax.tick_params(axis='y', labelsize=6)	# because with thetamin/max command, fontzise in set_rgrids doesn't work ...
+	ax.set_yticklabels(['Sol %d' % x for x in ax.get_yticks()])
+	ax.set_rlabel_position(315)
+
+	ax.scatter(phis, sols, s=sizes, edgecolor='k', linewidths=.3, c=colours, rasterized=True, picker=2)
+	ax.grid(ls='-.', lw=0.4, c='dimgray')
+
+
+	## VERTICAL POLARIZATIONS (upper right)
+	sizes = np.sqrt(Z_amps**2)
+	sizes = normalise(sizes , scale_to_between=[5,20])
+
+	ax = fig.add_subplot(222, polar=True)
+	ax.set_title('Incidence angles', pad=20, size=10)
+	ax.spines['polar'].set_visible(False)
+	ax.tick_params(pad=5)
+
+	ax.set_theta_direction(-1)
+	ax.set_theta_zero_location('N')
+	ax.set_thetamin(0)
+	ax.set_thetamax(180)
+	ax.set_thetagrids([0,45,60.5,90,135,180], labels=['0°','45°','VBB\n(60.5°)','90°','135°','180°'], size=8)
+
+	#ax.set_rgrids([0.1,0.4,0.7,1], labels=['Zmin','','','Zmax'], fontsize=6)
+	ax.set_ylim( [min(sols_range)-0.1*(max(sols_range)-min(sols_range)), max(sols_range)+0.1*(max(sols_range)-min(sols_range))] )
+	ax.tick_params(axis='y',labelsize=6)	# because with thetamin/max command, fontzise in set_rgrids doesn't work ...
+	ax.set_yticklabels(['Sol %d' % x for x in ax.get_yticks()])
+	ax.set_rlabel_position(315)
+
+	ax.scatter(incs, sols, s=sizes, color=colours, edgecolor='k', linewidths=.3, rasterized=True, picker=2)
+	ax.grid(ls='-.', lw=0.4, c='dimgray')
+
+
+	## 3-D PLOT (lower left)
+	sizes = np.sqrt(Z_amps**2+N_amps**2+E_amps**2) 
+	sizes = normalise(sizes, scale_to_between=[5,20])
+
+	ax = fig.add_subplot(223, projection='3d')
+	ax.set_title('3-D Polarizations', y=1.10, size=10)
+	ax.view_init(elev=15., azim=-50)
+	ax.set_xlabel('E', labelpad=2, fontsize=8)
+	ax.set_ylabel('N', labelpad=2, fontsize=8)
+	ax.set_zlabel('Z', labelpad=2, fontsize=8)
+	ax.set_xticks([-1,-0.5,0,0.5,1])
+	ax.set_yticks([-1,-0.5,0,0.5,1])
+	ax.set_zticks([-1,-0.5,0,0.5,1])
+	ax.scatter(np.sin(phis)*abs(np.sin(incs)), np.cos(phis)*abs(np.sin(incs)), np.cos(incs), s=sizes, color=colours, edgecolor='k', linewidths=.3, depthshade=False, rasterized=True)
+	ax.scatter(0, 0, 0, s=30, c='white', edgecolors='k', depthshade=False)
+	ax.set_xlim( [-1,1] )
+	ax.set_ylim( [-1,1] )
+	ax.set_zlim( [-1,1] )
+
+
+	## HISTOGRAM (lower right)
+	ax = fig.add_subplot(224)
+	#ax.set_title('Sol Histogram Glitches', pad=10)
+	ax.grid(ls='-.', lw=0.5, zorder=0)
+	ax.set(xlabel='Sol', ylabel='Glitches / Sol')
+	ax.autoscale(enable=True, axis='both', tight=False)
+	ax.hist(glitch_start_hist_SOL_mat, bins=np.arange(min(sols_range), max(sols_range)+2,1), color=colors_hist, align='left', ec='k', lw=0.5, stacked=True, zorder=3, rasterized=True) # "+2" instead of "+1"  because otherwise there is a bug in the last bin
+	ax.set_xlim([min(sols_range), max(sols_range)])
+	ax.set_ylim([0,ymax_hist])
+	ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True, nbins='auto'))
+	ax2   = ax.twiny()
+	ax1Xs = ax.get_xticks()
+	ax2Xs = [UTCify(UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=e)).strftime('%m-%d') for e in ax1Xs]
+	#print(ax1Xs)
+	#print(ax2Xs)
+	
+	ax2.set_xticks(ax1Xs)
+	ax2.set_xbound(ax.get_xbound())
+	ax2.set_xticklabels(ax2Xs)
+	ax2.set_xlabel(u"Day")
+
+
+
+	### FINAL
+	if outfile:
+		plt.savefig(outfile)
+		print(u'Figure saved to: %s' % outfile)
+	else:
+		plt.show()
+def glitch_gutenberg_plot(*glitch_files, LMST_hour=None, UNIT='DIS', outfile=None):
+
+	"""
+
+	"""
+
+
+	### READ GLITCH-FILE
+	all_glitches = []
+
+	for glitch_file in glitch_files:
+		glitches      = np.loadtxt(glitch_file, dtype='str')
+		#glitches      = glitch_exclude(glitches, verbose=False)
+		all_glitches += list(glitches)
+
+	all_glitches = np.array(all_glitches)
+	if LMST_hour or LMST_hour==0:
+		all_glitches = np.array( [e for e in all_glitches if solify(UTCDateTime(e[1])).hour == LMST_hour] )
+
+
+
+	### SOME VARIABLES DECLARATION
+	label_comps = 'UVWZNE'
+	range_hist  = (1e-9,1e-5)
+
+	if LMST_hour  or LMST_hour==0:
+		title = 'LMST %02d:00-%02d:00, %s, %s glitches' % (LMST_hour, LMST_hour+1, UNIT, len(all_glitches))
+	else:
+		title = 'LMST 00:00-24:00, %s, %s glitches' % (UNIT, len(all_glitches))
+
+
+
+	### PLOT HISTOGRAMS
+	fig, axes = plt.subplots(2,3, figsize=(12,7), sharex=True, sharey=True)
+	fig.canvas.set_window_title('Glitch Gutenberg-Richter plot')
+	fig.suptitle(title, fontsize=12)
+	#fig.subplots_adjust(wspace=0.5, hspace=0.0)	
+	plt.xscale('log')
+
+	for l, ax in enumerate(axes.flatten()):
+
+		# set-up plot
+		ax.grid(ls='-.', lw=0.5, zorder=0)
+		ax.set(aspect='equal', xlabel='Glitch amplitudes (m/s)', ylabel='Number of occurences')
+		ax.set_xlim(range_hist)
+		ax.set_ylim(1,1e4)
+		ax.xaxis.set_tick_params(labelbottom=True)
+		ax.yaxis.set_tick_params(labelbottom=True)
+
+		# create bins, but only needed for first one
+		if l==0:
+			hist, bins = np.histogram( abs(all_glitches[:,columns[UNIT][l]].astype('float')), bins=25)
+			logbins    = np.logspace(np.log10(bins[0]), np.log10(bins[-1]),len(bins))
+
+		# plot histogram
+		y, x, _         = ax.hist( abs(all_glitches[:,columns[UNIT][l]].astype('float')), log=True, range=range_hist, color='k', bins=logbins, ec='w', lw=0.5, label=label_comps[l]+'-comp')
+		
+        # calculating fit
+		x               = x[1:][y!=0]
+		y               = y[y!=0]
+		y_max_index     = np.argmax(y)
+		b, a            = np.polyfit( np.log10(x[y_max_index:]), np.log10(y[y_max_index:]), 1)
+		
+        # plot fit
+		x_int           = x[y_max_index:]
+		y_b             = 10**(a+np.log10(x_int)*b)
+		ax.plot(x_int, y_b, lw =2, c='darkorange', label='b=%.2f' % b)
+		
+		# swap order of legends
+		handles, labels = ax.get_legend_handles_labels()
+		ax.legend(handles[::-1], labels[::-1], loc='upper right')
+		print(u'%s: b=%.2f, a=%.2f' % (label_comps[l], b, a))
+	print(u'Please treat `a` values with caution.')
+	print(u'Fits have been done with negative exponents, so they the `a` are not quite right!')
+
+
+
+	### FINAL
+	fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+	if outfile:
+		plt.savefig(outfile)
+	else:
+		plt.show()
+def glitch_envelope_plot(*glitch_files, min_amp=1e-10, max_amp=1e-5, UNIT='DIS', outfile=None):
+
+
+
+	### HELPER FUNCTION
+	def onclick(event):
+		sol       = int(event.ydata)
+		sol_delta = sol - int(min(sols_range))
+		UTC_time  = UTCify(UTCDateTime(mdates.num2date(event.xdata) + datetime.timedelta(days=sol_delta)))
+		ptime(UTC_time)
+
+
+
+	### READ GLITCH-FILE
+	all_glitches = []
+
+	for glitch_file in glitch_files:
+		glitches      = np.loadtxt(glitch_file, dtype='str')
+		#glitches      = glitch_exclude(glitches, verbose=False)
+		all_glitches += list(glitches)
+
+	all_glitches = np.array(all_glitches)
+
+
+
+	### PREPARE DATA
+	all_glitches = all_glitches[((abs(all_glitches[:,columns[UNIT][0]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][1]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][2]].astype('float'))>=min_amp)) & \
+
+								 (abs(all_glitches[:,columns[UNIT][0]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][1]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][2]].astype('float'))<=max_amp)]
+
+
+
+	### PLOT PREPARATION
+	sols         = [solify(UTCDateTime(e[1])).julday for e in all_glitches]
+	sols_range   = np.arange(min(sols), max(sols)+1, 1)
+	data         = []
+	glitches_UVW = np.array( list(all_glitches[:,columns[UNIT][0]].astype('float')) + \
+		                     list(all_glitches[:,columns[UNIT][1]].astype('float')) + \
+		                     list(all_glitches[:,columns[UNIT][2]].astype('float')) )
+	glitches_UVW = normalise(np.abs(glitches_UVW), scale_to_between=[0,1])
+
+	for k, sol in enumerate(sols_range):
+		times             = glitches[:,2]
+		indices_sol       = np.array( [i for i in range(len(times)) if solify(UTCDateTime(times[i])).julday==sol] )
+		if not indices_sol.any():
+			continue
+		
+		sol_times         = times[indices_sol]
+		Matlab_lmst_times = [mdates.date2num(solify(UTCDateTime(time)).datetime-datetime.timedelta(days=k)) for time in sol_times]
+		
+		y_data_U          = glitches_UVW[indices_sol+0*len(times)] + sol
+		y_data_V          = glitches_UVW[indices_sol+1*len(times)] + sol
+		y_data_W          = glitches_UVW[indices_sol+2*len(times)] + sol
+		
+		data.append( [Matlab_lmst_times, y_data_U, y_data_V, y_data_W] )
+
+
+
+	### PLOT
+	titles = ['U-component','V-component','W-component']
+
+	fig, axes = plt.subplots(1, 3, figsize=(15,7), sharex=True, sharey=True)
+	fig.canvas.set_window_title('Envelope plotter')
+	fig.suptitle('Envelope plotter for %s glitches (%s)' % (len(glitches), UNIT), fontsize=11, y=0.99)
+	fig.subplots_adjust(wspace=0.4, hspace=0.4)
+	fig.canvas.mpl_connect('button_press_event', onclick)
+	fig.autofmt_xdate()
+
+	for l, ax in enumerate(axes):
+
+		ax.set_title(titles[l], size=10)
+		ax.autoscale(enable=True, axis='both', tight=False)
+		ax.grid(ls='-.', lw=0.5, zorder=0)
+		ax.set_xlabel('LMST')
+		ax.xaxis.labelpad = 3
+		ax.xaxis.set_major_formatter( mdates.DateFormatter('%H:%M:%S') )
+		ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+		#ax.xaxis.set_major_locator( mdates.HourLocator(interval=4) )
+		ax.set_ylabel('Sols')
+		ax.set_ylim([min(sols_range),max(sols_range)+1])
+
+		for line in data:
+			x = line[0]
+			y = line[l+1]
+			ax.plot(x, y, lw=0.75, c='gray')
+
+	fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+	if outfile:
+		plt.savefig(outfile)
+	else:
+		plt.show()
+def glitch_XoverBAZ_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1e-5, comp='Z', UNIT='DIS', outfile=None):
+
+	"""
+
+	"""
+
+
+
+	### READ GLITCH-FILE
+	all_glitches = []
+
+	for glitch_file in glitch_files:
+		glitches      = np.loadtxt(glitch_file, dtype='str')
+		#glitches      = glitch_exclude(glitches, verbose=False)
+		all_glitches += list(glitches)
+
+	all_glitches = np.array(all_glitches)
+	if LMST_hour or LMST_hour==0:
+		all_glitches = np.array( [e for e in all_glitches if solify(UTCDateTime(e[1])).hour == LMST_hour] )
+
+
+	### PREPARE DATA
+	all_glitches = all_glitches[((abs(all_glitches[:,columns[UNIT][0]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][1]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][2]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][3]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][4]].astype('float'))>=min_amp)  | \
+								 (abs(all_glitches[:,columns[UNIT][5]].astype('float'))>=min_amp)) & \
+
+								 (abs(all_glitches[:,columns[UNIT][0]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][1]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][2]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][3]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][4]].astype('float'))<=max_amp)  & \
+								 (abs(all_glitches[:,columns[UNIT][5]].astype('float'))<=max_amp)]
+
+
+
+	### PREPARE PLOT
+	### SOME VARIABLES DECLARATION
+	if LMST_hour  or LMST_hour==0:
+		title = '%s over BAZ plotter (LMST %02d:00-%02d:00, %s, %s glitches)' % (LMST_hour, LMST_hour+1, comp.upper(), UNIT, len(all_glitches))
+	else:
+		title = '%s over BAZ plotter (LMST 00:00-24:00, %s, %s glitches)' % (comp.upper(), UNIT, len(all_glitches))
+
+	glitch_starts = np.array( [solify(UTCDateTime(e)).hour for e in all_glitches[:,1]] )
+	U             = abs(all_glitches[:,columns[UNIT][0]].astype('float'))
+	V             = abs(all_glitches[:,columns[UNIT][1]].astype('float'))
+	W             = abs(all_glitches[:,columns[UNIT][2]].astype('float'))
+	Z             = abs(all_glitches[:,columns[UNIT][3]].astype('float'))
+	N             = abs(all_glitches[:,columns[UNIT][4]].astype('float'))
+	E             = abs(all_glitches[:,columns[UNIT][5]].astype('float'))
+	BAZ           = abs(all_glitches[:,columns[UNIT][6]].astype('float'))*np.pi/180
+
+
+
+	### FIGURE
+	fig = plt.figure(figsize=(8,8))
+	fig.canvas.set_window_title('%s over BAZ plotter'    %  comp.upper())
+	fig.suptitle(title, fontsize=11, y=0.99)
+	fig.subplots_adjust(wspace=0.4, hspace=0.4)
+	
+
+	## COLORMAP
+	cmap      = plt.get_cmap('hsv')
+    #norm      = Normalize(vmin=0, vmax=24)
+	norm      = mpl.colors.BoundaryNorm(np.linspace(0,24,25), cmap.N)
+	scalarMap = cmx.ScalarMappable(norm=norm, cmap=cmap)
+	colours   = [scalarMap.to_rgba(time) for time in glitch_starts]
+
+	cax = fig.add_axes([0.01, 0.55, 0.01, 0.4])	# left, bottom, width, height
+	cax.yaxis.set_ticks_position('left')
+	cb1 = mpl.colorbar.ColorbarBase(cax, drawedges=True, cmap=cmap, norm=norm, orientation='vertical', ticks=np.linspace(0,24,9), boundaries=np.linspace(0,24,25))
+	cb1.set_label('LMST hour')
+
+
+	## POLAR PLOT
+	ax = fig.add_axes((0.1, 0.15, 0.8, 0.7), projection='polar')
+	ax.spines['polar'].set_visible(False)
+	ax.tick_params(pad=5)
+	ax.grid(ls='-.', lw=0.4, c='dimgray')
+	ax.set_theta_direction(-1)
+	ax.set_theta_zero_location('N')
+	ax.set_thetagrids([0,15,37,70,90,105,114,135,157,180,225,251,255,270,277,345.5], labels=['','LSA/VBBV\n(15°)','LVL1\n(37°)', r'HP$^{3}$'+'\n(70°)','','SP2\n(105°)','WTS E\n(114°)',r'VBBU/Y$_{asm}$'+'\n(135°)','LVL2\n(157°)','',r'X$_{asm}$','WTS W (251°)','VBBW (255°)','','LVL3\n(277°)','SP3/WTS N\n(345°)'], size=8)
+	ax.tick_params(axis='y', labelsize=6)	# because with thetamin/max command, fontzise in set_rgrids doesn't work ...
+	#ax.set_yticklabels(['%d' % x for x in ax.get_yticks()])
+	ax.set_ylim([-1e-8,1.25e-7])
+	ax.set_rlabel_position(315)
+	ax.scatter(BAZ, eval(comp.upper()), s=10, c=colours, edgecolor='k', linewidths=.3)
+
+
+
+	### FINAL
+	if outfile:
+		plt.savefig(outfile)
+	else:
+		plt.show()
 
 
 
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  
-if __name__ == "__main__":	
-	print('Define Testing')
+if __name__ == "__main__":
+	argues = sys.argv
+	eval(argues[1]) 
+	#print('Define Testing')
