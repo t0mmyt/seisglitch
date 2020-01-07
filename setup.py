@@ -1,27 +1,25 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+import os
+import re
+from numpy.distutils.core import setup
 
 
-""""
-Glitch detector for InSight's VBB and SP time series glitches.
-
-
-#----------------------------------------------------------------------
-#   Author:    John - Robert Scholz
-#   Email:     john.robert.scholz@gmail.com
-#   Date:      Dec 2019
-#---------------------------------------------------------------------
-"""
-
-
-from setuptools import setup, find_packages
-
-setup(name             = 'glitch_detector',
-	  version          = '0.2',
-	  description      = "Glitch detector for SEIS' VBB and SP seismic sensors.",
-	  url              = 'https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/glitch-detector',
-	  author           = 'John-Robert Scholz',
-	  author_email     = 'john.robert.scholz@gmail.com',
-	  license          = 'TBD',
-	  packages         = find_packages(), 
-	  install_requires = ['obspy'])
+setup(
+    name             = 'seisglitch',
+    version          = '0.0.1',
+    keywords         = ["InSight mission", "Planet Mars", "seismology", "glitch", "Obspy"],
+    description      = "Detect, analyse, remove and evaluate removal for glitches in SEIS' (VBB & SP) time series data",
+    author           = 'John-Robert Scholz',
+    maintainer       = 'John-Robert Scholz',
+    maintainer_email = 'john.robert.scholz@gmail.com',
+    classifiers      = ['Development Status :: 3 - Alpha',
+                       'License :: OSI Approved :: MIT License',
+                       'Programming Language :: Python :: 3.6',
+                       'Programming Language :: Python :: 3.7'],
+    install_requires = ['obspy', 
+                        'pandas', 
+                        'pyyaml'],
+    python_requires  =  '>=3.6',
+    packages         = ['seisglitch'],
+    scripts          = [os.path.join('Scripts',file) for file in os.listdir('Scripts/')],
+    url              = 'https://gitlab.com/johnrobertscholz/ppol'
+    )

@@ -20,6 +20,7 @@ import datetime
 import numpy as np
 from collections import Counter
 
+
 #####  matplotlib modules import  #####
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -29,11 +30,15 @@ import matplotlib.ticker as mticker
 import matplotlib.cm as cmx
 from mpl_toolkits.mplot3d import Axes3D, proj3d
 
+
 #####  obspy modules import  #####
 from obspy import UTCDateTime
 
+
 #####  toolbox modules import  #####
-from toolbox import read2, Stream2, sec2hms, moving_window, snr, normalise, ppol_calc, solify, UTCify, ptime, quick_plot
+from toolbox import read2, Stream2, sec2hms, moving_window, snr, normalise, solify, UTCify, ptime
+from ppol.core import ppol_calc
+from ppol.util import quick_plot
 
 
 
