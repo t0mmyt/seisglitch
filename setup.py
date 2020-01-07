@@ -3,9 +3,19 @@ import re
 from numpy.distutils.core import setup
 
 
+def find_version(*paths):
+    fname = os.path.join(os.path.dirname(__file__), *paths)
+    with open(fname) as fp:
+        code = fp.read()
+    match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", code, re.M)
+    if match:
+        return match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
+
 setup(
     name             = 'seisglitch',
-    version          = '0.0.1',
+    version          = find_version('seisglitch', '__init__.py'),
     keywords         = ["InSight mission", "Planet Mars", "seismology", "glitch", "Obspy"],
     description      = "Detect, analyse, remove and evaluate removal for glitches in SEIS' (VBB & SP) time series data",
     author           = 'John-Robert Scholz',
@@ -21,5 +31,5 @@ setup(
     python_requires  =  '>=3.6',
     packages         = ['seisglitch'],
     scripts          = [os.path.join('Scripts',file) for file in os.listdir('Scripts/')],
-    url              = 'https://gitlab.com/johnrobertscholz/ppol'
+    url              = 'https://gitlab.com/johnrobertscholz/seisglitch'
     )
