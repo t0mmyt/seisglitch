@@ -26,10 +26,6 @@
 
 
 #####  python modules import  #####
-import os
-import re
-import sys
-import time
 import datetime
 import numpy as np
 from collections import Counter
@@ -38,31 +34,28 @@ from collections import Counter
 #####  matplotlib modules import  #####
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-plt.switch_backend('TKAgg')
 import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
 import matplotlib.cm as cmx
-from mpl_toolkits.mplot3d import Axes3D, proj3d
 
 
 #####  obspy modules import  #####
 from obspy import UTCDateTime
 
 
-#####  toolbox modules import  #####
-from seisglitch.util import read2, Stream2, moving_window, snr, normalise, solify, UTCify, ptime
-from ppol.core import ppol_calc
-from ppol.util import quick_plot, sec2hms
+#####  seisglitch util import  #####
+from seisglitch.util import normalise, solify, UTCify, ptime
+
 
 
 ### PLOT SCRIPTS TO VISUALIZE
 # first 6 indices are for UVWZNE amplitudes, 7th for backazimuth angle, 8th for incidence angle 
-# (w.r.t. glitch list as created by glitch_detectors)
-columns = {'GAI' : [9, 10,11,12,13,14,60,61],
-		   'DIS' : [15,16,17,18,19,20,63,64],
-		   'VEL' : [21,22,23,24,25,26,66,67],
-		   'ACC' : [27,28,29,30,31,31,69,70]}
-def glitch_overview_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1e-5, UNIT='DIS', outfile=None):
+# (w.r.t. glitch list as created by glitch_detector)
+columns = {'GAI' : [9, 10,11,12,13,14,33,34],
+		   'DIS' : [15,16,17,18,19,20,37,38],
+		   'VEL' : [21,22,23,24,25,26,41,42],
+		   'ACC' : [27,28,29,30,31,31,45,46]}
+def glitch_overview_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1e-5, UNIT='DIS', show=True, outfile=None):
 	
 	"""
 	Plot glitches, based on glitch file produced by function `glitch_detector()`.
@@ -92,14 +85,14 @@ def glitch_overview_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1
 			print(u'%s  %sS%s  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %7.1f  %7.1f' % (glitch_starts_UTC[index].strftime('%Y-%m-%dT%H:%M:%S'), 
 																			              glitch_starts_SOL[index].julday, 
 																			              glitch_starts_SOL[index].strftime('%H:%M:%S'),
-																			              float(glitches[index,columns[UNIT][0]]),
-																			              float(glitches[index,columns[UNIT][1]]),
-																			              float(glitches[index,columns[UNIT][2]]),
-																			              float(glitches[index,columns[UNIT][3]]),
-																			              float(glitches[index,columns[UNIT][4]]),
-																			              float(glitches[index,columns[UNIT][5]]),
-																			              float(glitches[index,columns[UNIT][6]]),
-																			              float(glitches[index,columns[UNIT][7]]),
+																			              float(all_glitches[index,columns[UNIT][0]]),
+																			              float(all_glitches[index,columns[UNIT][1]]),
+																			              float(all_glitches[index,columns[UNIT][2]]),
+																			              float(all_glitches[index,columns[UNIT][3]]),
+																			              float(all_glitches[index,columns[UNIT][4]]),
+																			              float(all_glitches[index,columns[UNIT][5]]),
+																			              float(all_glitches[index,columns[UNIT][6]]),
+																			              float(all_glitches[index,columns[UNIT][7]]),
 																			              ))
 		print(u'- - -')
 
@@ -139,7 +132,7 @@ def glitch_overview_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1
 
 
 	### LMST HOUR EXCLUSION, if wished
-	if LMST_hour or LMST_hour==0:
+	if LMST_hour != False and LMST_hour!=None:
 		LMST_hours   = np.arange(float(str(LMST_hour).split('-')[0]), float(str(LMST_hour).split('-')[-1])+1)
 		all_glitches = np.array( [e for e in all_glitches if solify(UTCDateTime(e[1])).hour in LMST_hours] )
 
@@ -177,7 +170,7 @@ def glitch_overview_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1
 	else:
 		title = 'LMST 00:00-24:00, %s, %s glitches (UVW: %g ≤ 1comp ≤ %g)' % (UNIT, len(glitches), min_amp, max_amp)		
 	fig = plt.figure(figsize=(10,10))
-	fig.canvas.set_window_title('glitch detector')
+	fig.canvas.set_window_title('Glitch overview plot')
 	fig.suptitle(title, fontsize=11, y=0.99)
 	fig.subplots_adjust(wspace=0.4, hspace=0.4)
 	fig.canvas.mpl_connect('pick_event', onpick)
@@ -309,10 +302,11 @@ def glitch_overview_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1
 	### FINAL
 	if outfile:
 		plt.savefig(outfile)
-		print(u'Figure saved to: %s' % outfile)
-	else:
+		print(outfile)
+	if show:
 		plt.show()
-def glitch_gutenberg_plot(*glitch_files, LMST_hour=None, UNIT='DIS', outfile=None):
+	plt.close()
+def glitch_gutenberg_plot(*glitch_files, LMST_hour=None, UNIT='DIS', show=True, outfile=None):
 
 	"""
 
@@ -337,7 +331,7 @@ def glitch_gutenberg_plot(*glitch_files, LMST_hour=None, UNIT='DIS', outfile=Non
 	label_comps = 'UVWZNE'
 	range_hist  = (1e-9,1e-5)
 
-	if LMST_hour  or LMST_hour==0:
+	if LMST_hour != False and LMST_hour!=None:
 		title = 'LMST %02d:00-%02d:00, %s, %s glitches' % (LMST_hour, LMST_hour+1, UNIT, len(all_glitches))
 	else:
 		title = 'LMST 00:00-24:00, %s, %s glitches' % (UNIT, len(all_glitches))
@@ -383,9 +377,13 @@ def glitch_gutenberg_plot(*glitch_files, LMST_hour=None, UNIT='DIS', outfile=Non
 		# swap order of legends
 		handles, labels = ax.get_legend_handles_labels()
 		ax.legend(handles[::-1], labels[::-1], loc='upper right')
-		print(u'%s: b=%.2f, a=%.2f' % (label_comps[l], b, a))
-	print(u'Please treat `a` values with caution.')
-	print(u'Fits have been done with negative exponents, so they the `a` are not quite right!')
+		#print(u'%s: b=%.2f, a=%.2f' % (label_comps[l], b, a))
+
+
+
+	### PRINT INFORMATION
+	#print(u'Please treat `a` values with caution.')
+	#print(u'Fits have been done with negative exponents, so they the `a` are not quite right!')
 
 
 
@@ -393,9 +391,11 @@ def glitch_gutenberg_plot(*glitch_files, LMST_hour=None, UNIT='DIS', outfile=Non
 	fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 	if outfile:
 		plt.savefig(outfile)
-	else:
+		print(outfile)
+	if show:
 		plt.show()
-def glitch_envelope_plot(*glitch_files, min_amp=1e-10, max_amp=1e-5, UNIT='DIS', outfile=None):
+	plt.close()
+def glitch_envelope_plot(*glitch_files, min_amp=1e-10, max_amp=1e-5, UNIT='DIS', show=True, outfile=None):
 
 
 
@@ -461,7 +461,7 @@ def glitch_envelope_plot(*glitch_files, min_amp=1e-10, max_amp=1e-5, UNIT='DIS',
 	titles = ['U-component','V-component','W-component']
 
 	fig, axes = plt.subplots(1, 3, figsize=(15,7), sharex=True, sharey=True)
-	fig.canvas.set_window_title('Envelope plotter')
+	fig.canvas.set_window_title('Glitch envelope plot')
 	fig.suptitle('Envelope plotter for %s glitches (%s)' % (len(glitches), UNIT), fontsize=11, y=0.99)
 	fig.subplots_adjust(wspace=0.4, hspace=0.4)
 	fig.canvas.mpl_connect('button_press_event', onclick)
@@ -488,9 +488,11 @@ def glitch_envelope_plot(*glitch_files, min_amp=1e-10, max_amp=1e-5, UNIT='DIS',
 	fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 	if outfile:
 		plt.savefig(outfile)
-	else:
+		print(outfile)
+	if show:
 		plt.show()
-def glitch_XoverBAZ_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1e-5, comp='Z', UNIT='DIS', outfile=None):
+	plt.close()
+def glitch_XoverBAZ_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1e-5, comp='Z', UNIT='DIS', show=True, outfile=None):
 
 	"""
 
@@ -530,7 +532,7 @@ def glitch_XoverBAZ_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1
 
 	### PREPARE PLOT
 	### SOME VARIABLES DECLARATION
-	if LMST_hour  or LMST_hour==0:
+	if LMST_hour != False and LMST_hour!=None:
 		title = '%s over BAZ plotter (LMST %02d:00-%02d:00, %s, %s glitches)' % (LMST_hour, LMST_hour+1, comp.upper(), UNIT, len(all_glitches))
 	else:
 		title = '%s over BAZ plotter (LMST 00:00-24:00, %s, %s glitches)' % (comp.upper(), UNIT, len(all_glitches))
@@ -548,7 +550,7 @@ def glitch_XoverBAZ_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1
 
 	### FIGURE
 	fig = plt.figure(figsize=(8,8))
-	fig.canvas.set_window_title('%s over BAZ plotter'    %  comp.upper())
+	fig.canvas.set_window_title('Glitch %s over BAZ plotter'    %  comp.upper())
 	fig.suptitle(title, fontsize=11, y=0.99)
 	fig.subplots_adjust(wspace=0.4, hspace=0.4)
 	
@@ -585,8 +587,11 @@ def glitch_XoverBAZ_plot(*glitch_files, LMST_hour=None, min_amp=1e-10, max_amp=1
 	### FINAL
 	if outfile:
 		plt.savefig(outfile)
-	else:
+		print(outfile)
+	if show:
 		plt.show()
+	plt.close()
+
 
 
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  

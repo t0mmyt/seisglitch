@@ -1,0 +1,42 @@
+detector:
+    stepwin_length_total: 80
+    ACCfilter: 3
+    threshold: 1e-7
+    glitch_mindist: 5
+    glitch_length: 25
+    plot: False
+
+
+plotter:
+    glitch_overview_plot:
+      LMST_hour: False
+      min_amp: 1e-10
+      max_amp: 1e-5
+      UNIT: DIS
+      show: True
+      outfile: False
+    glitch_gutenberg_plot: 
+      LMST_hour: False
+      UNIT: DIS
+      show: True
+      outfile: False
+    glitch_envelope_plot: 
+      min_amp: 1e-10
+      max_amp: 1e-5
+      UNIT: DIS
+      show: True
+      outfile: False
+    glitch_XoverBAZ_plot:
+      comp: Z
+      LMST_hour: False
+      min_amp: 1e-10
+      max_amp: 1e-5
+      UNIT: DIS
+      show: True
+      outfile: False
+
+
+remover:
+
+
+evaluater:

@@ -36,15 +36,16 @@ import scipy
 import datetime
 import numpy as np
 
+
 #####  matplotlib modules import  #####
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-plt.switch_backend('TKAgg')
 import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
 from matplotlib.widgets import TextBox
 from matplotlib.patches import Arc, FancyArrowPatch
 from mpl_toolkits.mplot3d import Axes3D, proj3d
+
 
 #####  obspy modules import  #####
 from obspy import read, read_inventory, UTCDateTime
@@ -178,15 +179,22 @@ class Stream2(Stream):
 	def truncate(self, start_per=0, end_per=1):
 	
 		"""
-		Truncate stream bei percentage.
-		Default values mean nothing is trucated.
+		Truncate stream by percentag with respect
+		to earliest and latest trace times found in
+		stream.
+
+		Default values mean nothing is truncated.
 		"""
 	
 		start_per = float(start_per)
 		end_per   = float(end_per)
 	
-		if start_per<0: start_per = 0
-		if end_per>1: end_per = 1
+		if start_per<0: 
+			start_per = 0
+
+		if end_per>1: 
+			end_per = 1
+
 		if start_per==0 and end_per==1:
 			return
 	
@@ -1400,6 +1408,60 @@ class Stream2(Stream):
 			# show plot
 			plt.show() 
 
+# Glitch related
+def merge_glitch_files(outfile, *glitch_files, sorting_after_start=True):
+
+	"""
+	Merging together glitch extration files produced by `glitch_detector`.
+	This helps combining into one file representing a certain period, e.g.
+	"""
+
+
+	### OUTPUT
+	print(u'Merging the following files:')
+	for file in glitch_files:
+		print(file)
+
+
+	### RETRIEVE HEADER AND ALL DATA
+	data = []
+	with open(outfile, 'w') as fp: 
+		counter = 0
+
+		for file in glitch_files: 
+
+			with open(file, 'r') as fp2:
+				lines  = fp2.readlines() 
+				header = lines[0:3]
+				data  += [line for line in lines[2:] if line and not line.startswith('#')]
+					
+
+	### SORTING
+	if sorting_after_start:
+		data_to_sort = np.array( [line.split() for line in data] )
+		sort_indices = data_to_sort[:,1].argsort()
+		data         = np.array(data)
+		data         = data[sort_indices]
+
+
+	### WRITING OUT
+	counter = 0
+	with open(outfile, 'w') as fp: 
+					
+		for header_line in header:
+			fp.write(header_line)
+
+		for line in data:
+			counter += 1 
+			number   = '%05d' % counter 
+			fp.write(number+line[5:])
+
+
+	### OUTPUT
+	print()
+	print(u'Merged glitch file to:')
+	print(outfile)
+
 # Convenient helpers
 def moving_window(*data, window_length_in_samples=100, step_in_samples=50, equal_end=True):
 
@@ -1517,7 +1579,7 @@ def snr(data, axis=0, ddof=1):
 	sd_d = data.std(axis=axis, ddof=ddof)
 	return np.where(sd_d==0, 0, mean/sd_d)
 
-# InSight time conversions
+# InSight time conversions / ways of displaying
 def solify(UTC_time, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
 
 	"""
