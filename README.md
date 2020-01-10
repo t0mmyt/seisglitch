@@ -5,14 +5,14 @@
 Create a new ``conda`` environment and install dependencies
 
 ```
-conda create -n ppol python=3.7 obspy pandas pyyaml -c conda-forge
-conda activate ppol
+conda create -n seisglitch python=3.7 obspy pyyaml -c conda-forge
+conda activate seisglitch
 ```
 
 Clone the repository
 
 ```
-git clone https://gitlab.com/johnrobertscholz/ppol.git
+git clone https://gitlab.com/johnrobertscholz/seisglitch.git
 cd ppol
 ```
 
