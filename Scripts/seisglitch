@@ -36,7 +36,7 @@ import argparse
 
 
 #####  seisglitch modules import  #####
-from seisglitch import detector, plotter
+from seisglitch import detect, plot
 from ppol.util import read_config
 
 
@@ -66,8 +66,8 @@ parser.add_argument('config_file',
 parser.add_argument('-f','--files', 
            type = str,
            help = """
-                  Specify one or more files (either data) or
-                  results file to run specified `MODE` on.
+                  Specify one or more files (either data or
+                  results file) to run specified `MODE` on.
                   """,
           nargs ='+',
         default = None,
@@ -86,17 +86,17 @@ files       = args['files']
 ### EXECUTE ACCORDING TO SPECIFIED PARAMETERS
 if mode=='detect':
 
-    detector_params = params['detector']
-    detector.glitch_detector( *files, **detector_params )
+    detect_params = params['detect']
+    detect.glitch_detector( *files, **detect_params )
 
 
 elif mode=='plot':
 
-    plotter_params = params['plotter']
-    plotter.glitch_overview_plot(  *files, **plotter_params['glitch_overview_plot']  )
-    plotter.glitch_gutenberg_plot( *files, **plotter_params['glitch_gutenberg_plot'] )
-    plotter.glitch_envelope_plot(  *files, **plotter_params['glitch_envelope_plot']  )
-    plotter.glitch_XoverBAZ_plot(  *files, **plotter_params['glitch_XoverBAZ_plot']  )
+    plott_params = params['plot']
+    plot.glitch_overview_plot(  *files, **plot_params['glitch_overview_plot']  )
+    plot.glitch_gutenberg_plot( *files, **plot_params['glitch_gutenberg_plot'] )
+    plot.glitch_envelope_plot(  *files, **plot_params['glitch_envelope_plot']  )
+    plot.glitch_XoverBAZ_plot(  *files, **plot_params['glitch_XoverBAZ_plot']  )
 
 
 elif mode=='remove':

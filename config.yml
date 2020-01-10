@@ -1,4 +1,4 @@
-detector:
+detect:
     stepwin_length_total: 80
     ACCfilter: 3
     threshold: 1e-7
@@ -7,7 +7,7 @@ detector:
     plot: False
 
 
-plotter:
+plot:
     glitch_overview_plot:
       LMST_hour: False
       min_amp: 1e-10
@@ -36,7 +36,7 @@ plotter:
       outfile: False
 
 
-remover:
+remove:
 
 
-evaluater:
+evaluate:
