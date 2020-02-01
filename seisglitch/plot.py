@@ -46,7 +46,8 @@ from obspy import read, UTCDateTime
 
 
 #####  seisglitch util import  #####
-from seisglitch.util import marstime, sec2hms
+from seisglitch.ppol import ppol
+from seisglitch.util import read2, marstime, sec2hms
 from seisglitch.math import normalise
 
 
@@ -1129,7 +1130,65 @@ def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=None, LMS
     if show:
         plt.show()
     plt.close()
+def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, waveform_files=[], inventory_file='IRIS', show=True, outfile=None):
 
+    """
+    """
+
+
+
+    ### RUN OR NOT:
+    if not run:
+        return
+
+
+
+    ### OUTPUT
+    print()
+    print(u'  ---------------------------')
+    print(u'  RUNNING GLITCH PPOL PLOTTER')
+    print(u'  ---------------------------')
+    print()
+
+
+
+    ### READ GLITCH-FILE
+    glitch_number  = int(glitch_number)
+    
+    glitches       = np.loadtxt(glitch_files[-1], dtype='str')
+    title          = 'Glitch number %06d (unit=%s)' % (glitch_number, UNIT)
+    glitch_numbers = np.array( [int(glitch.replace(':','')) for glitch in glitches[:,0]] )
+    index          = np.where(glitch_numbers==glitch_number)
+
+    glitch       = glitches[index]
+    glitch_start = UTCDateTime(glitch[0,1])
+    glitch_end   = UTCDateTime(glitch[0,2])
+
+    for waveform_file in waveform_files:
+        stream = read2(waveform_file)
+        stream.trim(starttime=glitch_start-60, endtime=glitch_end+60)
+
+        if not stream:
+            continue
+
+        stream._set_inventory(file=inventory_file)   
+        stream.detrend('demean')        
+        stream.taper(0.05)       
+        stream.detrend('simple')
+        if UNIT=='GAI':
+            stream.gain_correction()
+        else:
+            if UNIT=='DIS':
+                UNIT = 'DISP'
+            stream.remove_response(inventory=stream.inventory, output=UNIT, pre_filt=None, water_level=60)
+        stream.rotate('->ZNE', inventory=stream.inventory, components=('UVW'))
+        stream.trim(starttime=glitch_start, endtime=glitch_end)
+
+        ppol_measurement = ppol(stream=stream)
+        ppol_measurement.display(tag=title)
+        ppol_measurement.plot(title=title, show=show, outfile=outfile)
+
+        break
 
 
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  

@@ -229,7 +229,7 @@ plot:
 
   plotter:
     glitch_overview_plot:
-      run: True
+      run: False
       UNIT: GAI
       sols: [200,210]
       LMST_range: ['00:00:00', '24:00:00']
@@ -362,6 +362,16 @@ plot:
       mode: largest
       scale: 30
       align: maximumW
+      show: True
+      outfile: False
+
+    glitch_ppol_plot:
+      run: True
+      UNIT: ACC      
+      inventory_file: 'IRIS'
+      glitch_number: 14318
+      waveform_files:
+        - /home/scholz/Desktop/data/201906/XB.ELYSE.02.BHUVW_20190601T122411-20190602T182247.mseed
       show: True
       outfile: False
 

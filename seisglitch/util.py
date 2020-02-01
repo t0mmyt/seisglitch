@@ -50,7 +50,7 @@ from matplotlib.widgets import TextBox
 
 #####  obspy modules import  #####
 from obspy import read, read_inventory, UTCDateTime
-from obspy.core.stream import Stream
+from obspy.core.stream import Stream, Trace
 from obspy.core.inventory import Inventory
 from obspy.signal import rotate
 from obspy.clients.fdsn import Client

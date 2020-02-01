@@ -90,7 +90,8 @@ elif mode=='plot':
     plot.glitch_gutenberg_plot( *plot_files, **plot_params['glitch_gutenberg_plot'] )
     plot.glitch_waveform_plot(  *plot_files, **plot_params['glitch_waveform_plot']  )
     plot.glitch_XoverBAZ_plot(  *plot_files, **plot_params['glitch_XoverBAZ_plot']  )
-    plot.glitch_align_plot(     *plot_files, **plot_params['glitch_align_plot']  )
+    plot.glitch_align_plot(     *plot_files, **plot_params['glitch_align_plot']     )
+    plot.glitch_ppol_plot(      *plot_files, **plot_params['glitch_ppol_plot']      )
 
 
 elif mode=='remove':

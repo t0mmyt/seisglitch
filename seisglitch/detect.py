@@ -41,9 +41,9 @@ from obspy import UTCDateTime, read
 
 
 #####  seisglitch modules import  #####
-from seisglitch.ppol_core import ppol
+from seisglitch.ppol import ppol
 from seisglitch.math import moving_window, normalise
-from seisglitch.util import read2, Stream2, marstime, sec2hms, quick_plot
+from seisglitch.util import read2, marstime, sec2hms, quick_plot
 
 
 
@@ -76,7 +76,7 @@ def glitch_detector(*RAW_UVW,
     header         = u'    0                    1                    2              3              4         5         6         7          8          9         10           11         12         13         14         15         16           17         18         19         20         21         22           23         24         25         26         27         28           29         30         31         32         33         34            35          36          37          38            39          40          41          42            43          44          45          46            47          48          49          50\n' \
                      u'  NUM         GLITCH-UTC-S         GLITCH-UTC-E  GLITCH-LMST-S  GLITCH-LMST-E  U-GLITCH  V-GLITCH  W-GLITCH      U-RAW      V-RAW      W-RAW        U-GAI      V-GAI      W-GAI      Z-GAI      N-GAI      E-GAI        U-DIS      V-DIS      W-DIS      Z-DIS      N-DIS      E-DIS        U-VEL      V-VEL      W-VEL      Z-VEL      N-VEL      E-VEL        U-ACC      V-ACC      W-ACC      Z-ACC      N-ACC      E-ACC    PHI_3D_GAI  INC_3D_GAI  SNR_3D_GAI  POL_3D_GAI    PHI_3D_DIS  INC_3D_DIS  SNR_3D_DIS  POL_3D_DIS    PHI_3D_VEL  INC_3D_VEL  SNR_3D_VEL  POL_3D_VEL    PHI_3D_ACC  INC_3D_ACC  SNR_3D_ACC  POL_3D_ACC\n' \
                      u'------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------'
-    line_formatter = u'%06d:  %19s  %19s  %13s  %13s  %8d  %8d  %8d  %9d  %9d  %9d    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %10.1f  %10.1f  %10.3f  %10.3f    %10.1f  %10.1f  %10.3f  %10.3f    %10.1f  %10.1f  %10.1g  %10.3f    %10.1f  %10.1f  %10.1g  %10.3f'
+    line_formatter = u'%06d:  %19s  %19s  %13s  %13s  %8d  %8d  %8d  %9d  %9d  %9d    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %10.1f  %10.1f  %10.1g  %10.3f    %10.1f  %10.1f  %10.1g  %10.3f    %10.1f  %10.1f  %10.1g  %10.3f    %10.1f  %10.1f  %10.1g  %10.3f'
         
 
 
