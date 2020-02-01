@@ -32,14 +32,19 @@ import sys
 import copy
 import time
 import glob
+import yaml
 import datetime
+import itertools
 import numpy as np
 
 
 #####  matplotlib modules import  #####
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+plt.switch_backend('TKAgg')
 import matplotlib.dates as mdates
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d import proj3d
 from matplotlib.widgets import TextBox
 
 
@@ -50,6 +55,9 @@ from obspy.core.inventory import Inventory
 from obspy.signal import rotate
 from obspy.clients.fdsn import Client
 
+
+##### seisglitch modules import #####
+from seisglitch.math import normalise
 
 
 # Extended Obspy Stream class (adding some more functionality)
@@ -71,23 +79,23 @@ class Stream2(Stream):
         self.unit         = 'RAW'
         self.times        = self._get_times()
         self.inventory    = None
-        self.filters      = {'0' : {'freqmin':None,  'freqmax':None, 'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':0, 'string':'0: None'},
-                             '1' : {'freqmin':1.0,   'freqmax':None, 'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':1, 'string':'1: >1 Hz'},
-                             #'2' : {'freqmin':0.1,   'freqmax':None, 'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':2, 'string':'2: >0.1 Hz'},
-                             #'3' : {'freqmin':None,  'freqmax':None, 'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':3, 'string':'3: >0.01 Hz'},
-                             '2' : {'freqmin':None,  'freqmax':1,    'corners':3, 'zerophase':False,'type_taper':'hann', 'max_percentage_taper':0.03, 'num':2, 'string':'2: <1 Hz (0-phase=False)'},
-                             '3' : {'freqmin':None,  'freqmax':1,    'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':3, 'string':'3: <1 Hz (0-phase=True)'},
-                             '4' : {'freqmin':0.001, 'freqmax':None, 'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':4, 'string':'4: >0.001 Hz'},
-                             #'5' : {'freqmin':1./100,   'freqmax':None,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':5, 'string': '5: Lowpass 100s'},
-                             #'6' : {'freqmin':1./200,   'freqmax':None,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':5, 'string': '6: Lowpass 200s'},
-                             #'7' : {'freqmin':1./300,   'freqmax':None,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':5, 'string':'7: Lowpass 300s'},
-                             #'8' : {'freqmin':1./400,   'freqmax':None,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':5, 'string':'8: Lowpass 400s'},
-                             #'9' : {'freqmin':1./500,   'freqmax':None,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':5, 'string':'9: Lowpass 500s'},
-                             '5' : {'freqmin':0.1,   'freqmax':2.0,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':5, 'string':'5: RFs (0.1-2 Hz)'},
-                             '6' : {'freqmin':1/9.0, 'freqmax':1.0,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':6, 'string':'6: BP 1-9 s'},
-                             '7' : {'freqmin':1/6.0, 'freqmax':1.0,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':7, 'string':'7: BP 1-6 s'},
-                             '8' : {'freqmin':2.0,   'freqmax':3.0,  'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':8, 'string':'8: 2-3 Hz'},
-                             '9' : {'freqmin':2.0,   'freqmax':10,   'corners':3, 'zerophase':True, 'type_taper':'hann', 'max_percentage_taper':0.03, 'num':9, 'string':'9: BP 2-10 Hz'},
+        self.filters      = {'0' : {'type' : False,       'options' : {                                                               },   'string':'0: no filter'},
+                             '1' : {'type' : 'highpass',  'options' : {'freq':1.0,                       'corners':3, 'zerophase':True},   'string':'1: >1 Hz'},
+                            #'2' : {'type' : 'highpass',  'options' : {'freq':0.1,                       'corners':3, 'zerophase':True},   'string':'2: >0.1 Hz'},
+                            #'3' : {'type' : False,       'options' : {                                                               },   'string':'3: >0.01 Hz'},
+                             '2' : {'type' : 'bandpass',  'options' : {'freqmin':0.001,  'freqmax':1.0,  'corners':3, 'zerophase':True},   'string':'2: 0.001s < f < 1'},
+                             '3' : {'type' : 'bandpass',  'options' : {'freqmin':0.001,  'freqmax':0.1,  'corners':3, 'zerophase':True},   'string':'3: 0.001s < f < 0.1'},
+                             '4' : {'type' : 'bandpass',  'options' : {'freqmin':0.01,   'freqmax':0.1,  'corners':3, 'zerophase':True},   'string':'4: 0.01s < f < 0.1'},
+                             '5' : {'type' : 'highpass',  'options' : {'freq':0.001,                     'corners':3, 'zerophase':True},   'string':'5: 0.001s < f'},
+                            #'6' : {'type' : 'highpass',  'options' : {'freq':1./200,                    'corners':3, 'zerophase':True},   'string': '6: Lowpass 200s'},
+                            #'7' : {'type' : 'highpass',  'options' : {'freq':1./300,                    'corners':3, 'zerophase':True},   'string':'7: Lowpass 300s'},
+                            #'8' : {'type' : 'highpass',  'options' : {'freq':1./400,                    'corners':3, 'zerophase':True},   'string':'8: Lowpass 400s'},
+                            #'9' : {'type' : 'highpass',  'options' : {'freq':1./500,                    'corners':3, 'zerophase':True},   'string':'9: Lowpass 500s'},
+                            #'5' : {'type' : 'bandpass',  'options' : {'freqmin':0.1,    'freqmax':2.0,  'corners':3, 'zerophase':True},   'string':'5: RFs (0.1-2 Hz)'},
+                             '6' : {'type' : 'bandpass',  'options' : {'freqmin':1/9.0,  'freqmax':1.0,  'corners':3, 'zerophase':True},   'string':'6: BP 1-9 s'},
+                             '7' : {'type' : 'bandpass',  'options' : {'freqmin':1/6.0,  'freqmax':1.0,  'corners':3, 'zerophase':True},   'string':'7: BP 1-6 s'},
+                             '8' : {'type' : 'bandpass',  'options' : {'freqmin':2.0,    'freqmax':3.0,  'corners':3, 'zerophase':True},   'string':'8: 2-3 Hz'},
+                             '9' : {'type' : 'bandpass',  'options' : {'freqmin':2.0,    'freqmax':10,   'corners':3, 'zerophase':True},   'string':'9: BP 2-10 Hz'},
                              }
     def is_unique(self):
 
@@ -116,89 +124,94 @@ class Stream2(Stream):
             return True
         else:
             return False
-    def snr(self, axis=0, ddof=1):
-        """ 
-        Signal-to-noise ratio (SNR), as by Scipy.
-        Retuns a dictionary with keys=station ID,
-        values=SNR. 
-        """
-
-        SNRs = {}
-        for trace in self:
-            data           = np.array(trace.data)
-            SNRs[trace.id] = snr(data, axis=axis, ddof=ddof)
-
-        for traceID in SNRs.keys():
-            print('ID: %s  SNR: %8.2f' % (traceID, SNRs[traceID]))
-
-        return SNRs
-    def trim(self, *args, **kwargs):
+    def trim2(self, *args, samples=None, common=False, **kwargs):
 
         """
-        Use Obspy's trim fucntion and improve slightly.
+        Use Obspy's trim function and improve slightly.
         Improvement is that you don't have to type
         `UTCDateTime` every time you specify a time.
         """
 
-        # Try to convert positional arguments passed to `UTCDateTime` 
-        args = list(args)
-        for l, arg in enumerate(args):
-            try:
-                args[l] = UTCDateTime(args[l])
-            except Exception as err:
-                #print(err)
-                pass
 
-        # Try to convert keyword arguments passed to `UTCDateTime` 
+        ## minimum and maximum times of stream
+        mint = min([tr.stats.starttime for tr in self])
+        maxt = max([tr.stats.endtime   for tr in self])
+
+
+        ## Try to convert positional arguments passed to `UTCDateTime` 
+        args  = list(args)
+        args2 = np.array(args)
+
+        if args2 is not None:
+            for l, arg in enumerate(args2[:2]):
+
+                if isinstance(arg, (str,int,float)):
+                    try:
+                        args2[l] = float(args2[l])
+                    except ValueError:
+                        pass
+
+                if l==0:
+                    kwargs['starttime'] = args2[l]
+                    del args[0]
+                elif l==1:
+                    kwargs['endtime']   = args2[l]
+                    del args[0]
+
+
+        ## Try to convert keyword arguments passed to `UTCDateTime` 
         try:
+            kwargs['starttime']
+        except KeyError:
+            kwargs['starttime'] = mint
+        
+        try:
+            kwargs['endtime']
+        except KeyError:
+            kwargs['endtime']   = maxt
+
+
+        ## if start or endtimes or floats, convert to percentage of respective start and ent times
+        if isinstance(kwargs['starttime'], float):
+            kwargs['starttime'] = max(mint, mint + (maxt-mint)*kwargs['starttime'])
+        else:
             kwargs['starttime'] = UTCDateTime(kwargs['starttime'])
-        except KeyError:
-            pass
-        try:
-            kwargs['endtime'] = UTCDateTime(kwargs['endtime'])
-        except KeyError:
-            pass
 
-        super().trim(*args, **kwargs)
-        self.times = self._get_times()
-    def trim_common(self):
+        if isinstance(kwargs['endtime'], float):
+            kwargs['endtime']   = min(maxt,  maxt - (maxt-mint)*(1-kwargs['endtime']))
+        else:
+            kwargs['endtime']   = UTCDateTime(kwargs['endtime'])
 
-        """
-        Trim traces in stream to common start- and endtime, i.e.,
-        maximum starttime and minimum endtime
-        """
-    
-        max_starttime = max([tr.stats.starttime for tr in self ])
-        min_endtime   = min([tr.stats.endtime   for tr in self ])               
-        self.trim(starttime=max_starttime, endtime=min_endtime) 
-        self.times = self._get_times()
-    def truncate(self, start_per=0, end_per=1):
-    
-        """
-        Truncate stream by percentag with respect
-        to earliest and latest trace times found in
-        stream.
 
-        Default values mean nothing is truncated.
-        """
-    
-        start_per = float(start_per)
-        end_per   = float(end_per)
-    
-        if start_per<0: 
-            start_per = 0
+        ## cut to samples length, if wished:
+        if samples:
+            for trace in self:
+                kwargs['endtime'] = kwargs['starttime'] + (samples-1)*trace.stats.delta
+                trace.trim(*args, **kwargs)
+        else:
+            self.trim(*args, **kwargs)
 
-        if end_per>1: 
-            end_per = 1
 
-        if start_per==0 and end_per==1:
-            return
-    
-        mint       = min([tr.stats.starttime for tr in self])
-        maxt       = max([tr.stats.endtime for tr in self])
-        starttime  = mint + (maxt-mint)*start_per
-        endtime    = maxt - (maxt-mint)*(1-end_per)
-        self.trim(starttime=starttime, endtime=endtime)
+        ## trim common, if wished
+        if common:
+            ids = self._get_ids()
+
+            minis, maxis = [], []
+            for id in ids:
+                mini = min([trace.stats.starttime for trace in self.select(id=id)])
+                maxi = max([trace.stats.endtime   for trace in self.select(id=id)])
+                minis.append(mini)
+                maxis.append(maxi)
+
+            kwargs['starttime'] = max(minis)
+            kwargs['endtime']   = min(maxis)
+            #print(kwargs['starttime'])
+            #print(kwargs['endtime'])
+            
+            self.trim(*args, **kwargs)
+
+
+        ## update Stream2 times
         self.times = self._get_times()
     def normalise(self, scale_to_between=[]):
 
@@ -251,10 +264,14 @@ class Stream2(Stream):
         Print filter of stream, if it was fitlered.
         """
         print( self.current_filter_str )
-    def gain_correction(self): 
+    def gain_correction(self, verbose=False): 
         if self.inventory:
-            print()
-            print(u'GAIN CORRECTION APPLIED:')
+
+            if verbose:
+                print()
+                print(u'GAIN CORRECTION APPLIED:')
+
+
             try:
 
                 if not self.gain_removed:
@@ -263,14 +280,18 @@ class Stream2(Stream):
                         response   = self.inventory.get_response(trace.id, trace.stats.starttime)
                         gain       = response._get_overall_sensitivity_and_gain()[1]                
                         trace.data = trace.data / gain
-                        print(u'  %15s : overall sensitivity and gain (division) %s' % (trace.id, gain))
+
+                        if verbose:
+                            print(u'  %15s : overall sensitivity and gain (division) %s' % (trace.id, gain))
                 else:
                     self.gain_removed = False
                     for trace in self:
                         response   = self.inventory.get_response(trace.id, trace.stats.starttime)
                         gain       = response._get_overall_sensitivity_and_gain()[1]                
                         trace.data = trace.data * gain
-                        print(u'  %15s : overall sensitivity and gain (multiplication) %s' % (trace.id, gain))
+
+                        if verbose:
+                            print(u'  %15s : overall sensitivity and gain (multiplication) %s' % (trace.id, gain))
 
             except Exception as err:
                 print(u'WARNING:  %s' % err)
@@ -278,7 +299,7 @@ class Stream2(Stream):
         else:
             print()
             print(u'No matching response found for gain correction. Nothing done.')
-    def filtering(self, filter):
+    def filtering(self, filter_num):
     
         """ 
         Filter ObsPy's stream object has to the given filter specifications. 
@@ -290,25 +311,15 @@ class Stream2(Stream):
           https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.filter.html
         """
     
-        if isinstance(filter, (str, int)):
-            filter = self.filters[str(filter)]
+        if isinstance(filter_num, (str, int)):
+            filt = self.filters[str(filter_num)]
 
+        if filt['type']:
+            self.taper(max_percentage=0.03)
+            self.filter(filt['type'], **filt['options'])
 
-        #filter = {**taper, **filter}
-
-        if filter['freqmin'] or filter['freqmax']:
-            self.detrend('demean')
-            self.detrend('linear')
-            self.taper(type=filter['type_taper'], max_percentage=filter['max_percentage_taper'])
-            if not filter['freqmin']:
-                self.filter('lowpass', freq=filter['freqmax'], corners=filter['corners'], zerophase=filter['zerophase'])
-            elif not filter['freqmax']:
-                self.filter('highpass', freq=filter['freqmin'], corners=filter['corners'], zerophase=filter['zerophase'])
-            else:
-                self.filter('bandpass', freqmin=filter['freqmin'], freqmax=filter['freqmax'], corners=filter['corners'], zerophase=filter['zerophase'])
-
-            self.current_filter_num = filter['num']
-            self.current_filter_str = filter['string']
+        self.current_filter_num = filter_num
+        self.current_filter_str = filt['string']
     def _get_filter_str(self):
         # return filter of stream object (use only first trace to check)
         try:
@@ -329,7 +340,7 @@ class Stream2(Stream):
     def _get_components(self):
         components = '*'
         try:
-            components = sorted( list( set( [tr.stats.channel[-1] for tr in self] )), reverse=True)
+            components = sorted( set( [tr.stats.channel[-1] for tr in self] ))
         except AttributeError:
             pass
 
@@ -357,16 +368,14 @@ class Stream2(Stream):
             times = None, None
 
         return times
-    def _get_inventory(self, file=None, online='IPGP'):
+    def _get_inventory(self, file):
 
         """
-        Gets latest `file` (with respect to download) and reads it as an Obspy inventory object.
+        Gets latest `file` and reads it as an Obspy inventory object.
         From this inventory, only the part is extracted that matches the start and end times of the stream `self`,
         as well as matches all networks, stations, locations and channels of the stream.
 
-        The inventory file is then assigned to `self.inventory` and also returned in case
-        further processing is needed.
-
+        The inventory file is then  returned.
 
         https://docs.obspy.org/packages/obspy.clients.fdsn.html
         """
@@ -374,24 +383,7 @@ class Stream2(Stream):
 
         inv = Inventory()
 
-        # retrieve from online
-        if not file:
-
-            client = Client(online)
-
-            for trace in self:
-                network, station, location, channel = trace.id.split('.')
-                inv += client.get_stations(network = network, 
-                                        station    = station, 
-                                        location   = location, 
-                                        channel    = channel,
-                                        starttime  = self.times[0], 
-                                        endtime    = self.times[1],
-                                        level      = 'response')
-
-
-        # retrieve from file
-        else:
+        try:
 
             inv_file  = max( glob.glob( file ), key=os.path.getctime)   # most recent one, in case there multiple
             inventory = read_inventory(inv_file)
@@ -404,13 +396,48 @@ class Stream2(Stream):
                                         channel   = channel, 
                                         starttime = self.times[0], 
                                         endtime   = self.times[1])
+            
+            print()
+            print(u'Info: Inventory read from file %s' % file)
+
+
+        except Exception:      # `file` couldn't be read, because it was e.g. something like 'IRIS' or 'IPGP'
+            
+            print()
+            print(u'Info: Inventory retrieval online from %s' % file)
+           
+            client = Client(file)
+
+            for trace in self:
+                network, station, location, channel = trace.id.split('.')
+                inv += client.get_stations(network = network, 
+                                         station   = station, 
+                                         location  = location, 
+                                         channel   = channel,
+                                         starttime = self.times[0], 
+                                         endtime   = self.times[1],
+                                         level     = 'response')                
 
         return inv
-    def _set_inventory(self, inventory=None, file=None, online='IPGP'):
+    def _set_inventory(self, inventory=None, file='IRIS'):
 
-        if not inventory:
-            inventory = self._get_inventory(file=file, online=online)
+        """
+        
+        """
 
+
+        # small output
+        if inventory is not None:
+            print()
+            print(u'Info: Inventory used that was passed.')
+        
+
+        # if not inventory file is passed, get via file or online
+        else:
+            inventory = self._get_inventory(file)
+
+
+        # assign final inventory to object
         self.inventory = inventory
     def rotate_2D(self, angle, components='NE', new_components='12', clockwise=False):
 
@@ -443,27 +470,11 @@ class Stream2(Stream):
         st_obs_select.times        = self.times
         st_obs_select.inventory    = self.inventory
         return st_obs_select
-    def plot_polarization(self, title='', return_results=False, show=True):
-    
-        """
-        Plot polarization of data.
+    def plot2(self, store_dir=os.getcwd(), store_name='*', verticals=(), time='normal', method='full', xlim=[], ylim=[], store_plot=False, show=True, **kwargs):
 
-        TO BE REDONE!
-        """
-
-        ### get data ready
-        stream_N = self.select(component='N') or self.select(component='Q') or self.select(component='U') or self.select(component='1') or self.select(component='T')
-        stream_E = self.select(component='E') or self.select(component='T') or self.select(component='V') or self.select(component='2') or self.select(component='R')
-        stream_Z = self.select(component='Z') or self.select(component='L') or self.select(component='W') or self.select(component='3')
-
-        if not (stream_N and stream_E):
-            print('')
-            print('Return. No idea how to perform polarization on components: %s' % ', '.join([i.stats.channel for i in self]) )
-            return
-    def plot2(self, store_dir=os.getcwd(), store_name='*', verticals=(), type='normal', method='full', save_and_no_show=False, xlim=[], ylim=[], **kwargs):
 
         """
-        Enhanced plot of stream as 'type', using ObsPy's plot function.
+        Enhanced plot of stream as 'time', using ObsPy's plot function.
           check: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.plot.html
       
           'store_name' is the name of the plot when it shall be saved (default: .png) in 'store_dir'.
@@ -527,7 +538,6 @@ class Stream2(Stream):
                                 remove.append(l)
                     
                         remove.sort(reverse=True)
-                        print('remove', remove)
                         for k in remove:
                             lines[k].remove()
                     mouse_clicks[stat_id] = 0
@@ -606,7 +616,7 @@ class Stream2(Stream):
             else:
                 axis = axes[0]
 
-            def instrument_removal(output, pre_filt=None, water_level=60): 
+            def instrument_removal(output, pre_filt=None, water_level=0):
                 xlim   = axis.get_xlim()
                 output = output.upper()
 
@@ -621,7 +631,8 @@ class Stream2(Stream):
                     corr.original = self.removed.copy()
                     corr.removed  = None
                     corr.unit     = 'RAW'
-                    corr.plot(xlim=xlim)
+                    corr.unit    +='wt%s' % water_level
+                    corr.plot2(xlim=xlim)
                     return
 
                 elif self.current_filter_num != 0 and not self.removed:
@@ -635,8 +646,9 @@ class Stream2(Stream):
                     corr.original = self.removed.copy()
                     corr.removed  = None
                     corr.unit     = 'RAW'
+                    corr.unit    +='wt%s' % water_level
                     corr.filtering(self.current_filter_num)
-                    corr.plot(xlim=xlim)
+                    corr.plot2(xlim=xlim)
                     return
 
 
@@ -646,11 +658,11 @@ class Stream2(Stream):
 
                 else:
                     if not self.inventory:
-                        print('Reading inventory file for instrument response removal ..')
                         self._set_inventory()
                     
 
-                    components = self._get_components()
+                    components = ''.join( self._get_components() )
+
                     for stat_id in mouse_clicks.keys():
                         corr_part  = corr.select(id=stat_id+'*')
                         corr_part.merge()
@@ -671,13 +683,13 @@ class Stream2(Stream):
                             corr_part2.remove_response(inventory=self.inventory, output=output, pre_filt=pre_filt, water_level=water_level)
                             corr_part2.rotate('->ZNE', inventory=self.inventory, components='UVW')
 
-                
                     corr.filtering(self.current_filter_num)
-                    corr.plot(xlim=xlim)
+                    #corr.unit    +='wt%s' % water_level
+                    corr.plot2(xlim=xlim)
 
 
             if evt.key.lower()=='a':                            # Acceleration as target unit after instrument response removal 
-                pre_filt = (0.001, 0.002, 50, 60)
+                pre_filt    = (0.001, 0.002, 50, 60)
                 instrument_removal('ACC')
 
 
@@ -724,14 +736,26 @@ class Stream2(Stream):
                 sys.exit()
 
 
-            elif evt.key.lower()=='d':                          # Displacement as target uni after instrument response removal 
-                pre_filt = (0.001, 0.002, 50, 60)
+            elif evt.key.lower()=='d':                          # Displacement as target uniy after instrument response removal 
+                pre_filt    = (0.001, 0.002, 50, 60)
                 instrument_removal('DISP')
 
 
+            elif evt.key.lower()=='e':                          # Velocity as target uniy after instrument response removal 
+                pre_filt    = (0.001, 0.002, 50, 60)
+                water_level = 0
+                instrument_removal('VEL', water_level=water_level)
+           
+
+            elif evt.key.lower()=='j':                          # Acceleration as target uniy after instrument response removal 
+                pre_filt    = (0.001, 0.002, 50, 60)
+                water_level = 0
+                instrument_removal('ACC', water_level=water_level)
+            
+
             elif evt.key.lower()=='g':                          # Gain removal / add 
-                self.gain_correction()
-                self.plot(xlim=axis.get_xlim())
+                self.gain_correction(verbose=True)
+                self.plot2(xlim=axis.get_xlim())
 
 
             elif evt.key.lower()=='h':                          # Help summary 
@@ -772,15 +796,19 @@ class Stream2(Stream):
                     indexes       = [i for i, ax in enumerate(axes) if stat_id in [c for c in ax.get_children() if isinstance(c, mpl.text.Text)][0].get_text() ]
                     ax_1st        = axes[indexes[0]]
                     xlim          = sorted( [ax_1st.lines[-1].get_xdata()[0], ax_1st.lines[-2].get_xdata()[0]] )
-                    if type == 'normal':
+                    if time == 'normal':
                         xlim   = [ UTCDateTime(mdates.num2date(x)) for x in xlim ]
-                    elif type == 'relative':
+                    elif time == 'relative':
                         xlim =  [ min_starttime+x for x in xlim ]
                     
                     polar = self.copy()
                     polar = polar.select(id=stat_id+'*')
                     polar.trim(starttime=xlim[0], endtime=xlim[1])
-                    polar.plot_polarization(title='%s, %s, %s, %s-%s'% (stat_id, self.unit, self._get_filter_str(), xlim[0].strftime('%H:%M:%S'), xlim[1].strftime('%H:%M:%S')), show=show)
+
+                    title = '%s, %s, %s, %s-%s'% (stat_id, self.unit, self._get_filter_str(), xlim[0].strftime('%H:%M:%S'), xlim[1].strftime('%H:%M:%S'))
+                    measurement = ppol(stream=polar)
+                    measurement.display()
+                    measurement.plot(title=title)
 
 
             elif evt.key=='P':                                  # Polarisation plot as batch job 
@@ -791,18 +819,15 @@ class Stream2(Stream):
                         print('Choose at least 2 time limits (left-click) per station to perform action.')
                         continue
                     print()
-                    print('Running P-pol batch job ..')
+                    print('Running Ppol batch job ..')
 
-                    if l==len(mouse_clicks.keys())-1:
-                        show=True
-                    else:
-                        show=False
+
                     indexes       = [i for i, ax in enumerate(axes) if stat_id in [c for c in ax.get_children() if isinstance(c, mpl.text.Text)][0].get_text() ]
                     ax_1st        = axes[indexes[0]]
                     xlim          = sorted( [ax_1st.lines[-1].get_xdata()[0], ax_1st.lines[-2].get_xdata()[0]] )
-                    if type == 'normal':
+                    if time == 'normal':
                         xlim   = [ UTCDateTime(mdates.num2date(x)) for x in xlim ]
-                    elif type == 'relative':
+                    elif time == 'relative':
                         xlim =  [ min_starttime+x for x in xlim ]
                     
                     # create windows for batch job
@@ -825,35 +850,30 @@ class Stream2(Stream):
                             polar   = polar.select(id=stat_id+'*')
                             polar.filtering(fil_num)
                             polar.trim(starttime=xlim[0], endtime=xlim[1])
-                            
-                            fil_str = polar._get_filter_str()
-                            window  = '%s-%s' % (xlim[0].strftime('%H:%M:%S'), xlim[1].strftime('%H:%M:%S'))
-                            title   = '%s, %s, %s, %s' % (stat_id, unit, fil_str, window)                       
-                            result  = polar.plot_polarization(title=title, return_results=True)
-                            results.append( list(result)+xlim+[fil_num] )
+                            measurement = ppol(stream=polar)
+                            results.append( list(measurement.results)+xlim )
 
                     # retrieve needed variables for best polarisation
                     results      = np.array(results)
-                    ind_high     = np.argmax(results[:,11])     # highest Rect_H
-                    rect_Hs      = list( results[:,11] )
-                    fil_num_high = results[ind_high,-1] 
-                    xlim_high    = results[ind_high,-3:-1] 
+                    ind_best     = np.argmax(results[:,12])     # highest POL_2D
 
-                    # plot best polarisationg
+                    fil_num_best =       int( ind_best %  (len(self.filters)-1) )
+                    xlim_best    = xlims[int( ind_best // (len(xlims)-1)        )]
+                    POLs_2D      = list( results[:,12] )
+
+                    # plot best polarization
                     polar_best   = self.copy()
                     polar_best   = polar_best.select(id=stat_id+'*')
-                    polar_best.filtering(fil_num_high)
-                    polar_best.trim(starttime=xlim_high[0], endtime=xlim_high[1])
+                    polar_best.filtering(fil_num_best)
+                    polar_best.trim(starttime=xlim_best[0], endtime=xlim_best[1])
 
+                    polar_best.filtering(fil_num)
+                    polar_best.trim(starttime=xlim[0], endtime=xlim[1])
+
+                    measurement_best = ppol(stream=polar_best)
                     fil_str      = polar_best._get_filter_str()
-                    window       = '%s-%s' % (xlim_high[0].strftime('%H:%M:%S'), xlim_high[1].strftime('%H:%M:%S'))
+                    window       = '%s-%s' % (xlim_best[0].strftime('%H:%M:%S'), xlim_best[1].strftime('%H:%M:%S'))
                     title        = '%s, %s, %s, %s' % (stat_id, unit, fil_str, window)
-
-                    print('')
-                    print('B E S T')
-                    print('-' * 40)
-                    polar_best.plot_polarization(title='Best: %s' % title, show=False)
-                    print('-' * 40)
 
                     # plot histogram
                     hist_title = 'Histogram P-pol batch job (%s)' % self.unit
@@ -861,13 +881,19 @@ class Stream2(Stream):
                         fig = plt.figure(hist_title)
                         fig.clf()
                     fig = plt.figure(num=hist_title)
-                    fig.suptitle('Histogram of %s P-wave polarisation calculations' % (len(rect_Hs)), fontsize=9)
+                    fig.suptitle('Histogram of %s P-wave polarisation calculations' % (len(POLs_2D)), fontsize=9)
                     ax = fig.add_subplot(111)
                     ax.grid(ls='-.', lw=0.5, zorder=0)
-                    ax.set(xlabel='Horizontal rectilinearity', ylabel='Number of occurences')
-                    ax.hist(rect_Hs, bins=100, range=(0,1), rwidth=1, ec='k', lw=0.5, zorder=3)
-                    if show:
-                        plt.show()
+                    ax.set(xlabel='Horizontal polarization (POL_2D)', ylabel='Number of occurences')
+                    ax.hist(POLs_2D, bins=100, range=(0,1), rwidth=1, ec='k', lw=0.5, zorder=3)
+
+                    # print and plot ppol_results
+                    print('')
+                    print('B E S T')
+                    print('-' * 8)
+                    measurement_best.display(title)
+                    print('-' * 8)
+                    measurement.plot(title=title)
 
 
             elif evt.key.lower()=='q':                          # Quit current figures
@@ -879,23 +905,28 @@ class Stream2(Stream):
 
             elif evt.key.lower()=='r':                          # Rotate data 
                 
-                self.merge(method=1)
-                components = self._get_components()
 
+                ## inventory & components
+                if not self.inventory:
+                    self._set_inventory()
+
+                components = ''.join( self._get_components() )
+
+                print(components)
 
                 ## rotate data to ZNE
                 if re.search(r'[U|V|W]', components):
 
                     # correct gain
-                    if not self.gain_removed:
-                        self.gain_correction()
+                    if not self.gain_removed and self.unit=='RAW':
+                        self.gain_correction(verbose=True)
 
                         if self.original:
-                            self.original.gain_correction()
+                            self.original.gain_correction(verbose=False)
                             self.original.gain_removed = True
 
                         if self.removed:
-                            self.removed.gain_correction()
+                            self.removed.gain_correction(verbose=False)
                             self.removed.gain_removed = True
 
                     # rotate
@@ -910,18 +941,20 @@ class Stream2(Stream):
                 
                 ## rotate data to UVW
                 elif re.search(r'[Z|N|E]', components):
+
                     rotate2VBBUVW(self, inventory=self.inventory)
 
                     if self.original:
+                        print(self.original[0].data)
                         rotate2VBBUVW(self.original, inventory=self.inventory)
-
+                    
                     if self.removed:
                         rotate2VBBUVW(self.removed, inventory=self.inventory)
 
-                self.plot(xlim=axis.get_xlim())
+                self.plot2(xlim=axis.get_xlim())
 
 
-            elif evt.key=='t':                                  # Trim file and save original data in viewed x-lim bounds 
+            elif evt.key.lower()=='t':                          # Trim file and save present data ("as-is") in current x-bounds (vertical blue lines)
                 for stat_id in mouse_clicks.keys():
 
                     indexes       = [i for i, ax in enumerate(axes) if stat_id in [c for c in ax.get_children() if isinstance(c, mpl.text.Text)][0].get_text() ]
@@ -937,64 +970,19 @@ class Stream2(Stream):
                         print('Choose None or 2 time limits (left-click) per station to trim data & save data.')
                         continue
 
-                    
-                    if type == 'normal':
-                        xlim   = [ UTCDateTime(mdates.num2date(x)) for x in xlim ]
-                    elif type == 'relative':
-                        xlim =  [ min_starttime+x for x in xlim ]
-
-                    def submit(filename):
-                        if self.original:
-                            trim = self.original.copy()
-                        else:
-                            trim = self.copy()
-                        trim = trim.select(id=stat_id+'*')
-                        trim.trim(starttime=xlim[0], endtime=xlim[1])
-                        trim.write(filename)
-                        plt.close()
-                    
-                    fig      = plt.figure(figsize=(17,0.7), num='Save trimmed file')
-                    ax       = fig.add_subplot(111)
-                    
-                    propose  = os.path.join( os.path.dirname(self.origin), 'TRIMORIG_'+os.path.basename(self.origin) )
-                    text_box = TextBox(ax, 'Filename:', initial=propose)
-                    text_box.on_submit(submit)
-                    plt.show()
-
-
-            elif evt.key=='T':                                  # Trim file and save present data in viewed x-lim bbounds 
-                for stat_id in mouse_clicks.keys():
-
-                    indexes       = [i for i, ax in enumerate(axes) if stat_id in [c for c in ax.get_children() if isinstance(c, mpl.text.Text)][0].get_text() ]
-                    ax_1st        = axes[indexes[0]]
-                    
-                    if mouse_clicks[stat_id]==0:
-                        xlim = ax_1st.get_xlim()
-
-                    elif mouse_clicks[stat_id]==2:
-                        xlim = sorted( [ax_1st.lines[-1].get_xdata()[0], ax_1st.lines[-2].get_xdata()[0]] )
-
-                    else:
-                        print('Choose None or 2 time limits (left-click) per station to trim data & save data.')
-                        continue
-
-                    
-                    if type == 'normal':
-                        xlim   = [ UTCDateTime(mdates.num2date(x)) for x in xlim ]
-                    elif type == 'relative':
-                        xlim =  [ min_starttime+x for x in xlim ]
+                    xlim   = [ UTCDateTime(mdates.num2date(x)) for x in xlim ]
 
                     def submit(filename):
                         trim = self.copy()
                         trim = trim.select(id=stat_id+'*')
-                        trim.trim(starttime=xlim[0], endtime=xlim[1])
+                        trim.trim2(starttime=xlim[0], endtime=xlim[1])
                         trim.write(filename)
                         plt.close()
                     
                     fig      = plt.figure(figsize=(17,0.7), num='Save trimmed file')
                     ax       = fig.add_subplot(111)
                     
-                    propose  = os.path.join( os.path.dirname(self.origin), 'TRIMPRES_'+os.path.basename(self.origin) )
+                    propose  = os.path.join( os.path.dirname(self.origin), 'AsIs_'+os.path.basename(self.origin) )
                     text_box = TextBox(ax, 'Filename:', initial=propose)
                     text_box.on_submit(submit)
                     plt.show()
@@ -1037,7 +1025,7 @@ class Stream2(Stream):
                     plt.draw()      
 
 
-            elif evt.key.lower()=='v':                          # Velocity as target uni after instrument response removal 
+            elif evt.key.lower()=='v':                          # Velocity as target uniy after instrument response removal 
                 pre_filt = (0.001, 0.002, 50, 60)
                 instrument_removal('VEL')
 
@@ -1122,14 +1110,13 @@ class Stream2(Stream):
                     filt.original     = self.copy()
 
                 else:
-                    filt              = self.original.copy()
-                    filt.original     = self.original.copy()
+                    filt          = self.original.copy()
+                    filt.original = self.original.copy()
                 
                 filt.removed = self.removed
                 filt.filtering(evt.key)
-                filt.plot(xlim=xlim)    
+                filt.plot2(xlim=xlim)    
     
-
         # variables
         mouse_clicks  = {}
         flags         = {'saved' : False}
@@ -1146,7 +1133,7 @@ class Stream2(Stream):
                 fig = mpl.pyplot.figure(fignum)
                 plt.close()
 
-        fig = self.obs_plot(type=type, show=False, handle=True, equal_scale=False, method='full', **kwargs)
+        fig = self.plot(type='normal', show=False, handle=True, equal_scale=False, method='full', **kwargs)
         fig.canvas.draw()
         fig.canvas.set_window_title(title)
         fig.canvas.mpl_connect('button_press_event', on_click)
@@ -1175,14 +1162,12 @@ class Stream2(Stream):
                 axes[i].text(0.99, 0.92, self._get_filter_str(), horizontalalignment='right', color='red', transform=axes[i].transAxes, fontsize=8, bbox=dict(boxstyle='round,pad=0.2', fc='white', ec="red", lw=0.5))
     
             if i+1 == len(self):
-                axes[i].text(0.99, 0.95, "Close all windows: 'w'.", horizontalalignment='right', color='red', transform=axes[i].transAxes, fontsize=7)
+                axes[i].text(0.99, 0.93, "Close all windows: 'w'.", horizontalalignment='right', color='red', transform=axes[i].transAxes, fontsize=7)
                 if verticals:
                     verts = np.unique( np.array(verticals)[:,:-1], axis=0 )
                     verts = verts[verts[:,0].astype('float').argsort()]
                     for j, verts_uni in enumerate(verts):
                         axes[i].text(0.99, 0.95-j*0.06, "%s" % verts_uni[1], horizontalalignment='right', color=verts_uni[2], transform=axes[i].transAxes, fontsize=6)
-
-
 
 
         # set lims
@@ -1222,16 +1207,355 @@ class Stream2(Stream):
 
 
         # show / save figure
-        if save_and_no_show:
+        if store_plot:
             flags['saved'] = True
             plt.savefig(outfile, dpi=200, bbox_inches='tight')
-            plt.close(fig)
-        else:
-            # show plot
-            plt.show() 
 
-# Glitch related
-def merge_glitch_files(outfile, *glitch_files, starttime_sort=True):
+        if show:
+            plt.show()
+            plt.close()
+
+
+# InSight related (e.g. time conversions, rotation)
+class marstime():
+
+    def __init__(self, UTC_time=None, LMST_time=None, sec_per_day_mars=88775.2440, sec_per_day_earth=86400, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
+
+        self.sec_per_day_mars  = sec_per_day_mars
+        self.sec_per_day_earth = sec_per_day_earth
+        self.sol0              = sol0
+        
+        self.UTC_time          = UTC_time
+        self.LMST_time         = LMST_time
+        self.UTC               = None
+        self.LMST              = None
+        self.sol               = None
+
+        if self.UTC_time is not None:
+            self.LMSTify()
+
+        if self.LMST_time is not None:
+            self.UTCify()
+    def __str__(self):
+
+        """
+        Display current UTC time in most common ways.
+        """
+
+        output = []
+
+        if self.UTC_time is not None:
+            UTC  = self.UTC_time
+            LMST = self.LMST_time
+            output.append(u'TIME GIVEN\n')
+            output.append(u'----------\n')
+
+        else:
+            UTC  = UTCDateTime( datetime.datetime.utcnow() )
+            LMST = self.LMSTify(UTC)
+            output.append(u'TIME NOW\n')
+            output.append(u'--------\n')
+
+
+        output.append(u'MatLab UTC:     %s\n' % mdates.date2num(UTC.datetime))
+        output.append(u'DateTime UTC:   %s\n' % UTC.datetime.__repr__())
+        output.append(u'UTCDateTime:    %s\n' % UTC.__repr__())
+        output.append(u'LocalMeanSolar: %s'   % self.LMST)
+
+        string = ''.join( output )
+        return string
+    def UTCify(self, LMST_time=None):
+
+        """
+        :copyright:
+            Simon Stähler (mail@simonstaehler.com), 2018
+            Martin van Driel (Martin@vanDriel.de), 2018
+        :license:
+            None
+        """
+
+        if LMST_time is not None:
+            LMST_time  = UTCDateTime(LMST_time)
+        elif self.LMST_time is not None:
+            LMST_time  = self.LMST_time
+        else:
+            sys.exit(u'WARNING: No time specified.')
+        
+        MIT            = float(LMST_time) / self.sec_per_day_earth + 1
+        UTC_time       = UTCDateTime(MIT  * self.sec_per_day_mars  + float(self.sol0))
+        
+        self.LMST_time = UTCDateTime(LMST_time)
+        self.UTC_time  = UTC_time
+        self.LMST      = self._LMST_string()
+        self.sol       = int(self.LMST.split('S')[0])
+        self.UTC       = self._UTC_string()
+
+        return UTC_time
+    def LMSTify(self, UTC_time=None):
+
+        """
+        :copyright:
+            Simon Stähler (mail@simonstaehler.com), 2018
+            Martin van Driel (Martin@vanDriel.de), 2018
+        :license:
+            None
+        """
+
+        if UTC_time is not None:
+            UTC_time  = UTCDateTime(UTC_time)
+        elif self.UTC_time is not None:
+            UTC_time  = self.UTC_time
+        else:
+            sys.exit(u'WARNING: No time specified.')
+        #print('hwerr')
+        #print(type(UTC_time))
+        UTC_time       = UTCDateTime(UTC_time)
+        
+        MIT            = (UTC_time - self.sol0) / self.sec_per_day_mars
+        LMST_time      = UTCDateTime((MIT - 1)  * self.sec_per_day_earth)
+        
+        self.UTC_time  = UTC_time
+        self.LMST_time = LMST_time
+        self.UTC       = self._UTC_string()
+        self.LMST      = self._LMST_string()
+        self.sol       = int(self.LMST.split('S')[0])
+
+        return LMST_time
+    def _UTC_string(self):
+
+        if self.UTC_time is None:
+            print(u'WARNING: Need to pass time first.')
+            sys.exit()
+
+        string = self.UTC_time.__str__()
+
+        return string
+    def _LMST_string(self):
+
+        sol    = (self.LMST_time.datetime - UTCDateTime('1969-12-31T00:00:00.000000Z').datetime).days
+        string = '%03dS%s' % (sol, self.LMST_time.strftime('%H:%M:%S'))
+
+        return string
+    def list(self, hms, sols_range=[], is_UTC=False):
+
+        """
+        LIST TIME
+        
+        Small script to display a range of time. Useful e.g.
+        when having to check data at a specific UTC or LMST
+        each day / sol.
+
+        `sol_range` can be a list or single numer, e.g.:
+           - sols_range=[17,193] (displays these sols)
+           - sols_range=17       (displays last 17 sols)
+        If no `sols_range` specified, the last 10 sols are displayed by default.
+
+        `is_UTC`=True means `hms` is given as UTC and you would like to
+        see the corresponding LMST with respect to `sols_range`.
+        `is_UTC`=False means `hms` is given as LMST and you would like to
+        see the corresponding UTC with respect to `sols_range`.
+        """
+
+
+        ## VARIABLES
+        hms = '%06d' % ( int(hms)*10**(6-len(str(hms))) )
+
+        if isinstance(sols_range, (float, int)):
+            sols_range = [sols_range]
+        if not sols_range or len(sols_range)==1:
+            UTC_now    = UTCDateTime( time.time() )
+            LMST_now   = self.LMSTify(UTC_now)
+
+            if len(sols_range)==1:
+                sols_range = [LMST_now.julday-sols_range[0], LMST_now.julday-1]
+            else:
+                sols_range = [LMST_now.julday-10,            LMST_now.julday-1]
+
+
+        ## PRINTS
+        print('UTC                    LMST')
+        print('---                    ----')    
+        for sol in range(sols_range[0], sols_range[1]+1):
+
+            if is_UTC:
+                time_str_ymd = self.sol2UTC(sol).strftime('%Y-%m-%d')
+                time_str_HMS = '%s:%s:%s' % (hms[0:2], hms[2:4], hms[4:6])
+
+                UTC_time     = UTCDateTime( time_str_ymd + 'T' + time_str_HMS)
+                LMST_time    = self.LMSTify(UTC_time)
+
+
+            else:
+                LMST_time    = UTCDateTime('1970-01-01T%s:%s:%s.000000Z' % (hms[:2], hms[2:4], hms[4:])) + datetime.timedelta(days=sol)
+                UTC_time     = self.UTCify(LMST_time)
+
+
+            print('%s    %sS%s' % (UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), LMST_time.julday, LMST_time.strftime('%H:%M:%S')))
+    def sol2UTC(self, sol=0):
+        # Convert a float, interpreted as InSight sol, to UTC.
+            
+        return UTCify(UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=sol-1))
+def rotate2VBBUVW(stream, inventory, is_UVW=False, plot=False):
+
+    """
+    Returns data (no copy of data)!
+    No gain correction applied, must be done beforehand!
+
+    https://docs.obspy.org/packages/autogen/obspy.signal.rotate.rotate2zne.html
+    """
+
+
+    # VALUES EXTRACTED from INVENTORY FILE
+    VBBU_azimuth = 135.11
+    VBBV_azimuth = 15.04
+    VBBW_azimuth = 254.96
+    
+    VBBU_dip     = -29.28   # defined as down from horizontal!
+    VBBV_dip     = -29.33
+    VBBW_dip     = -29.61
+
+
+    # case data (SP or VBB) are in UVW, first go to ZNE using inventory file
+    if is_UVW:
+        stream_new = stream.select(component='[UVW]')
+        stream_new.sort()
+        stream_new.rotate('->ZNE', inventory=inventory, components=('UVW'))     # in case SP data are passed (or similar)
+
+    else:
+        stream_new = stream.select(component='[ZNE]')
+        stream_new.sort(reverse=True)
+
+
+    # rotate from ZNE data to VBB UVW
+    stream_new[0].data, stream_new[1].data, stream_new[2].data = rotate.rotate2zne( data_1     = stream_new[0].data,
+                                                                                    azimuth_1  = VBBU_azimuth, 
+                                                                                    dip_1      = VBBU_dip, 
+
+                                                                                    data_2     = stream_new[1].data, 
+                                                                                    azimuth_2  = VBBV_azimuth, 
+                                                                                    dip_2      = VBBV_dip, 
+
+                                                                                    data_3     = stream_new[2].data, 
+                                                                                    azimuth_3  = VBBW_azimuth, 
+                                                                                    dip_3      = VBBW_dip, 
+
+                                                                                    inverse    = True)
+
+    # because of sorting, can just index new component
+    stream_new[0].stats.channel = stream_new[0].stats.channel[:-1] + 'U'
+    stream_new[1].stats.channel = stream_new[1].stats.channel[:-1] + 'V'
+    stream_new[2].stats.channel = stream_new[2].stats.channel[:-1] + 'W'
+
+
+    # plot, if desired
+    if plot:
+        if is_UVW:
+            data_labels=('U old', 'U new', 'V old', 'V new', 'W old', 'W new')
+        else:
+            data_labels=('Z old', 'U new', 'N old', 'V new', 'E old', 'W new')
+        quick_plot(stream[0], stream_new[0], stream[1], stream_new[1], stream[2], stream_new[2], data_labels=data_labels)
+    
+    return stream_new
+
+
+# Other
+def pierce_stream(file, format_out='mseed'): 
+
+    """
+    ObsPy's merge function is first applied to stream.
+
+    See options:
+    https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.__add__.html#obspy.core.trace.Trace.__add__
+
+    After that:
+    Pierce stream into X streams, in which each stream contains all unique channels of the input stream,
+    all with same start and end times. For example useful, if you need 3-D component, equally trimmed data
+    that are contained within one gappy stream ..
+
+    NOTE: all unique traces in stream are considered. so if there are 5 different traces, the
+    resulting streams will have the start and end times where all 5 traces are present, nothing more.
+    So make sure stream contains only those traces that you'd like.
+    """
+
+
+
+    ### handle overlaps first (if there any gaps, data will be masked array), that is why then split masked array contiguous unmasked traces to apply piercing
+    stream = read2(file)
+    stream.merge(method=1, fill_value=None, interpolation_samples=0)
+    stream = stream.split()
+
+
+
+    ### piercing traces 
+    ids           = list(set( [tr.id for tr in stream] ))
+    array         = np.array([[len(stream.select(id=id)),id] for id in ids])
+    id_max_traces = array[np.argmax(array[:,0].astype('float')),1]
+
+    new_streams   = []
+    for l, trace in enumerate( stream.select(id=id_max_traces) ): 
+
+        traces = []
+        for tr in stream:
+            if tr.id != trace.id:
+                if tr.stats.endtime>=trace.stats.starttime and tr.stats.starttime<=trace.stats.endtime:
+                    traces.append(tr)
+
+        traces     = [trace] + traces
+        tmp_stream = Stream2(traces=traces).copy()
+        tmp_ids    = list( set( [tr.id for tr in tmp_stream] ))
+
+
+        # not enough to pierce, moving on to next one
+        if len(tmp_ids)<len(ids):
+            continue
+        
+
+        # containing multiple traces of one ID
+        if len(tmp_stream) != len(ids):
+
+            for possibility in itertools.combinations(tmp_stream, len(ids)):
+
+                possibility_ids = len( set( [trace.id for trace in possibility] ))
+
+                if possibility_ids != len(ids):
+                    continue
+
+                else:
+                    new_stream = Stream2(traces=possibility)
+                    new_stream = new_stream.copy()
+                    try:
+                        new_stream.trim2(common=True)
+                    except ValueError:
+                        continue
+                    new_streams.append(new_stream)
+        
+        else:
+            tmp_stream.trim2(common=True)
+            new_streams.append(tmp_stream)
+
+    new_streams = sorted(new_streams, key=lambda x: x[0].stats.starttime)
+
+
+
+    ### WRITING FILES OUT
+    for stream in new_streams:
+        print( str(stream).replace('\n','\n  '))
+
+    print()
+    print(u'STREAMS PIERCED AND WRITTEN:')
+    for l, stream in enumerate(new_streams):
+        start_str = stream[0].stats.starttime.strftime('%Y%m%dT%H%M%S')
+        end_str   = stream[0].stats.endtime.strftime('%Y%m%dT%H%M%S')
+        ids       = stream._get_ids()
+        comps     = ''.join( stream._get_components() )
+
+        filepath  = os.path.dirname( file )
+        filename  = '%s_%s-%s.%s' % (ids[0][:-1] + comps, start_str, end_str, format_out)
+        fileout   = os.path.join(filepath, filename)
+
+        stream.write(fileout, format=format_out)
+        print(fileout)
+def merge_glitch_detector_files(outfile, *glitch_detector_files, starttime_sort=True):
 
     """
     Merging together glitch extration files produced by `glitch_detector`.
@@ -1239,10 +1563,14 @@ def merge_glitch_files(outfile, *glitch_files, starttime_sort=True):
     """
 
 
+    now = time.time()
+
+
     ### OUTPUT
     print(u'Merging the following files:')
-    for file in glitch_files:
+    for file in glitch_detector_files:
         print(file)
+
 
 
     ### RETRIEVE HEADER AND ALL DATA
@@ -1250,12 +1578,12 @@ def merge_glitch_files(outfile, *glitch_files, starttime_sort=True):
     with open(outfile, 'w') as fp: 
         counter = 0
 
-        for file in glitch_files: 
+        for file in glitch_detector_files: 
 
             with open(file, 'r') as fp2:
                 lines  = fp2.readlines() 
                 header = lines[0:3]
-                data  += [line for line in lines[2:] if line and not line.startswith('#')]
+                data  += [line for line in lines[3:] if line.strip() and not line.startswith('#')]
                     
 
     ### SORTING
@@ -1265,6 +1593,49 @@ def merge_glitch_files(outfile, *glitch_files, starttime_sort=True):
         data         = np.array(data)
         data         = data[sort_indices]
 
+
+    ### STATISTICS
+    data_split   = np.array( [line.split() for line in data] )
+    glitch_all   = len(data)
+    glitch_U     = len(data_split[ data_split[:,5]=='1'])
+    glitch_V     = len(data_split[ data_split[:,6]=='1'])
+    glitch_W     = len(data_split[ data_split[:,7]=='1'])
+    glitch_Uonly = len(data_split[(data_split[:,5]=='1') & (data_split[:,6]=='0') & (data_split[:,7]=='0')])
+    glitch_Vonly = len(data_split[(data_split[:,5]=='0') & (data_split[:,6]=='1') & (data_split[:,7]=='0')])
+    glitch_Wonly = len(data_split[(data_split[:,5]=='0') & (data_split[:,6]=='0') & (data_split[:,7]=='1')]) 
+    try:
+        glitch_indivdual_ratio = (glitch_Uonly+glitch_Vonly+glitch_Wonly)/glitch_all*100
+    except ZeroDivisionError:
+        glitch_indivdual_ratio = np.nan
+
+    output1   = [u'MERGED:']
+    output2   = ['  %s' % file for file in glitch_detector_files]
+    output3   = [u'',
+                 u'RESULTS:',      
+                 u'  Glitches total:            %s'           % glitch_all,
+                 u'            on U:            %s'           % glitch_U,
+                 u'            on V:            %s'           % glitch_V,
+                 u'            on W:            %s'           % glitch_W,
+                 u'       only on U:            %s'           % glitch_Uonly,
+                 u'       only on V:            %s'           % glitch_Vonly,
+                 u'       only on W:            %s'           % glitch_Wonly,
+                 u'    indi./ all %%:            %.1f'        % glitch_indivdual_ratio,
+                 u'',
+                 u'Done in:   %s (h:m:s).'                    % sec2hms( time.time()-now ),
+                 u'Timestamp: %s'                             % datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')]
+
+    # create good-looking output for later
+    len_max_line  = max( [len(line) for line in output1+output2+output3] )
+    formatter_str = "\n#   | %-" + str(len_max_line) + 's |'
+
+    output1 = [formatter_str % line for line in output1]
+    output2 = [formatter_str % line for line in output2]
+    output3 = [formatter_str % line for line in output3]
+    output1.insert(0,           '\n\n#   +-' +  '-' * len_max_line + '-+'   )
+    output3.insert(len(output3),  '\n#   +-' +  '-' * len_max_line + '-+\n' )
+
+    for i in header:
+        print(header)
 
     ### WRITING OUT
     counter = 0
@@ -1278,248 +1649,359 @@ def merge_glitch_files(outfile, *glitch_files, starttime_sort=True):
             number   = '%06d' % counter 
             fp.write(number+line[6:])
 
+        for line in output1+output2+output3:
+            fp.write(line)
+
 
     ### OUTPUT
     print()
     print(u'Merged glitch file to:')
     print(outfile)
-
-# Convenient helpers
-def moving_window(*data, window_length_in_samples=100, step_in_samples=50, equal_end=True):
+def read_config(config_file):
 
     """
-    Yield data of moving windows according to given parameters.
+    Read yaml config file via `full_load`. See details in:
+    https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
+
+    Included is also a hack to read numbers like `1e-7` as floats and not
+    as strings. Shouldn't be like this, but is: See details in:
+    https://stackoverflow.com/questions/30458977/yaml-loads-5e-6-as-string-and-not-a-number
     """
 
-    i = 0
-    while True:
-
-        # window indices
-        index_window_start = i * step_in_samples
-        index_window_end   = index_window_start + window_length_in_samples
-
-        # latest when start time of window is >= number samples, then no more windows
-        i += 1
-        if index_window_start >= len(data):
-            break
-
-        # insist last window is of length `window_length_in_samples` 
-        if equal_end:
-            if len(data[index_window_start:index_window_end]) < window_length_in_samples:
-                break
+    print()
+    print(u'Reading config file:')
+    print(config_file)
 
 
-        yield_data = (array[index_window_start:index_window_end] for array in data)
-
-        yield (index_window_start, index_window_end, *yield_data)
-
-# Mathematical
-def rotate_2D(comp_1, comp_2, angle, clockwise=False):
-
-    """
-    This function rotates 2 data traces (i.e. numpy arrays, e.g., seismological data) 
-    into the desired coordinate system using 'angle' (clockwise direction by default).
-
-    The given algorithm works for 'comp_2' being oriented 90° clockwise to 'comp_1'.
-
-    ^  
-    | comp_1
-    |
-    |
-    |
-    0------> comp_2
 
 
-    :type comp_1:  np.array
-    :param comp_1: List with floats representing data.
-                   Note 'comp_1' is oriented 90° counter-clockwise to 'comp_2'.
 
-    :type comp_2:  np.array
-    :param comp_2: List with floats representing data.
-                   Note 'comp_2' is oriented 90° clockwise to 'comp_1'.
+    try:
+        with open(config_file, 'r') as yamlfile:
 
-    :type angle:  float
-    :param angle: Angle about which both data traces are rotated. Can be negative.
+            loader = yaml.FullLoader
+            loader.add_implicit_resolver(
+                u'tag:yaml.org,2002:float',
+                re.compile(u'''^(?:
+                 [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+                |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+                |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+                |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+                |[-+]?\\.(?:inf|Inf|INF)
+                |\\.(?:nan|NaN|NAN))$''', re.X),
+                list(u'-+0123456789.'))
 
-    :type clockwise:  bool
-    :param clockwise: if True  :         clockwise rotation of both data traces 
-                      if False : counter-clockwise rotation of both data traces 
+            params = yaml.load(yamlfile, Loader=loader)
 
-    :type return:  np.array, np.array
-    :param return: rotated data lists
-    """
+    except FileNotFoundError:
+        print(u'ERROR: read_config: Config file not found.')
+        sys.exit()
 
-    if not clockwise:
-        angle = 360-angle               # convert angle to as it would be clockwise rotation
-
-
-    comp_1_new =  comp_1*np.cos(angle*np.pi/180) + comp_2*np.sin(angle*np.pi/180)
-    comp_2_new = -comp_1*np.sin(angle*np.pi/180) + comp_2*np.cos(angle*np.pi/180)
-
-    return comp_1_new, comp_2_new
-def normalise(data, scale_to_between=[]):
+    return params
+def sec2hms(seconds, digits=0):
 
     """
-    Normalise passed data (array-like).
-    `scale_to_between` is list with 2 elements.
+    Convert seconds given as float into hours, minutes and seconds.
+    Optional 'digits' determines position after decimal point.
 
-    Returns data as was if length of data is one or two.
+    Returns string.
     """
 
-    data = np.asarray( data )
+
+    string = str( datetime.timedelta(seconds=seconds) )
+    parts  = string.split('.')
+
+    try:
+        frac_sec = parts[1]
+        parts[1] = frac_sec[:digits]
+
+    except IndexError:
+        if digits>0:
+            parts += [digits*'0']
+
+    string = '.'.join(parts)
+    string = string.rstrip('.')
+
+    return string
+
+
+# Plot related
+def quick_plot(*y, x=None, data_labels=(), lw=1.5, win_title='', title='', xlabel='Data points', ylabel='Amplitude', x_invert=False, y_invert=False, xlim=None, ylim=None, verts=None, horis=None, legend_loc='best', axis=False, outfile=None, show=True, keep_open=False):
+
+    """
+    This function allows for some convenient, quick 2-D plotting.
     
-    if len(data)==0 or len(data)==1:
-        return data
-
-    if isinstance(scale_to_between, (int, float)):
-        scale_to_between = [scale_to_between]
-
-    if scale_to_between:
-        if len(scale_to_between) == 1:
-            scale_to_between = [0, scale_to_between[0]]
-        scale_to_between.sort()
-
-        scale  = abs(scale_to_between[-1]-scale_to_between[0]) / 2.
-        drange = max(data)-min(data)
-        data   = data * 2 / drange
-        data   = data - max(data)+1             # data have y values between [-1,1]
-        data  *= scale                          # data have y values between [-1/scale,1/scale] 
-        data  += scale_to_between[-1]-scale     # eacht trace has y values filling range `scale_to_between`
+    It requires loaded classes `Trace`, `Stream`,
+    `UTCDateTime`, and `datetime.datetime`.
     
+    Otherwise, it should be very user friendly. Times will
+    be displayed as '%d/%m %H:%M:%S', which is harcoded.
+
+
+    PARAMETERS
+    ----------
+
+    `y` : - y-data to be plotted, as many as you like
+          - if your data are `Trace` object(s), it is plotted
+            with date strings (if no `x` is given).
+          - if your data are a `Stream` object, it is plotted
+            with their internal plot functions and further parameters
+            are not passed.
+          - if none of above, then x-data are determined using np.arange
+    `x` : - this overrides x-data (dates) when passing `Trace` objects as `y`,
+            so you can assign anything as x-data and still conveniently use
+            `Trace` objects.
+          - `UTCDateTime`, `datetime.datetime`, and `str` objects will
+             be converted to `UTCDateTime` and then matplotlib times,
+             then plotted as date strings '%d/%m %H:%M:%S'
+    `data_labels` : - will appear in legend
+                    - should have as many elements as you pass in `y`,
+                      otherwise it will not used but data simply numbered
+    `lw`       : - linewidth of plots (lines are harcoded, no option to plot points only)
+    `win_title`: - title of figures canvas (does not appear in plot)
+    `title`    : - sup-title of figure instance (appears as title in plot)
+    `xlabel    : - will appear beneath x-axis
+    `ylabel    : - will appear next to y-axis
+    `x_invert` : - will invert direction of x-axis, if True
+    `y_invert` : - will invert direction of y-axis, if True
+    `xlim`     : - list (or similar) with two elements. Choose same type as `y`. If 'xlim' is set, `ylim` is set automatically as to the y-range within these xlim
+    `ylim`     : - list (or similar) with two elements.
+    `verts`    : - either list or list of lists
+                 - elements will be interpreted as x-data where vertical lines shall be plotted
+                 - each list gets an own colour for all elements
+                 - when elements are: - `UTCDateTime`, `datetime.datetime`, and `str` 
+                                         --> conversion to matplotlib times (so x-data should be times, too)
+                                      - `float` or `int`
+                                         --> where you would expect it to happen (each sample on x-axis numbered).
+                                             If x-data are times (e.g. matplotlib), you can pass here matplotlib times as well
+                                      - `complex` (e.g. 3+0j)
+                                         --> real part will be interpreted as relative position on x-axis,
+                                             so (0.5+0j) will plot a vertical line in the middle of the x-axis.
+                                             Imaginery part is neglected.
+    `legend_loc`: - position of legend, by default automaically determined. Choose e.g. 'upper left' or 'lower right' or ...
+    `axis`     : - if passed, all will be plotted into this axis and returned and next two options are ignored.                                            
+    `outfile`  : - (absolut) path where plot shall be saved. Use endings like '.pdf' or '.png'
+    `show`     : - if True (default), plot will be shown, otherwise not until the next show=True command ;)
+                 - if False, matplotlib figure instance of is returned so it can be further used
+                 - no matter the status of `show`, if an `outfile` is specified a plot will be saved
+
+    NOTES
+    -----
+      - Matplotlib internally uses matplotlib times, always.
+        (example: 733643.01392361, type=numpy.float64)
+
+        This holds true also when extracting times, for example via
+        ax.get_ylim() or similar, no matter the original input format. Therefore,
+        this script converts `str`, `UTCDateTime` and `datetime.datetime` objects all to matplotb times
+        before the plot command (although matplotlib can plot datetime.datetime objects natively), so
+        these converted times later can be used to adjust xlim and ylim (if specified).
+      - natively, matplotlib plots `datetime.datetime` objects with labels
+        hour, minute, and second. This is true for both ax.plot and ax.plot_date ..
+      - as I wished a personal format including month, day, hour, minute and second, and
+        as times are converted to matplotlib times regardless (which matplotlib then does not
+        plot with a nice string but as simples numbers), the following two commands are used:
+        
+        myFmt = mdates.DateFormatter('%d/%m %H:%M:%S')
+        ax.xaxis.set_major_formatter(myFmt)
+    """
+
+
+
+    ### Figure instance & settings
+    if not axis:
+        fig = plt.figure(figsize=(16,10), num=title)
+        fig.canvas.set_window_title(win_title)
+        ax = fig.add_subplot(111)
     else:
-        data /= max(abs(data))
+        ax = axis
 
-    return data
-def snr(data, axis=0, ddof=1):
-
-    """
-    Signal-to-noise ratio (SNR), as by Scipy.
-    """
-
-    data = np.array(data)
-    mean = data.mean(axis)
-    sd_d = data.std(axis=axis, ddof=ddof)
-    return np.where(sd_d==0, 0, mean/sd_d)
-
-# InSight time conversions / ways of displaying
-def solify(UTC_time, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
-
-    """
-    :copyright:
-        Simon Stähler (mail@simonstaehler.com), 2018
-        Martin van Driel (Martin@vanDriel.de), 2018
-    :license:
-        None
-    """
-
-    SEC_PER_DAY_EARTH = 86400
-    SEC_PER_DAY_MARS  = 88775.2440 #before: 88775.244147    
-
-    MIT = (UTC_time - sol0) / SEC_PER_DAY_MARS
-    t   = UTCDateTime((MIT - 1) * SEC_PER_DAY_EARTH)
-
-    return t
-def UTCify(LMST_time, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
-    """
-    :copyright:
-        Simon Stähler (mail@simonstaehler.com), 2018
-        Martin van Driel (Martin@vanDriel.de), 2018
-    :license:
-        None
-    """
-    SEC_PER_DAY_EARTH = 86400
-    SEC_PER_DAY_MARS  = 88775.2440 #before: 88775.244147
-
-    MIT      = float(LMST_time) / SEC_PER_DAY_EARTH + 1
-    UTC_time = UTCDateTime(MIT * SEC_PER_DAY_MARS + float(sol0))
-
-    return UTC_time
-def sol2UTC(sol):
-    # Convert a float, interpreted as InSight sol, to UTC.
-    return UTCify(UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=sol-1))
-def ptime(time=None):
-
-    """
-    PRINT TIME
-
-    Small script to display current UTC time in most common ways.
-    Pass a terrestrial time if you pass one.
-    """
-
-    if time:
-        print(u'TIME GIVEN')
-        print(u'----------')
-        if isinstance(time, float):                                     # MATLAB
-            time = mdates.num2date(time)
-        elif isinstance(time, int):                                     # sol
-            time = sol2UTC(time).datetime
-        elif isinstance(time, (UTCDateTime,datetime.datetime,str)):     # typical obspy str
-            time = UTCDateTime(time).datetime
-        else:                                                           # others
-            print(u'Passed time variable has no valid format (float, str, datetime.datetime, or UTCDateTime.)')
-    else:
-        print(u'TIME UTC NOW')
-        print(u'------------')
-        time = datetime.datetime.utcnow()
-
-    print(u'MatLab:         %s'                % mdates.date2num(time))
-    print(u'DateTime:       %s'                % time.__repr__())
-    print(u"UTCDateTime:    UTCDateTime('%s')" % UTCDateTime(time))
-    print(u'LocalMeanSolar: %sM%s'             % (solify(UTCDateTime(time)).julday, solify(UTCDateTime(time)).strftime('%H:%M:%S')))
-def ltime(hms, sols_range=[], is_UTC=False):
-
-    """
-    LIST TIME
-    
-    Small script to display a range of time. Useful e.g.
-    when having to check data at a specific UTC or LMST
-    each day / sol.
-
-    `sol_range` can be a list or single numer, e.g.:
-       - sols_range=[17,193] (displays these sols)
-       - sols_range=17       (displays last 17 sols)
-    If no `sols_range` specified, the last 10 sols are displayed by default.
-
-    `is_UTC`=True means `hms` is given as UTC and you would like to
-    see the corresponding LMST with respect to `sols_range`.
-    `is_UTC`=False means `hms` is given as LMST and you would like to
-    see the corresponding UTC with respect to `sols_range`.
-    """
-
-    ## VARIABLES
-    hms = '%06d' % ( int(hms)*10**(6-len(str(hms))) )
-
-    if isinstance(sols_range, (float, int)):
-        sols_range = [sols_range]
-    if not sols_range or len(sols_range)==1:
-        UTC_now    = UTCDateTime( time.time() )
-        LMST_now   = solify(UTC_now)
-
-        if len(sols_range)==1:
-            sols_range = [LMST_now.julday-sols_range[0], LMST_now.julday-1]
-        else:
-            sols_range = [LMST_now.julday-10,            LMST_now.julday-1]
+    ax.ticklabel_format(axis='y', style='sci', scilimits=(-3, 3))
+    ax.set_title(title, fontsize=13)
+    ax.set_xlabel(xlabel, fontsize=11)
+    ax.set_ylabel(ylabel, fontsize=11)
+    ax.grid(ls='-.', lw=0.5)
+    if y_invert:
+        ax.invert_yaxis()
+    if x_invert:
+        ax.invert_xaxis()
 
 
-    ## PRINTS
-    print('UTC                    LMST')
-    print('---                    ----')    
-    for sol in range(sols_range[0], sols_range[1]+1):
 
-        if is_UTC:
-            time_str_ymd = sol2UTC(sol).strftime('%Y-%m-%d')
-            time_str_HMS = '%s:%s:%s' % (hms[0:2], hms[2:4], hms[4:6])
+    ### Labels
+    if data_labels is not None:
+        if len(data_labels)!=len(y):    # not same amount of entries (also true if none given)
+            
+            if all(isinstance(ele, Trace) for ele in y):
+                labels = [trace.id if trace.data.any() else None for trace in y]    # empty data don't get a label
 
-            UTC_time     = UTCDateTime( time_str_ymd + 'T' + time_str_HMS)
-            LMST_time    = solify(UTC_time)
-
+            else:
+                labels = ['Data %s' % (i+1) for i in range(len(y))]
 
         else:
-            LMST_time    = UTCDateTime('1970-01-01T%s:%s:%s.000000Z' % (hms[:2], hms[2:4], hms[4:])) + datetime.timedelta(days=sol)
-            UTC_time     = UTCify(LMST_time)
+            labels = data_labels
+
+    else:
+        labels = [None for i in range(len(y))]
 
 
-        print('%s    %sS%s' % (UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), LMST_time.julday, LMST_time.strftime('%H:%M:%S')))
+
+    ### Data plotting (empty data are not plotted)
+    for j, data in enumerate(y):
+
+        if isinstance(data, Trace):
+            if x is not None:
+                if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in x):
+                    xdata = [UTCDateTime(e).datetime for e in x]    # convert all to datetime.datetime objects
+                    xdata = mdates.date2num(x)                      # convert all to matplotlib times (wouldn't need to, but for later it is need as ax.get_xlim() retrieves matplotlib times!)
+                    ax.plot_date(x, data.data, '-', lw=lw, label=labels[j])
+                    #myFmt = mdates.DateFormatter()
+                    #ax.xaxis.set_major_formatter(myFmt)                # because we want dates in customised way, not matplotlib times
+                else:   # normal array, relative times, matlab times, or POSIX timestamps
+                    ax.plot(xdata, data, lw=lw, label=labels[j])        
+            else:
+                xdata = data.times(type="matplotlib")
+                ax.plot_date(xdata, data.data, '-', lw=lw, label=labels[j])
+                #myFmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+                #ax.xaxis.set_major_formatter(myFmt)
+
+        elif isinstance(data, (Stream)):
+            print(u'Using plot function of %s object and then return.' % type(data))
+            print(u'No further variables passed.')
+            data.plot()     # use Stream, respectively, object's plot function
+            return
+
+        else:
+            if x is not None:
+                if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in x):
+                    xdata = [UTCDateTime(e).datetime for e in x]    # convert all to datetime.datetime objects
+                    #xdata = mdates.date2num(xdata)                     # convert all to matplotlib times (wouldn't need to, but for later it is need as ax.get_xlim() retrieves matplotlib times!)
+                    #myFmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+                    ax.plot(xdata, data, '-', lw=lw, label=labels[j])
+                    #ax.xaxis.set_major_formatter(myFmt)                # because we want dates in customised way, not matplotlib times
+                else:   # normal array, relative times, matlab times, or POSIX timestamps
+                    ax.plot(x, data, lw=lw, label=labels[j])
+            else:
+                xdata = np.arange(len(data))
+                ax.plot(xdata, data, lw=lw, label=labels[j])
+
+
+
+    ### Limits of x- and y-axis
+    if xlim is not None:
+        if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in xlim):
+            xlim = [UTCDateTime(e).datetime for e in xlim]
+            xlim = [mdates.date2num(e) for e in xlim]
+        ax.set_xlim( xlim )
+    
+
+    if ylim is not None:
+        ax.set_ylim( ylim )
+    else:           # make sure ylim is according to newly set xlim
+        y_mins = []
+        y_maxs = []
+        for line in ax.lines:
+            x = line.get_xdata()
+            y = line.get_ydata()
+            i = np.where( (x >= ax.get_xlim()[0]) & (x <= ax.get_xlim()[1]) )[0]          # all indexes of y_data according to xlim
+            try:                                                        # e.g. if one of the `y` is empty
+                line_min = y[i].min()                                   # get minimum y within all data according to xlim
+                line_max = y[i].max()                                   # get maximum y within all data according to xlim
+                y_mins.append(line_min)
+                y_maxs.append(line_max)
+            except ValueError:
+                continue
+
+        y_min = min(y_mins, default=None)
+        y_max = max(y_maxs, default=None)
+        if y_min is not None and y_max is not None:
+            ylim = [y_min-0.025*np.abs(y_max-y_min), y_max+0.025*np.abs(y_max-y_min)] # give 2.5% margin that works both for pos. & neg. values 
+            ax.set_ylim( ylim )     
+        else:
+            print(u'WARNING: quick_plot: specified `xlim` outside data boundaries.')
+    xlim    = ax.get_xlim()
+    ylim    = ax.get_ylim()
+
+    
+
+    ### Vertical lines for data indications
+    colours = ['k', 'grey', 'lightgrey', 'red', 'green']
+    if verts is not None:
+                                                        # make list of lists so fo-loops work
+
+        for k, vert in enumerate(verts):
+            colour_index = k % len(colours)
+                    
+            if isinstance(vert, (np.ndarray, tuple, list)): 
+                pass
+
+            else:
+                vert = [vert]
+
+
+            for vline in vert:
+
+                if isinstance(vline, (UTCDateTime, datetime.datetime, str)):
+                    vline = UTCDateTime( vline )
+                    vline = mdates.date2num(vline.datetime)
+                    
+                elif isinstance(vline, (complex)):
+                    vline = vline.real
+                    vline = xlim[0] + (xlim[1]-xlim[0])*vline   # relative to beginning in %
+
+                else:
+                    pass
+
+                if vline>=xlim[0] and vline<=xlim[1]:
+                    ax.plot( [vline, vline], ylim, lw=1, color=colours[colour_index])
+
+
+
+    ### Horinzontal lines for data indications
+    colours = ['deepskyblue','darkorange','olivedrab', 'indianred', 'orchid', 'red', 'sienna']
+    if horis is not None:
+                                                          # make list of lists so fo-loops work
+        for k, hori in enumerate(horis):
+            colour_index = k % len(colours)
+
+            if isinstance(hori, (np.ndarray, tuple, list)):
+                pass
+
+            else:
+                hori = [hori]
+
+
+            for hline in hori:
+                ax.plot( xlim, [hline, hline], lw=1, color=colours[colour_index])
+
+    ### Saving & showing ..
+    ax.legend(loc=legend_loc)
+    if axis:
+        return ax
+
+    plt.tight_layout()
+
+    if outfile:
+        plt.savefig(outfile)
+
+    if show:
+        plt.show()
+
+    if not keep_open:
+        plt.close()
+class _Arrow3D(FancyArrowPatch):
+    """
+    Needed for nice arrow heads in ppol plot.
+    Hack found online.
+    """
+    def __init__(self, xs, ys, zs, *args, **kwargs):
+        FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
+        self._verts3d = xs, ys, zs
+
+    def draw(self, renderer):
+        xs3d, ys3d, zs3d = self._verts3d
+        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+        self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
+        FancyArrowPatch.draw(self, renderer)    
 
 
 ################  _ _ N A M E _ _ = = " _ _ M A I N _ _ "  ################

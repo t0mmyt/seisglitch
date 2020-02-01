@@ -37,7 +37,7 @@ import argparse
 
 #####  seisglitch modules import  #####
 from seisglitch import detect, plot
-from ppol.util import read_config
+from seisglitch.util import read_config
 
 
 
@@ -63,45 +63,39 @@ parser.add_argument('config_file',
                   Choose config file for specific parameters.
                   """)
 
-parser.add_argument('-f','--files', 
-           type = str,
-           help = """
-                  Specify one or more files (either data or
-                  results file) to run specified `MODE` on.
-                  """,
-          nargs ='+',
-        default = None,
-       required = True)
-
-
-args        = vars( parser.parse_args() )
-
-mode        = args['mode'].lower()
-params      = read_config( args['config_file'] )
-files       = args['files']
-
+args   = vars( parser.parse_args() )
+mode   = args['mode'].lower()
+config = args['config_file']
 
 
 
 ### EXECUTE ACCORDING TO SPECIFIED PARAMETERS
+params = read_config(config)
+
+
 if mode=='detect':
 
-    detect_params = params['detect']
-    detect.glitch_detector( *files, **detect_params )
+    detect_files  = params['detect']['waveform_files']
+    detect_params = params['detect']['detector']
+
+    detect.glitch_detector( *detect_files, **detect_params )
 
 
 elif mode=='plot':
 
-    plott_params = params['plot']
-    plot.glitch_overview_plot(  *files, **plot_params['glitch_overview_plot']  )
-    plot.glitch_gutenberg_plot( *files, **plot_params['glitch_gutenberg_plot'] )
-    plot.glitch_envelope_plot(  *files, **plot_params['glitch_envelope_plot']  )
-    plot.glitch_XoverBAZ_plot(  *files, **plot_params['glitch_XoverBAZ_plot']  )
+    plot_files  = params['plot']['glitch_detector_files']
+    plot_params = params['plot']['plotter']
+
+    plot.glitch_overview_plot(  *plot_files, **plot_params['glitch_overview_plot']  )
+    plot.glitch_gutenberg_plot( *plot_files, **plot_params['glitch_gutenberg_plot'] )
+    plot.glitch_waveform_plot(  *plot_files, **plot_params['glitch_waveform_plot']  )
+    plot.glitch_XoverBAZ_plot(  *plot_files, **plot_params['glitch_XoverBAZ_plot']  )
+    plot.glitch_align_plot(     *plot_files, **plot_params['glitch_align_plot']  )
 
 
 elif mode=='remove':
-  pass
+    pass
 
 
 elif mode=='evaluate':
-  pass
+    pass
