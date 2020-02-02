@@ -10,13 +10,14 @@ in the ``config.yml`` under the section ``detect``, then run from terminal:
     seisglitch detect path/to/config.yml
 
 The glitch detector is now running according to your specifcations.
-Gnerally, the glitch detector works likes this:
-- take the RAW waveforms and deconvolute instrument response (correction to acceleration)
-- filter the acceleration data according to specified filter (glitches are steps in acceleration)
-- take the derivative of the filtered accerleration data, glitches will be close to a delta-function
-- detect delta-functions via a moving window that calculated the average absolute peak height
-- once a glitch is triggered, verify if the same glitch is found on other components (parameter: ``glitch_min_dist``)
-- for each detected glitch, verify that polarization is above ``glitch_min_polarization``, making sure it is indeed a glitch (glitches have a high linear polarization)
+
+Generally, the glitch detector perfroms these steps internally:
+1. take RAW waveforms, cut into 12 hours parts, and deconvolute instrument response (correction to acceleration).
+2. filter the acceleration data according to specified filter (glitches are steps in acceleration).
+3. take the derivative of the filtered accerleration data, glitches will be close to a delta-function.
+4. detect delta-functions via threshold that equals moving average absolute peak height * ``average_peak_height_times``.
+5. once a glitch is triggered, verify if the same glitch is found or not on other components (parameter: ``glitch_min_dist``).
+6. for each detected glitch, check its polarization is equal or larger to ``glitch_min_polarization``, making sure it is indeed a glitch.
 
 
 In the following the parameters are explained:
