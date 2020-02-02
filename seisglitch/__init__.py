@@ -32,7 +32,7 @@ Its purpose is to ...
 
 | 
 | Find the actual Python code at:
-| https://gitlab.com/johnrobertscholz/ppol
+| https://gitlab.com/johnrobertscholz/seisglitch
 | 
 
 The code is based on the following, peer-reviewed paper. If you find ``seisglitch`` useful, please consider citing it. :)
