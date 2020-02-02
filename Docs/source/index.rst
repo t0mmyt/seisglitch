@@ -17,10 +17,7 @@ Guide
     :maxdepth: 2
 
     installation
-    tutorial
-    config_file
-    example
-    boni
+    overview
 
 
 Others

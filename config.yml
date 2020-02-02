@@ -286,7 +286,10 @@ plot:
       show: True
       outfile: ''
 
+
 remove:
+  # not yet implemented
 
 
 evaluate:
+  # not yet implemented
