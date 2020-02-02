@@ -9,9 +9,9 @@ distribution that allows to quickly configure a specific Python environment (e.g
 
 
 1. Install Anaconda_ or Miniconda_.
-2. Create a new environment and activate it (choose an environment name you prefer, here ``ppol`` is chosen)::
+2. Create a new environment and activate it (choose an environment name you prefer, here ``seisglitch`` is chosen)::
 
-    conda create -n seisglitch python=3.7 obspy pandas pyyaml -c conda-forge
+    conda create -n seisglitch python=3.7 obspy pyyaml -c conda-forge
     conda activate seisglitch
 
 
