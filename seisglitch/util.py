@@ -1634,8 +1634,6 @@ def merge_glitch_detector_files(outfile, *glitch_detector_files, starttime_sort=
     output1.insert(0,           '\n\n#   +-' +  '-' * len_max_line + '-+'   )
     output3.insert(len(output3),  '\n#   +-' +  '-' * len_max_line + '-+\n' )
 
-    for i in header:
-        print(header)
 
     ### WRITING OUT
     counter = 0

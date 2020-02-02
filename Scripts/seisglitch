@@ -75,23 +75,25 @@ params = read_config(config)
 
 if mode=='detect':
 
-    detect_files  = params['detect']['waveform_files']
-    detect_params = params['detect']['detector']
+    waveform_files = params['detect']['waveform_files']
+    detect_params  = params['detect']['detector']
 
-    detect.glitch_detector( *detect_files, **detect_params )
+    detect.glitch_detector( *waveform_files, **detect_params )
 
 
 elif mode=='plot':
 
-    plot_files  = params['plot']['glitch_detector_files']
-    plot_params = params['plot']['plotter']
+    waveform_files        = params['detect']['waveform_files']
+    inventory_file        = params['detect']['detector']['inventory_file']
+    glitch_detector_files = params['plot']['glitch_detector_files']
+    plot_params           = params['plot']['plotter']
 
-    plot.glitch_overview_plot(  *plot_files, **plot_params['glitch_overview_plot']  )
-    plot.glitch_gutenberg_plot( *plot_files, **plot_params['glitch_gutenberg_plot'] )
-    plot.glitch_waveform_plot(  *plot_files, **plot_params['glitch_waveform_plot']  )
-    plot.glitch_XoverBAZ_plot(  *plot_files, **plot_params['glitch_XoverBAZ_plot']  )
-    plot.glitch_align_plot(     *plot_files, **plot_params['glitch_align_plot']     )
-    plot.glitch_ppol_plot(      *plot_files, **plot_params['glitch_ppol_plot']      )
+    plot.glitch_overview_plot(  *glitch_detector_files, **plot_params['glitch_overview_plot'] )
+    plot.glitch_gutenberg_plot( *glitch_detector_files, **plot_params['glitch_gutenberg_plot'] )
+    plot.glitch_waveform_plot(  *glitch_detector_files, waveform_files=waveform_files, **plot_params['glitch_waveform_plot'] )
+    plot.glitch_XoverBAZ_plot(  *glitch_detector_files, **plot_params['glitch_XoverBAZ_plot'] )
+    plot.glitch_align_plot(     *glitch_detector_files, waveform_files=waveform_files, **plot_params['glitch_align_plot'] )
+    plot.glitch_ppol_plot(      *glitch_detector_files, waveform_files=waveform_files, inventory_file=inventory_file, **plot_params['glitch_ppol_plot'] )
 
 
 elif mode=='remove':

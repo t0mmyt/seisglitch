@@ -52,7 +52,7 @@ def glitch_detector(*RAW_UVW,
     inventory_file            = 'IRIS',
     taper_length_per_side     = 0.1,
     pre_filt                  = None,
-    water_level               = 60, 
+    water_level               = 60,
     ACCfilter                 = {'type' : 'bandpass',  'options' : {'freqmin':0.001, 'freqmax':1.0}, 'string':'bp 1000-1s'}, 
     window_length_minutes     = 60, 
     average_peak_height_times = 4, 
@@ -114,7 +114,7 @@ def glitch_detector(*RAW_UVW,
         num_ids = len(stream._get_ids())
         if num_ids != 3:
             print()
-            print(u'ERROR: Found %s instead of 3 trace ids in file:' % (num_ids, ', '.join(stream._get_ids())))
+            print(u'ERROR: Found %s instead of 3 trace ids in file: %s' % (num_ids, ', '.join(stream._get_ids())))
             print(u'       Cannot perform analysis.')
             continue
 

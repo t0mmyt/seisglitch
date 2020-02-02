@@ -59,7 +59,7 @@ columns = {'GAI' : [11,12,13,14,15,16,35,36],
            'DIS' : [17,18,19,20,21,22,39,40],
            'VEL' : [23,24,25,26,27,28,43,44],
            'ACC' : [29,30,31,32,33,34,47,48]}
-def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=None, LMST_range=['0', '24'], min_amp=None, max_amp=None, show=True, outfile=None):
+def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, show=True, outfile=''):
     
     """
     Plot glitches, based on glitch file produced by function `glitch_detector()`.
@@ -335,7 +335,7 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=None, LMST_ra
     if show:
         plt.show()
     plt.close()
-def glitch_gutenberg_plot(*glitch_files, run=True, UNIT='GAI', sols=None, LMST_range=['0', '24'], show=True, outfile=None):
+def glitch_gutenberg_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_range=['0', '24'], show=True, outfile=''):
 
     """
 
@@ -453,14 +453,14 @@ def glitch_gutenberg_plot(*glitch_files, run=True, UNIT='GAI', sols=None, LMST_r
     if show:
         plt.show()
     plt.close()
-def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=None, LMST_range=['0', '24'], min_amp=None, max_amp=None, scale=1, show=True, outfile=None):
+def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, scale=1, show=True, outfile=''):
 
 
 
     ### RUN OR NOT:
     if not run:
         return
-    
+
     now = time.time()
 
 
@@ -490,6 +490,14 @@ def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=None, 
     print()
     print(u"Have to convert each data point's UTC time to LMST, this takes a bit ..")
     print()
+
+
+
+    ### SANITY CHECK:
+    if not waveform_files:
+        print()
+        print(u'ERROR: Cannot plot without `waveform_files`.')
+        sys.exit()
 
 
 
@@ -744,7 +752,7 @@ def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=None, 
     if show:
         plt.show()
     plt.close()
-def glitch_XoverBAZ_plot(*glitch_files, run=True, comp='Z', UNIT='GAI', sols=None, LMST_range=['0', '24'], min_amp=None, max_amp=None, show=True, outfile=None):
+def glitch_XoverBAZ_plot(*glitch_files, run=True, comp='Z', UNIT='GAI', sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, show=True, outfile=''):
 
     """
 
@@ -880,7 +888,7 @@ def glitch_XoverBAZ_plot(*glitch_files, run=True, comp='Z', UNIT='GAI', sols=Non
     if show:
         plt.show()
     plt.close()
-def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=None, LMST_range=['0', '24'], min_amp=None, max_amp=None, mode='largest', scale=1, align='maximum', show=True, outfile=None):
+def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, mode='largest', scale=1, align='maximum', show=True, outfile=''):
 
     """
 
@@ -910,6 +918,14 @@ def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=None, LMS
     print(u'  RUNNING ALIGN PLOTTER')
     print(u'  ---------------------')
     print()
+
+
+
+    ### SANITY CHECK:
+    if not waveform_files:
+        print()
+        print(u'ERROR: Cannot plot without `waveform_files`.')
+        sys.exit()
 
 
 
@@ -1021,10 +1037,9 @@ def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=None, LMS
         glitch_W                   = glitch[7]
 
 
-        for stream in streams:
+        for m, stream in enumerate(streams):
 
             stream_glitch = stream.slice(starttime=glitches_start_UTC, endtime=glitches_end_UTC)
-
 
             if stream_glitch:
 
@@ -1130,7 +1145,7 @@ def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=None, LMS
     if show:
         plt.show()
     plt.close()
-def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, waveform_files=[], inventory_file='IRIS', show=True, outfile=None):
+def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, waveform_files=[], inventory_file='IRIS', show=True, outfile=''):
 
     """
     """
@@ -1159,18 +1174,24 @@ def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, wavef
     title          = 'Glitch number %06d (unit=%s)' % (glitch_number, UNIT)
     glitch_numbers = np.array( [int(glitch.replace(':','')) for glitch in glitches[:,0]] )
     index          = np.where(glitch_numbers==glitch_number)
+    
+    glitch         = glitches[index]
+    glitch_start   = UTCDateTime(glitch[0,1])
+    glitch_end     = UTCDateTime(glitch[0,2])
 
-    glitch       = glitches[index]
-    glitch_start = UTCDateTime(glitch[0,1])
-    glitch_end   = UTCDateTime(glitch[0,2])
 
+
+    ### LOOP OVER ALL WAVEFORM FILES AND FIND CORRECT ONE
     for waveform_file in waveform_files:
-        stream = read2(waveform_file)
-        stream.trim(starttime=glitch_start-60, endtime=glitch_end+60)
-
+        
+        # reading stream
+        stream = read(waveform_file, starttime=glitch_start-60, endtime=glitch_end+60, headonly=True)
         if not stream:
             continue
+        stream = read2(waveform_file)
 
+        # data pre processing
+        stream.trim(starttime=glitch_start-60, endtime=glitch_end+60)
         stream._set_inventory(file=inventory_file)   
         stream.detrend('demean')        
         stream.taper(0.05)       
@@ -1184,11 +1205,18 @@ def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, wavef
         stream.rotate('->ZNE', inventory=stream.inventory, components=('UVW'))
         stream.trim(starttime=glitch_start, endtime=glitch_end)
 
+        # ppol measurement + plot
         ppol_measurement = ppol(stream=stream)
         ppol_measurement.display(tag=title)
+        print()
+        print('Glitch times: %s - %s' % (glitch_start, glitch_end))
+        print(u'Info: Due to deconvolution window results can slightly differ from those of the glitch detector.')
         ppol_measurement.plot(title=title, show=show, outfile=outfile)
 
         break
+
+    else:
+        print(u'Could not find any waveform data corresponding to specified glitch.')
 
 
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  
