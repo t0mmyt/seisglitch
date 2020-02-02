@@ -18,6 +18,10 @@ Guide
 
     installation
     overview
+    detector
+    plotter
+    remover
+    evaluater
 
 
 Others

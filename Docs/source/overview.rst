@@ -10,8 +10,6 @@ Once ``seisglitch`` is :ref:`installed <installation>`, all you have to do is:
 * execute the intended ``seisglitch`` module.
 
 
-----
-
 
 
 Data preparation
@@ -36,13 +34,14 @@ For a detailed parameter discussion, see :ref:`config_file`.
 
 
 
-----
 
-
-
-**Code execution**
+Seisglitch modules
 ^^^^^^^^^^^^^^^^^^
 
-In general, ``seisglitch`` is intended to be run from as terminal command.
-Don't forget to activate your correct environment beforhand, see :ref:`installation`.
+There are four ``seisglitch`` modules:
 ::
+
+    seisglitch.detect
+    seisglitch.plot
+    seisglitch.remove
+    seisglitch.evaulate

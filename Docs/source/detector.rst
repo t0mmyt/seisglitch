@@ -1,0 +1,5 @@
+.. _detect:
+
+seisglitch.detect
+=================
+
