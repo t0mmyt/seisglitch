@@ -10,7 +10,7 @@ Once ``seisglitch`` is :ref:`installed <installation>`, all you have to do is:
 * execute the intended ``seisglitch`` module.
 
 
-
+.. _data_prep:
 
 Data preparation
 ^^^^^^^^^^^^^^^^
@@ -20,7 +20,7 @@ Your waveform data should all comply with the following conditions:
 * all waveform files must contain all three seismic components (i.e., "U", "V", "W" of either VBB or SP)
 * all waveform files must contain no other components
 * all waveform files must be readable as seismological files (e.g. MSEED, SAC, ...)
-* all waveform files must contain no gaps (see: seisglitch.util.pierce_stream)
+* all waveform files must contain no gaps (see: ``seisglitch.util.pierce_stream``)
 
 
 

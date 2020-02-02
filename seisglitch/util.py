@@ -61,9 +61,9 @@ from seisglitch.math import normalise
 
 
 # Extended Obspy Stream class (adding some more functionality)
-def read2(file=None):
+def read2(file=None, headonly=False):
     # wrapper to make to return Stream2 objects instead of (ObsPy's) Stream object.
-    st = read(file)
+    st = read(file, headonly=headonly)
     st = Stream2(st, file=file)
     return st
 class Stream2(Stream):

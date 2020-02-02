@@ -18,10 +18,20 @@ Guide
 
     installation
     overview
+
+
+
+Modules
+^^^^^^^
+
+.. toctree::
+    :maxdepth: 1
+    
     detector
     plotter
     remover
     evaluater
+
 
 
 Others
@@ -34,6 +44,7 @@ Others
     license
     changelog
     contributing
+
 
 
 Indices and tables
