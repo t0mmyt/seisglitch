@@ -13,15 +13,15 @@ The glitch detector is now running according to your specifcations.
 
 Generally, the glitch detector perfroms these steps internally:
 
-1. take RAW waveforms, cut into 12 hours parts, and deconvolute instrument response (correction to acceleration).
-2. filter the acceleration data according to specified filter (glitches are steps in acceleration).
-3. take the derivative of the filtered accerleration data, glitches will be close to a delta-function.
+1. cut RAW waveforms into 12 hours parts and deconvolute instrument response to acceleration.
+2. filter acceleration data according to specified filter (glitches are steps in acceleration).
+3. calculate derivative of filtered accerleration data (glitches will be close to a delta-function).
 4. detect delta-functions via threshold that equals moving average absolute peak height * ``average_peak_height_times``.
 5. once a glitch is triggered, verify if the same glitch is found or not on other components (parameter: ``glitch_min_dist``).
-6. for each detected glitch, check its polarization is equal or larger to ``glitch_min_polarization``, making sure it is indeed a glitch.
+6. for each detected glitch, check its polarization that must be equal or larger to ``glitch_min_polarization``, making sure it's indeed a glitch.
 
 
-In the following the parameters are explained:
+In the following, the glitch detector's parameters are explained a bit more in detail:
 
 
 * ``waveform_files``: all RAW waveform files (components U, V, W) where the glitch detector shall run on. Note, for each file, the glitch detector creates one output file. (For a helping tool to create the needed files as :ref:`specified <data_prep>`, see: ``seisglitch.util.merge_glitch_detector_files``).
