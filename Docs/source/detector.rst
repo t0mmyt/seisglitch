@@ -12,6 +12,7 @@ in the ``config.yml`` under the section ``detect``, then run from terminal:
 The glitch detector is now running according to your specifcations.
 
 Generally, the glitch detector perfroms these steps internally:
+
 1. take RAW waveforms, cut into 12 hours parts, and deconvolute instrument response (correction to acceleration).
 2. filter the acceleration data according to specified filter (glitches are steps in acceleration).
 3. take the derivative of the filtered accerleration data, glitches will be close to a delta-function.
