@@ -1231,6 +1231,9 @@ class marstime():
         self.LMST              = None
         self.sol               = None
 
+        if UTC_time is None and LMST_time is None:
+            self.UTC_time = UTCDateTime( datetime.datetime.utcnow() )       # now
+
         if self.UTC_time is not None:
             self.LMSTify()
 
@@ -1244,22 +1247,11 @@ class marstime():
 
         output = []
 
-        if self.UTC_time is not None:
-            UTC  = self.UTC_time
-            LMST = self.LMST_time
-            output.append(u'TIME GIVEN\n')
-            output.append(u'----------\n')
-
-        else:
-            UTC  = UTCDateTime( datetime.datetime.utcnow() )
-            LMST = self.LMSTify(UTC)
-            output.append(u'TIME NOW\n')
-            output.append(u'--------\n')
-
-
-        output.append(u'MatLab UTC:     %s\n' % mdates.date2num(UTC.datetime))
-        output.append(u'DateTime UTC:   %s\n' % UTC.datetime.__repr__())
-        output.append(u'UTCDateTime:    %s\n' % UTC.__repr__())
+        output.append(u'TIME GIVEN\n')
+        output.append(u'----------\n')
+        output.append(u'MatLab UTC:     %s\n' % mdates.date2num(self.UTC_time.datetime))
+        output.append(u'DateTime UTC:   %s\n' % self.UTC_time.datetime.__repr__())
+        output.append(u'UTCDateTime:    %s\n' % self.UTC_time.__repr__())
         output.append(u'LocalMeanSolar: %s'   % self.LMST)
 
         string = ''.join( output )
@@ -1285,10 +1277,12 @@ class marstime():
         UTC_time       = UTCDateTime(MIT  * self.sec_per_day_mars  + float(self.sol0))
         
         self.LMST_time = UTCDateTime(LMST_time)
-        self.UTC_time  = UTC_time
         self.LMST      = self._LMST_string()
         self.sol       = int(self.LMST.split('S')[0])
+
+        self.UTC_time  = UTC_time
         self.UTC       = self._UTC_string()
+        self.julday    = self.UTC_time.julday
 
         return UTC_time
     def LMSTify(self, UTC_time=None):
@@ -1307,27 +1301,29 @@ class marstime():
             UTC_time  = self.UTC_time
         else:
             sys.exit(u'WARNING: No time specified.')
-        #print('hwerr')
-        #print(type(UTC_time))
+
+
         UTC_time       = UTCDateTime(UTC_time)
         
         MIT            = (UTC_time - self.sol0) / self.sec_per_day_mars
         LMST_time      = UTCDateTime((MIT - 1)  * self.sec_per_day_earth)
-        
+
         self.UTC_time  = UTC_time
-        self.LMST_time = LMST_time
         self.UTC       = self._UTC_string()
+        self.julday    = self.UTC_time.julday
+
+        self.LMST_time = LMST_time
         self.LMST      = self._LMST_string()
         self.sol       = int(self.LMST.split('S')[0])
 
         return LMST_time
-    def _UTC_string(self):
+    def _UTC_string(self, strftime=('%Y-%m-%dT%H:%M:%S')):
 
         if self.UTC_time is None:
             print(u'WARNING: Need to pass time first.')
             sys.exit()
 
-        string = self.UTC_time.__str__()
+        string = self.UTC_time.strftime(strftime)
 
         return string
     def _LMST_string(self):
@@ -1336,65 +1332,61 @@ class marstime():
         string = '%03dS%s' % (sol, self.LMST_time.strftime('%H:%M:%S'))
 
         return string
-    def list(self, hms, sols_range=[], is_UTC=False):
+def mars_list(hms='120000', sols_range=[], is_UTC=False):
 
-        """
-        LIST TIME
-        
-        Small script to display a range of time. Useful e.g.
-        when having to check data at a specific UTC or LMST
-        each day / sol.
+    """
+    LIST TIME
+    
+    Small script to display a range of time. Useful e.g.
+    when having to check data at a specific UTC or LMST
+    each day / sol.
 
-        `sol_range` can be a list or single numer, e.g.:
-           - sols_range=[17,193] (displays these sols)
-           - sols_range=17       (displays last 17 sols)
-        If no `sols_range` specified, the last 10 sols are displayed by default.
+    `sol_range` can be a list or single numer, e.g.:
+       - sols_range=[17,193] (displays these sols)
+       - sols_range=17       (displays last 17 sols)
+    If no `sols_range` specified, the last 10 sols are displayed by default.
 
-        `is_UTC`=True means `hms` is given as UTC and you would like to
-        see the corresponding LMST with respect to `sols_range`.
-        `is_UTC`=False means `hms` is given as LMST and you would like to
-        see the corresponding UTC with respect to `sols_range`.
-        """
-
-
-        ## VARIABLES
-        hms = '%06d' % ( int(hms)*10**(6-len(str(hms))) )
-
-        if isinstance(sols_range, (float, int)):
-            sols_range = [sols_range]
-        if not sols_range or len(sols_range)==1:
-            UTC_now    = UTCDateTime( time.time() )
-            LMST_now   = self.LMSTify(UTC_now)
-
-            if len(sols_range)==1:
-                sols_range = [LMST_now.julday-sols_range[0], LMST_now.julday-1]
-            else:
-                sols_range = [LMST_now.julday-10,            LMST_now.julday-1]
+    `is_UTC`=True means `hms` is given as UTC and you would like to
+    see the corresponding LMST with respect to `sols_range`.
+    `is_UTC`=False means `hms` is given as LMST and you would like to
+    see the corresponding UTC with respect to `sols_range`.
+    """
 
 
-        ## PRINTS
-        print('UTC                    LMST')
-        print('---                    ----')    
-        for sol in range(sols_range[0], sols_range[1]+1):
+    ## VARIABLES
+    hms = '%06d' % ( int(hms)*10**(6-len(str(hms))) )
 
-            if is_UTC:
-                time_str_ymd = self.sol2UTC(sol).strftime('%Y-%m-%d')
-                time_str_HMS = '%s:%s:%s' % (hms[0:2], hms[2:4], hms[4:6])
+    if isinstance(sols_range, (float, int)):
+        sols_range = [sols_range]
 
-                UTC_time     = UTCDateTime( time_str_ymd + 'T' + time_str_HMS)
-                LMST_time    = self.LMSTify(UTC_time)
+    if not sols_range or len(sols_range)==1:
+        now       = time.time()
+        time_mars = marstime( UTC_time=now )
 
-
-            else:
-                LMST_time    = UTCDateTime('1970-01-01T%s:%s:%s.000000Z' % (hms[:2], hms[2:4], hms[4:])) + datetime.timedelta(days=sol)
-                UTC_time     = self.UTCify(LMST_time)
+        if len(sols_range)==1:
+            sols_range = [time_mars.sol-sols_range[0], time_mars.sol]
+        else:
+            sols_range = [time_mars.sol-10,            time_mars.sol]
 
 
-            print('%s    %sS%s' % (UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), LMST_time.julday, LMST_time.strftime('%H:%M:%S')))
-    def sol2UTC(self, sol=0):
-        # Convert a float, interpreted as InSight sol, to UTC.
+    ## PRINTS
+    print('UTC                    LMST')
+    print('---                    ----')    
+    for sol in range(sols_range[0], sols_range[1]+1):
+
+        if is_UTC:
             
-        return UTCify(UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=sol-1))
+            time_mars_sol = marstime( LMST_time=UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=sol) )
+            time_str_ymd = time_mars_sol.UTC_time.strftime('%Y-%m-%d')
+            time_str_HMS = '%s:%s:%s' % (hms[0:2], hms[2:4], hms[4:6])
+            time_mars    = marstime( time_str_ymd + 'T' + time_str_HMS )
+
+        else:
+
+            LMST_time    = UTCDateTime('1970-01-01T%s:%s:%s.000000Z' % (hms[:2], hms[2:4], hms[4:])) + datetime.timedelta(days=sol-1)
+            time_mars    = marstime( LMST_time=LMST_time )
+
+        print('%s    %s' % (time_mars.UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), time_mars.LMST))
 def rotate2VBBUVW(stream, inventory, is_UVW=False, plot=False):
 
     """

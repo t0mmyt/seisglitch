@@ -447,8 +447,8 @@ def glitch_detector(*RAW_UVW,
                 # collect all glitch measures
                 glitch_counter += 1                
                 glitch = glitch_counter, \
-                         glitch_time_start.UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), \
-                         glitch_time_end.UTC_time.strftime('%Y-%m-%dT%H:%M:%S'),\
+                         glitch_time_start.UTC,  \
+                         glitch_time_end.UTC,    \
                          glitch_time_start.LMST, \
                          glitch_time_end.LMST,   \
                          U_GLITCH, \

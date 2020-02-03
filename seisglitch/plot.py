@@ -88,22 +88,23 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
         nonlocal picked_already
         if not picked_already:
             picked_already = True
-            header         = u'#               UTC          LMST      U-{0}      V-{0}      W-{0}      Z-{0}      N-{0}      E-{0}  BAZ-{0}  INC-{0}'.format(UNIT)
+            header         = u'#Number                  UTC          LMST      U-{0}      V-{0}      W-{0}      Z-{0}      N-{0}      E-{0}  BAZ-{0}  INC-{0}'.format(UNIT)
             print(header)
 
         indices = event.ind
         for index in indices:
-            print(u'%s  %s  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %7.1f  %7.1f' % (glitch_starts[index].UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), 
-                                                                                       glitch_starts[index].LMST, 
-                                                                                       float(all_glitches[index,columns[UNIT][0]]),
-                                                                                       float(all_glitches[index,columns[UNIT][1]]),
-                                                                                       float(all_glitches[index,columns[UNIT][2]]),
-                                                                                       float(all_glitches[index,columns[UNIT][3]]),
-                                                                                       float(all_glitches[index,columns[UNIT][4]]),
-                                                                                       float(all_glitches[index,columns[UNIT][5]]),
-                                                                                       float(all_glitches[index,columns[UNIT][6]]),
-                                                                                       float(all_glitches[index,columns[UNIT][7]]),
-                                                                                       ))
+            print(u'%7s  %s  %s  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %7.1f  %7.1f' % (all_glitches[index,0],
+                                                                                            glitch_starts[index].UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), 
+                                                                                            glitch_starts[index].LMST, 
+                                                                                            float(all_glitches[index,columns[UNIT][0]]),
+                                                                                            float(all_glitches[index,columns[UNIT][1]]),
+                                                                                            float(all_glitches[index,columns[UNIT][2]]),
+                                                                                            float(all_glitches[index,columns[UNIT][3]]),
+                                                                                            float(all_glitches[index,columns[UNIT][4]]),
+                                                                                            float(all_glitches[index,columns[UNIT][5]]),
+                                                                                            float(all_glitches[index,columns[UNIT][6]]),
+                                                                                            float(all_glitches[index,columns[UNIT][7]]),
+                                                                                            ))
         print(u'- - -')
 
 
@@ -1171,7 +1172,7 @@ def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, wavef
     glitch_number  = int(glitch_number)
     
     glitches       = np.loadtxt(glitch_files[-1], dtype='str')
-    title          = 'Glitch number %06d (unit=%s)' % (glitch_number, UNIT)
+    title          = 'Glitch number: %06d (unit=%s)' % (glitch_number, UNIT)
     glitch_numbers = np.array( [int(glitch.replace(':','')) for glitch in glitches[:,0]] )
     index          = np.where(glitch_numbers==glitch_number)
     
@@ -1206,7 +1207,7 @@ def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, wavef
         stream.trim(starttime=glitch_start, endtime=glitch_end)
 
         # ppol measurement + plot
-        ppol_measurement = ppol(stream=stream)
+        ppol_measurement = ppol(stream=stream, fix_angles='AMP')
         ppol_measurement.display(tag=title)
         print()
         print('Glitch times: %s - %s' % (glitch_start, glitch_end))
