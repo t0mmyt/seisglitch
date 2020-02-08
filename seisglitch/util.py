@@ -1278,7 +1278,7 @@ class marstime():
         
         self.LMST_time = UTCDateTime(LMST_time)
         self.LMST      = self._LMST_string()
-        self.sol       = int(self.LMST.split('S')[0])
+        self.sol       = int(self.LMST.split('M')[0])
 
         self.UTC_time  = UTC_time
         self.UTC       = self._UTC_string()
@@ -1314,7 +1314,7 @@ class marstime():
 
         self.LMST_time = LMST_time
         self.LMST      = self._LMST_string()
-        self.sol       = int(self.LMST.split('S')[0])
+        self.sol       = int(self.LMST.split('M')[0])
 
         return LMST_time
     def _UTC_string(self, strftime=('%Y-%m-%dT%H:%M:%S')):
@@ -1329,10 +1329,10 @@ class marstime():
     def _LMST_string(self):
 
         sol    = (self.LMST_time.datetime - UTCDateTime('1969-12-31T00:00:00.000000Z').datetime).days
-        string = '%03dS%s' % (sol, self.LMST_time.strftime('%H:%M:%S'))
+        string = '%03dM%s' % (sol, self.LMST_time.strftime('%H:%M:%S'))
 
         return string
-def mars_list(hms='120000', sols_range=[], is_UTC=False):
+def mars_list(sols_range=[], hms='120000', is_UTC=False):
 
     """
     LIST TIME
@@ -1359,31 +1359,36 @@ def mars_list(hms='120000', sols_range=[], is_UTC=False):
     if isinstance(sols_range, (float, int)):
         sols_range = [sols_range]
 
-    if not sols_range or len(sols_range)==1:
-        now       = time.time()
-        time_mars = marstime( UTC_time=now )
+    elif not sols_range:
+        now        = time.time()
+        time_mars  = marstime( UTC_time=now )
+        sols_range = [time_mars.sol-10, time_mars.sol]
 
-        if len(sols_range)==1:
-            sols_range = [time_mars.sol-sols_range[0], time_mars.sol]
-        else:
-            sols_range = [time_mars.sol-10,            time_mars.sol]
+    else:
+        pass
+
+
+    flow = np.sign(sols_range[-1]-sols_range[0])
+    if flow == 0:
+        flow = 1
+    sols_range = np.arange(sols_range[0], sols_range[-1]+1, flow)
 
 
     ## PRINTS
     print('UTC                    LMST')
     print('---                    ----')    
-    for sol in range(sols_range[0], sols_range[1]+1):
+    for sol in sols_range:
 
         if is_UTC:
             
-            time_mars_sol = marstime( LMST_time=UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=sol) )
+            time_mars_sol = marstime( LMST_time=UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=int(sol)) )
             time_str_ymd = time_mars_sol.UTC_time.strftime('%Y-%m-%d')
             time_str_HMS = '%s:%s:%s' % (hms[0:2], hms[2:4], hms[4:6])
             time_mars    = marstime( time_str_ymd + 'T' + time_str_HMS )
 
         else:
 
-            LMST_time    = UTCDateTime('1970-01-01T%s:%s:%s.000000Z' % (hms[:2], hms[2:4], hms[4:])) + datetime.timedelta(days=sol-1)
+            LMST_time    = UTCDateTime('1970-01-01T%s:%s:%s.000000Z' % (hms[:2], hms[2:4], hms[4:])) + datetime.timedelta(days=int(sol)-1)
             time_mars    = marstime( LMST_time=LMST_time )
 
         print('%s    %s' % (time_mars.UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), time_mars.LMST))
@@ -1395,7 +1400,7 @@ def rotate2VBBUVW(stream, inventory, is_UVW=False, plot=False):
 
     https://docs.obspy.org/packages/autogen/obspy.signal.rotate.rotate2zne.html
     """
-
+ 
 
     # VALUES EXTRACTED from INVENTORY FILE
     VBBU_azimuth = 135.11
@@ -1660,7 +1665,7 @@ def read_config(config_file):
 
     print()
     print(u'Reading config file:')
-    print(config_file)
+    print(os.path.abspath(config_file))
 
 
 

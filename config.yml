@@ -20,38 +20,38 @@ detect:
     plot_individual: False            # If True, is saved in current working directory but not shown
 
 
-plot:
   glitch_detector_files:
-    - Example/glitches_XB.ELYSE.02.BHUVW_20190619T042225-20190701T000001.txt
+    - /home/scholz/Desktop/glitch_detector/glitches_all.txt
 
   plotter:
+    show: True
+
     glitch_overview_plot:
       run: True
       UNIT: GAI
-      sols: [140,320]
-      LMST_range: ['00:00:00', '24:00:00']
-      min_amp: False
+      sols: [120,350]
+      LMST_range: ['16:00:00', '04:00:00']
+      min_amp: 1e-7
       max_amp: False
-      show: True
-      outfile: 'Example/overview.pdf'
+      BAZs: [120,240]
+      outfile: '/home/scholz/Desktop/overview.png'
 
     glitch_gutenberg_plot: 
       run: False
       UNIT: GAI
       sols: []
       LMST_range: ['00:00:00', '24:00:00']
-      show: True
       outfile: ''
 
     glitch_waveform_plot:
       run: False
-      sols: []
-      LMST_range: ['00:00:00', '24:00:00']
-      min_amp: False
+      sols: [120,350]
+      LMST_range: ['05:00:00', '11:00:00']
+      min_amp: 5e-8
       max_amp: False      
-      scale: 5
-      show: True
-      outfile: False
+      BAZs: [60, 270]
+      scale: 10
+      outfile: ''
 
     glitch_XoverBAZ_plot:
       run: False
@@ -61,7 +61,6 @@ plot:
       LMST_range: ['0', '24']
       min_amp: False
       max_amp: False
-      show: True
       outfile: ''
 
     glitch_align_plot:
@@ -73,14 +72,12 @@ plot:
       mode: largest
       scale: 60
       align: maximumW
-      show: True
       outfile: ''
 
     glitch_ppol_plot:
       run: False
       UNIT: GAI      
-      glitch_number: 14315
-      show: True
+      glitch_number: '027991'
       outfile: ''
 
 

@@ -59,7 +59,7 @@ columns = {'GAI' : [11,12,13,14,15,16,35,36],
            'DIS' : [17,18,19,20,21,22,39,40],
            'VEL' : [23,24,25,26,27,28,43,44],
            'ACC' : [29,30,31,32,33,34,47,48]}
-def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, show=True, outfile=''):
+def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, BAZs=[], outfile=''):
     
     """
     Plot glitches, based on glitch file produced by function `glitch_detector()`.
@@ -135,12 +135,13 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
         all_glitches = np.array( [glitch for glitch in all_glitches if marstime(glitch[1]).sol>=sols[0] and marstime(glitch[1]).sol<=sols[1]] )
 
 
+
     ### SELECT GLITCHES IN SPECIFIED LMST RANGE
     LMST_range        = [(str(t).replace(':','') + '000000')[:6] for t in LMST_range]
     LMST_range        = [[t[i:i+2] for i in range(0,len(t),2)] for t in LMST_range]
     LMST_range        = [':'.join(t) for t in LMST_range]
     
-    glitch_start_LMST = np.array( [glitch[3].split('S')[1] for glitch in all_glitches] )
+    glitch_start_LMST = np.array( [glitch[3].split('M')[1] for glitch in all_glitches] )
     if LMST_range[0]<=LMST_range[1]:
         indices       = np.where( (glitch_start_LMST >= LMST_range[0]) & (glitch_start_LMST <= LMST_range[1]) )
     else:
@@ -174,6 +175,17 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
                                  (abs(all_glitches[:,columns[UNIT][5]].astype('float'))<=max_amp)]
 
 
+
+    ### SELECT GLITCHES ON GIVEN `BAZs`
+    if BAZs:
+        BAZs = [float(BAZ) for BAZ in BAZs]
+        if BAZs[0]<=BAZs[1]:    # e.g.: 40 - 300 deg
+            all_glitches = np.array( [glitch for glitch in all_glitches if float(glitch[columns[UNIT][6]])>=BAZs[0] and float(glitch[columns[UNIT][6]])<=BAZs[1]] )
+        else:                   # e.g.: 300 - 40 deg
+            all_glitches = np.array( [glitch for glitch in all_glitches if float(glitch[columns[UNIT][6]])>=BAZs[0] or  float(glitch[columns[UNIT][6]])<=BAZs[1]] )
+
+
+
     ### ASSIGN NEEDED VARIABLES
     sols_range   = sorted( [marstime(e).sol for e in all_glitches[:,1]] )
     print(u'Detected sols: %s .. %s ' % (sols_range[0], sols_range[-1]))
@@ -203,13 +215,15 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
 
 
 
-    ### FIGURE
-    fig = plt.figure(figsize=(9,11))
-    fig.canvas.set_window_title('Glitch overview plot')
-    fig.suptitle('%s overview plotter: LMST %s-%s, %s glitches (UVW: %g ≤ 1comp ≤ %g)' % (UNIT, LMST_range[0], LMST_range[1], len(all_glitches), min_amp, max_amp), fontsize=11, y=0.99)
-    fig.subplots_adjust(wspace=0.4, hspace=0.4)
-    fig.canvas.mpl_connect('pick_event', onpick)
-
+    ### FIGURE 1
+    fig1 = plt.figure(figsize=(20,10))
+    fig1.canvas.set_window_title('Glitch overview plot 1')
+    fig1.suptitle('%s overview plotter: Sols=%s..%s, LMST %s-%s, %s glitches (UVW: %g ≤ 1comp ≤ %g)' % (UNIT, sols_range[0], sols_range[-1], LMST_range[0], LMST_range[1], len(all_glitches), min_amp, max_amp), fontsize=11, y=0.99)
+    fig1.subplots_adjust(wspace=0.4, hspace=0.4)
+    fig1.canvas.mpl_connect('pick_event', onpick)
+    if outfile:
+        outfile1 = '.'.join( outfile.split('.')[:-1]) + '1.png'
+        outfile2 = '.'.join( outfile.split('.')[:-1]) + '2.png'
 
 
     ## COLORMAP
@@ -219,9 +233,9 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
     scalarMap = cmx.ScalarMappable(norm=norm, cmap=cmap)
     colours   = [scalarMap.to_rgba(glitch_starts[i].LMST_time.hour) for i in range(len(glitch_starts))]
 
-    cax = fig.add_axes([0.01, 0.55, 0.01, 0.4]) # left, bottom, width, height
-    cax.yaxis.set_ticks_position('left')
-    cb1 = mpl.colorbar.ColorbarBase(cax, drawedges=True, cmap=cmap, norm=norm, orientation='vertical', ticks=np.linspace(0,24,9), boundaries=np.linspace(0,24,25))
+    cax1 = fig1.add_axes([0.01, 0.55, 0.01, 0.4]) # left, bottom, width, height
+    cax1.yaxis.set_ticks_position('left')
+    cb1 = mpl.colorbar.ColorbarBase(cax1, drawedges=True, cmap=cmap, norm=norm, orientation='vertical', ticks=np.linspace(0,24,9), boundaries=np.linspace(0,24,25))
     cb1.set_label('LMST hour')
 
     # create hist data and colours
@@ -239,7 +253,7 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
     sizes = np.sqrt( N_amps**2 + E_amps**2 )
     sizes = normalise(sizes, scale_to_between=[5,20])
 
-    ax   = fig.add_subplot(221, polar=True)
+    ax   = fig1.add_subplot(121, polar=True)
     ax.set_title('Back-azimuths', pad=20, size=10)
     ax.spines['polar'].set_visible(False)
     ax.tick_params(pad=5)
@@ -254,7 +268,7 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
     ax.set_yticklabels(['Sol %d' % x for x in ax.get_yticks()])
     ax.set_rlabel_position(315)
 
-    ax.scatter(phis, sols, s=sizes, linewidths=.3, c=colours, edgecolor='k', rasterized=True, picker=2)
+    ax.scatter(phis, sols, s=sizes, linewidths=.3, c=colours, rasterized=True, picker=2)
     ax.grid(ls='-.', lw=0.4, c='dimgray')
 
 
@@ -263,7 +277,7 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
     sizes = np.sqrt(Z_amps**2)
     sizes = normalise(sizes , scale_to_between=[5,20])
 
-    ax = fig.add_subplot(222, polar=True)
+    ax = fig1.add_subplot(122, polar=True)
     ax.set_title('Incidence angles', pad=20, size=10)
     ax.spines['polar'].set_visible(False)
     ax.tick_params(pad=5)
@@ -280,16 +294,34 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
     ax.set_yticklabels(['Sol %d' % x for x in ax.get_yticks()])
     ax.set_rlabel_position(315)
 
-    ax.scatter(incs, sols, s=sizes, color=colours, edgecolor='k', linewidths=.3, rasterized=True, picker=2)
+    ax.scatter(incs, sols, s=sizes, color=colours, linewidths=.3, rasterized=True, picker=2)
     ax.grid(ls='-.', lw=0.4, c='dimgray')
 
+    if outfile:
+        plt.savefig(outfile1)
+        print(outfile1)
+
+
+    ### FIGURE 2
+    fig2 = plt.figure(figsize=(20,10))
+    fig2.canvas.set_window_title('Glitch overview plot 2')
+    fig2.suptitle('%s overview plotter: Sols=%s..%s, LMST %s-%s, %s glitches (UVW: %g ≤ 1comp ≤ %g)' % (UNIT, sols_range[0], sols_range[-1], LMST_range[0], LMST_range[1], len(all_glitches), min_amp, max_amp), fontsize=11, y=0.99)
+    fig2.subplots_adjust(wspace=0.4, hspace=0.4)
+    fig2.canvas.mpl_connect('pick_event', onpick)
+
+
+    ## COLORMAP
+    cax2 = fig2.add_axes([0.01, 0.55, 0.01, 0.4]) # left, bottom, width, height
+    cax2.yaxis.set_ticks_position('left')
+    cb2 = mpl.colorbar.ColorbarBase(cax2, drawedges=True, cmap=cmap, norm=norm, orientation='vertical', ticks=np.linspace(0,24,9), boundaries=np.linspace(0,24,25))
+    cb2.set_label('LMST hour')
 
 
     ## 3-D PLOT (lower left)
     sizes = np.sqrt(Z_amps**2+N_amps**2+E_amps**2) 
     sizes = normalise(sizes, scale_to_between=[5,20])
 
-    ax = fig.add_subplot(223, projection='3d')
+    ax = fig2.add_subplot(121, projection='3d')
     ax.set_title('3-D Polarizations', y=1.10, size=10)
     ax.view_init(elev=15., azim=-50)
     ax.set_xlabel('E', labelpad=2, fontsize=8)
@@ -298,8 +330,8 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
     ax.set_xticks([-1,-0.5,0,0.5,1])
     ax.set_yticks([-1,-0.5,0,0.5,1])
     ax.set_zticks([-1,-0.5,0,0.5,1])
-    ax.scatter(np.sin(phis)*abs(np.sin(incs)), np.cos(phis)*abs(np.sin(incs)), -np.cos(incs), s=sizes, color=colours, edgecolor='k', linewidths=.3, depthshade=False, rasterized=True)
-    ax.scatter(0, 0, 0, s=30, c='white', depthshade=False)
+    ax.scatter(np.sin(phis)*abs(np.sin(incs)), np.cos(phis)*abs(np.sin(incs)), np.cos(incs), s=sizes, color=colours, linewidths=.3, depthshade=False, rasterized=True)
+    ax.scatter(0, 0, 0, s=30, c='white', edgecolor='k', depthshade=False)
     ax.set_xlim( [-1,1] )
     ax.set_ylim( [-1,1] )
     ax.set_zlim( [-1,1] )
@@ -307,7 +339,7 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
 
 
     ## HISTOGRAM (lower right)
-    ax = fig.add_subplot(224)
+    ax = fig2.add_subplot(122)
     #ax.set_title('Sol Histogram Glitches', pad=10)
     ax.grid(ls='-.', lw=0.5, zorder=0)
     ax.set(xlabel='Sol', ylabel='Glitches / Sol')
@@ -331,12 +363,9 @@ def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_rang
 
     ### FINAL
     if outfile:
-        plt.savefig(outfile)
-        print(outfile)
-    if show:
-        plt.show()
-    plt.close()
-def glitch_gutenberg_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_range=['0', '24'], show=True, outfile=''):
+        plt.savefig(outfile2)
+        print(outfile2)
+def glitch_gutenberg_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_range=['0', '24'], outfile=''):
 
     """
 
@@ -382,7 +411,7 @@ def glitch_gutenberg_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_ran
     LMST_range        = [[t[i:i+2] for i in range(0,len(t),2)] for t in LMST_range]
     LMST_range        = [':'.join(t) for t in LMST_range]
     
-    glitch_start_LMST = np.array( [glitch[3].split('S')[1] for glitch in all_glitches] )
+    glitch_start_LMST = np.array( [glitch[3].split('M')[1] for glitch in all_glitches] )
     if LMST_range[0]<=LMST_range[1]:
         indices       = np.where( (glitch_start_LMST >= LMST_range[0]) & (glitch_start_LMST <= LMST_range[1]) )
     else:
@@ -451,10 +480,7 @@ def glitch_gutenberg_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_ran
     if outfile:
         plt.savefig(outfile)
         print(outfile)
-    if show:
-        plt.show()
-    plt.close()
-def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, scale=1, show=True, outfile=''):
+def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, BAZs=[], scale=1, outfile=''):
 
 
 
@@ -489,7 +515,7 @@ def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LM
     print(u'  RUNNING GLITCH WAVEFORM PLOTTER')
     print(u'  -------------------------------')
     print()
-    print(u"Have to convert each data point's UTC time to LMST, this takes a bit ..")
+    print(u"Have to convert each data point's UTC time to LMST, this takes a minute ..")
     print()
 
 
@@ -524,7 +550,7 @@ def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LM
     LMST_range        = [[t[i:i+2] for i in range(0,len(t),2)] for t in LMST_range]
     LMST_range        = [':'.join(t) for t in LMST_range]
     
-    glitch_start_LMST = np.array( [glitch[3].split('S')[1] for glitch in all_glitches] )
+    glitch_start_LMST = np.array( [glitch[3].split('M')[1] for glitch in all_glitches] )
     if LMST_range[0]<=LMST_range[1]:
         indices       = np.where( (glitch_start_LMST >= LMST_range[0]) & (glitch_start_LMST <= LMST_range[1]) )
     else:
@@ -543,13 +569,29 @@ def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LM
     else:
         max_amp = float( max_amp )   
 
-    all_glitches = all_glitches[((abs(all_glitches[:,8].astype('float'))>=min_amp)   | \
-                                 (abs(all_glitches[:,9].astype('float'))>=min_amp)   | \
-                                 (abs(all_glitches[:,10].astype('float'))>=min_amp)) & \
+    all_glitches = all_glitches[((abs(all_glitches[:,columns['GAI'][0]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][1]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][2]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][3]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][4]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][5]].astype('float'))>=min_amp)) & \
 
-                                 (abs(all_glitches[:,8].astype('float'))<=max_amp)  & \
-                                 (abs(all_glitches[:,9].astype('float'))<=max_amp)  & \
-                                 (abs(all_glitches[:,10].astype('float'))<=max_amp)]
+                                 (abs(all_glitches[:,columns['GAI'][0]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][1]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][2]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][3]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][4]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][5]].astype('float'))<=max_amp)]
+
+
+
+    ### SELECT GLITCHES ON GIVEN `BAZs`
+    if BAZs:
+        BAZs = [float(BAZ) for BAZ in BAZs]
+        if BAZs[0]<=BAZs[1]:    # e.g.: 40 - 300 deg
+            all_glitches = np.array( [glitch for glitch in all_glitches if float(glitch[columns['GAI'][6]])>=BAZs[0] and float(glitch[columns['GAI'][6]])<=BAZs[1]] )
+        else:                   # e.g.: 300 - 40 deg
+            all_glitches = np.array( [glitch for glitch in all_glitches if float(glitch[columns['GAI'][6]])>=BAZs[0] or  float(glitch[columns['GAI'][6]])<=BAZs[1]] )
 
 
 
@@ -574,8 +616,8 @@ def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LM
         glitches_end_UTC           = UTCDateTime(glitch[2])
         glitches_start_LMST_string = glitch[3]
         glitches_end_LMST_string   = glitch[4]
-        glitch_start_sol           = int(glitch[3].split('S')[0])
-        glitch_end_sol             = int(glitch[4].split('S')[0])
+        glitch_start_sol           = int(glitch[3].split('M')[0])
+        glitch_end_sol             = int(glitch[4].split('M')[0])
         glitch_U                   = glitch[5]
         glitch_V                   = glitch[6]
         glitch_W                   = glitch[7]
@@ -723,7 +765,7 @@ def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LM
         ax.xaxis.set_major_formatter( mdates.DateFormatter('%H:%M:%S') )
         ax.xaxis.set_major_locator(plt.MaxNLocator(5))
         #ax.xaxis.set_major_locator( mdates.HourLocator(interval=4) )
-        ax.set_ylabel('Sols')
+        ax.set_ylabel('Sol')
         ax.set_ylim([min(sols_range),max(sols_range)+1])
 
         # data
@@ -750,10 +792,7 @@ def glitch_waveform_plot(*glitch_files, run=True, waveform_files=[], sols=[], LM
     if outfile:
         plt.savefig(outfile)
         print(outfile)
-    if show:
-        plt.show()
-    plt.close()
-def glitch_XoverBAZ_plot(*glitch_files, run=True, comp='Z', UNIT='GAI', sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, show=True, outfile=''):
+def glitch_XoverBAZ_plot(*glitch_files, run=True, comp='Z', UNIT='GAI', sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, outfile=''):
 
     """
 
@@ -799,7 +838,7 @@ def glitch_XoverBAZ_plot(*glitch_files, run=True, comp='Z', UNIT='GAI', sols=[],
     LMST_range        = [[t[i:i+2] for i in range(0,len(t),2)] for t in LMST_range]
     LMST_range        = [':'.join(t) for t in LMST_range]
     
-    glitch_start_LMST = np.array( [glitch[3].split('S')[1] for glitch in all_glitches] )
+    glitch_start_LMST = np.array( [glitch[3].split('M')[1] for glitch in all_glitches] )
     if LMST_range[0]<=LMST_range[1]:
         indices       = np.where( (glitch_start_LMST >= LMST_range[0]) & (glitch_start_LMST <= LMST_range[1]) )
     else:
@@ -878,7 +917,7 @@ def glitch_XoverBAZ_plot(*glitch_files, run=True, comp='Z', UNIT='GAI', sols=[],
     #ax.set_yticklabels(['%d' % x for x in ax.get_yticks()])
     ax.set_ylim([-1e-8,1.25e-7])
     ax.set_rlabel_position(315)
-    ax.scatter(BAZ, eval(comp.upper()), s=10, c=colours, edgecolor='k', linewidths=.3)
+    ax.scatter(BAZ, eval(comp.upper()), s=10, c=colours, linewidths=.3)
 
 
 
@@ -886,10 +925,7 @@ def glitch_XoverBAZ_plot(*glitch_files, run=True, comp='Z', UNIT='GAI', sols=[],
     if outfile:
         plt.savefig(outfile)
         print(outfile)
-    if show:
-        plt.show()
-    plt.close()
-def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, mode='largest', scale=1, align='maximum', show=True, outfile=''):
+def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, mode='largest', scale=1, align='maximum', outfile=''):
 
     """
 
@@ -953,7 +989,7 @@ def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=[], LMST_
     LMST_range        = [[t[i:i+2] for i in range(0,len(t),2)] for t in LMST_range]
     LMST_range        = [':'.join(t) for t in LMST_range]
     
-    glitch_start_LMST = np.array( [glitch[3].split('S')[1] for glitch in all_glitches] )
+    glitch_start_LMST = np.array( [glitch[3].split('M')[1] for glitch in all_glitches] )
     if LMST_range[0]<=LMST_range[1]:
         indices       = np.where( (glitch_start_LMST >= LMST_range[0]) & (glitch_start_LMST <= LMST_range[1]) )
     else:
@@ -1143,9 +1179,6 @@ def glitch_align_plot(*glitch_files, run=True, waveform_files=[], sols=[], LMST_
     if outfile:
         plt.savefig(outfile)
         print(outfile)
-    if show:
-        plt.show()
-    plt.close()
 def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, waveform_files=[], inventory_file='IRIS', show=True, outfile=''):
 
     """
@@ -1211,7 +1244,7 @@ def glitch_ppol_plot(*glitch_files, run=True, UNIT='GAI', glitch_number=1, wavef
         ppol_measurement.display(tag=title)
         print()
         print('Glitch times: %s - %s' % (glitch_start, glitch_end))
-        print(u'Info: Due to deconvolution window results can slightly differ from those of the glitch detector.')
+        print(u'Info: Due to deconvolution window, results can slightly differ from those of the glitch detector.')
         ppol_measurement.plot(title=title, show=show, outfile=outfile)
 
         break
