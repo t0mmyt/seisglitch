@@ -4,7 +4,7 @@ detect:
 
   detector:
     inventory_file: 'IRIS'             # Either path to file or data centre, e.g. 'IPGP', 'IRIS' ..
-    taper_length_per_side: 0.1         # in percent
+    taper_length_per_side: 0.05         # in percent
     pre_filt: False
     water_level: 60
     ACCfilter: 
@@ -12,12 +12,13 @@ detect:
       options: {'freqmin':0.001,  'freqmax':0.1,  'corners':3, 'zerophase':True}
       string: 'bp: 0.001 < f < 0.1'
     window_length_minutes: 5
-    average_peak_height_times: 4
-    show_triggering: False            # If True, is not saved but only shown (one for each component of each 12h file part)
+    average_peak_height_times: 3
+    plot_triggering: False            # If True, is not saved but only shown (one for each component of each 12h file part)
     glitch_min_dist: 5                # minimum distance in seconds between 2 glitches. Before that, no new glitch will be declared
     glitch_length: 25                 # only used to determine glitch end time 
     glitch_min_polarization: 0.8      # applied to calculated polarization of both gain corrected and displacement data (set=0 if not wished)
     plot_individual: False            # If True, is saved in current working directory but not shown
+    plot_all: False
 
 
   glitch_detector_files:

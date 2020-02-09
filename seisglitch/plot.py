@@ -46,8 +46,7 @@ from obspy import read, UTCDateTime
 
 
 #####  seisglitch util import  #####
-from seisglitch.ppol import ppol
-from seisglitch.util import read2, marstime, sec2hms
+from seisglitch.util import read2, marstime, sec2hms, ppol
 from seisglitch.math import normalise
 
 

@@ -40,26 +40,29 @@ from obspy import UTCDateTime, read
 
 
 #####  seisglitch modules import  #####
-from seisglitch.ppol import ppol
 from seisglitch.math import moving_window, normalise
-from seisglitch.util import read2, marstime, sec2hms, quick_plot
+from seisglitch.util import read2, marstime, sec2hms, quick_plot, ppol
 
+#TEST IF TAPERING TIMES CAN BE USED ANYWAY
+#CHECK WHY SOME FILES DON'T WORK
+# TEST IF VEL = DIS + derivative
 
 
 ### GLITCH DETECTION
 def glitch_detector(*RAW_UVW, 
     inventory_file            = 'IRIS',
-    taper_length_per_side     = 0.1,
+    taper_length_per_side     = 0.05,
     pre_filt                  = None,
     water_level               = 60,
-    ACCfilter                 = {'type' : 'bandpass',  'options' : {'freqmin':0.001, 'freqmax':1.0}, 'string':'bp 1000-1s'}, 
-    window_length_minutes     = 60, 
-    average_peak_height_times = 4, 
-    show_triggering           = False,
+    ACCfilter                 = {'type' : 'bandpass',  'options' : {'freqmin':0.001, 'freqmax':0.1}, 'string':'bp: 0.001 < f < 0.1'}, 
+    window_length_minutes     = 5, 
+    average_peak_height_times = 3, 
+    plot_triggering           = False,
     glitch_min_dist           = 5, 
-    glitch_length             = 25,
+    glitch_length             = 20,
     glitch_min_polarization   = 0.9, 
-    plot_individual           = True):
+    plot_individual           = False,
+    plot_all                  = False):
     
 
     """
@@ -92,8 +95,8 @@ def glitch_detector(*RAW_UVW,
         now    = time.time()        
         stream = read2(RAW_UVW[o])
         stream.sort(reverse=False)                 # Sorted: U then V then W: if you change this, god may stand by your side
-        #stream.trim2(0.5,0.8)        
-        stream._set_inventory(file=inventory_file)  # get & set station inventory for stream (response information)
+        #stream.trim2(0.5,0.55)        
+        stream._set_inventory(source=inventory_file)  # get & set station inventory for stream (response information)
         data_delta           = stream[0].stats.delta
         data_start, data_end = [marstime(time) for time in stream.times]
 
@@ -223,7 +226,7 @@ def glitch_detector(*RAW_UVW,
             
 
             ### SHOW TRIGGERING, if wished
-            if show_triggering:
+            if plot_triggering:
 
                 print(u'Info: Triggering on derivative of filtered acceleration data is only done on parts not affected by taper.')
                 print(u'Info: Amplitudes are scaled so plots are readable, they do not reflect true amplitude values.')
@@ -431,7 +434,7 @@ def glitch_detector(*RAW_UVW,
 
                 # exclude glitches with polarization < `glitch_min_polarization` 
                 # (glitches have high polarization, thus this condition intends to throw out non-glitches)
-                if POL_3D_GAI < float( glitch_min_polarization ) or POL_3D_DIS < float( glitch_min_polarization ):
+                if POL_3D_GAI < float( glitch_min_polarization ):
                     continue
                
                 # exclude glitches that already were detected 
@@ -550,14 +553,15 @@ def glitch_detector(*RAW_UVW,
                      u'  Acceleration filter:       %s'           % ACCfilter['string'],
                      u'  Window length:             %s min'       % window_length_minutes,
                      u'  Average_peak_height_times: %s'           % average_peak_height_times,
-                     u"  Show triggering:           %s"           % str(show_triggering),
+                     u"  Show triggering:           %s"           % str(plot_triggering),
                      u"  Glitches' min dist:        %s s"         % glitch_min_dist,
                      u"  Glitch length (fix):       %s s"         % glitch_length,
                      u'  Glitch min polarization:   %s'           % glitch_min_polarization,
                      u"  Plot individual:           %s "          % str(plot_individual),
                      u'',      
                      u'RESULTS:',      
-                     u'  Glitches total:            %s'           % len(glitch_time_comps_keep),
+                     u'    Glitches all:            %s'           % len(glitch_time_comps_keep),
+                     u'       all / sol:            %.0f'         % (len(glitch_time_comps_keep)*86400/(data_end.LMST_time-data_start.LMST_time)),
                      u'            on U:            %s'           % len(glitch_starts_U),
                      u'            on V:            %s'           % len(glitch_starts_V),
                      u'            on W:            %s'           % len(glitch_starts_W),
@@ -601,6 +605,13 @@ def glitch_detector(*RAW_UVW,
         print()
         print(u'Output file:')
         print(output_txt)
+
+
+        ### FINAL PLOT, if wished
+        if plot_all:
+            title = '%s glitches' % len(glitch_time_comps_keep)
+            verts = np.array( glitch_time_comps_keep )[:,0]
+            quick_plot(*stream, title=title, verts=[verts], xlabel='Time', ylabel='Amplitude')
 
 
 
