@@ -45,7 +45,6 @@ from seisglitch.util import read2, marstime, sec2hms, quick_plot, ppol
 
 #TEST IF TAPERING TIMES CAN BE USED ANYWAY
 #CHECK WHY SOME FILES DON'T WORK
-# TEST IF VEL = DIS + derivative
 
 
 ### GLITCH DETECTION

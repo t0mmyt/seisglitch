@@ -90,6 +90,7 @@ elif mode=='plot':
     plot_params           = params['plot']['plotter']
     show                  = params['plot']['plotter']['show']
 
+    plot.glitch_detector_plot(  *glitch_detector_files, waveform_files=waveform_files, show=show, **plot_params['glitch_detector_plot'])
     plot.glitch_overview_plot(  *glitch_detector_files, **plot_params['glitch_overview_plot'] )
     plot.glitch_gutenberg_plot( *glitch_detector_files, **plot_params['glitch_gutenberg_plot'] )
     plot.glitch_waveform_plot(  *glitch_detector_files, waveform_files=waveform_files, **plot_params['glitch_waveform_plot'] )

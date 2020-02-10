@@ -27,6 +27,14 @@ detect:
   plotter:
     show: True
 
+    glitch_detector_plot:
+      run: True
+      components: '*'
+      LMST_range: ['00:00:00', '24:00:00']
+      min_amp: False
+      max_amp: False
+      outfile: ''
+
     glitch_overview_plot:
       run: True
       UNIT: GAI

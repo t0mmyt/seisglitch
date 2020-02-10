@@ -837,10 +837,10 @@ class Stream2(Stream):
                     # create windows for batch job
                     xlims    = []
                     span     = xlim[1]-xlim[0]
-                    pro_side = 2
+                    per_side = 2
                     fraction = 0.15
-                    for l in np.arange(-pro_side, pro_side+1):
-                        for i in np.arange(-pro_side, pro_side+1):
+                    for l in np.arange(-per_side, per_side+1):
+                        for i in np.arange(-per_side, per_side+1):
                             window = [ xlim[0]+l*span*fraction, xlim[1]+i*span*fraction]
                             xlims.append( window )
 
@@ -849,30 +849,27 @@ class Stream2(Stream):
                     unit    = self.unit
                     for xlim in xlims:
                         for fil_num in self.filters.keys():
-                            polar   = self.original or self
-                            polar   = polar.copy()
-                            polar   = polar.select(id=stat_id+'*')
+                            polar = self.original or self
+                            polar = polar.copy()
+                            polar = polar.select(id=stat_id+'*')
                             polar.filtering(fil_num)
                             polar.trim(starttime=xlim[0], endtime=xlim[1])
                             measurement = ppol(stream=polar)
-                            results.append( list(measurement.results)+xlim )
+                            results.append( measurement.results )
 
                     # retrieve needed variables for best polarisation
                     results      = np.array(results)
-                    ind_best     = np.argmax(results[:,12])     # highest POL_2D
+                    POLs_2D      = results[:,12]
+                    ind_best     = np.argmax(POLs_2D)     # highest POL_2D
 
-                    fil_num_best =       int( ind_best %  (len(self.filters)-1) )
-                    xlim_best    = xlims[int( ind_best // (len(xlims)-1)        )]
-                    POLs_2D      = list( results[:,12] )
+                    fil_num_best =       int( ind_best %  len(self.filters)) 
+                    xlim_best    = xlims[int( ind_best // len(xlims))       ]
 
                     # plot best polarization
-                    polar_best   = self.copy()
+                    polar_best   = self.original or self
                     polar_best   = polar_best.select(id=stat_id+'*')
                     polar_best.filtering(fil_num_best)
                     polar_best.trim(starttime=xlim_best[0], endtime=xlim_best[1])
-
-                    polar_best.filtering(fil_num)
-                    polar_best.trim(starttime=xlim[0], endtime=xlim[1])
 
                     measurement_best = ppol(stream=polar_best)
                     fil_str      = polar_best._get_filter_str()

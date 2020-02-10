@@ -46,7 +46,7 @@ from obspy import read, UTCDateTime
 
 
 #####  seisglitch util import  #####
-from seisglitch.util import read2, marstime, sec2hms, ppol
+from seisglitch.util import read2, marstime, sec2hms, ppol, quick_plot
 from seisglitch.math import normalise
 
 
@@ -58,6 +58,129 @@ columns = {'GAI' : [11,12,13,14,15,16,35,36],
            'DIS' : [17,18,19,20,21,22,39,40],
            'VEL' : [23,24,25,26,27,28,43,44],
            'ACC' : [29,30,31,32,33,34,47,48]}
+def glitch_detector_plot(*glitch_files, run=True, waveform_files=[], components='*', LMST_range=['0', '24'], min_amp=None, max_amp=None, show, outfile=''):
+    
+    """
+    Plot glitches, based on glitch file produced by function `glitch_detector()`.
+
+    amp parameters apply to all components: UVWZNE
+    min_amp: at least one component amplitude must be larger
+    max_amp: all component amplitudes must be smaller
+
+    UNIT allows to choose which polarizations you wish to plot.
+
+    Matplotlib colorscale:
+    https://matplotlib.org/3.1.1/tutorials/colors/colormaps.html
+    """
+
+
+    ### RUN OR NOT:
+    if not run:
+        return
+
+    now = time.time()
+
+
+
+    ### CHECK IF WAVEFORM FILES PASSED
+    if not waveform_files:
+        print('ERROR: You need to specify `waveform_files` in the config.yaml so waveform data can be read.')
+        sys.exit()
+
+
+
+    ### READ GLITCH-FILE
+    all_glitches = []
+
+    for glitch_file in glitch_files:
+        glitches      = np.loadtxt(glitch_file, dtype='str')
+        #glitches      = glitch_exclude(glitches, verbose=False)
+        all_glitches += list(glitches)
+    all_glitches = np.array(all_glitches)
+
+
+
+    ### SELECT GLITCHES IN SPECIFIED LMST RANGE
+    LMST_range        = [(str(t).replace(':','') + '000000')[:6] for t in LMST_range]
+    LMST_range        = [[t[i:i+2] for i in range(0,len(t),2)] for t in LMST_range]
+    LMST_range        = [':'.join(t) for t in LMST_range]
+    
+    glitch_start_LMST = np.array( [glitch[3].split('M')[1] for glitch in all_glitches] )
+    if LMST_range[0]<=LMST_range[1]:
+        indices       = np.where( (glitch_start_LMST >= LMST_range[0]) & (glitch_start_LMST <= LMST_range[1]) )
+    else:
+        indices       = np.where( (glitch_start_LMST >= LMST_range[0]) | (glitch_start_LMST <= LMST_range[1]) )
+    all_glitches      = all_glitches[ indices ]
+
+
+
+    ### SELECT GLITCHES TO `MIN_AMP` AND `MAX_AMP`
+    if eval(str(min_amp).capitalize()) is None or eval(str(min_amp).capitalize()) == False:
+        min_amp = 0
+    else:
+        min_amp = float( min_amp )
+    if eval(str(max_amp).capitalize()) is None or eval(str(max_amp).capitalize()) == False:
+        max_amp = 1e9
+    else:
+        max_amp = float( max_amp )
+
+    all_glitches = all_glitches[((abs(all_glitches[:,columns['GAI'][0]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][1]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][2]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][3]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][4]].astype('float'))>=min_amp)  | \
+                                 (abs(all_glitches[:,columns['GAI'][5]].astype('float'))>=min_amp)) & \
+
+                                 (abs(all_glitches[:,columns['GAI'][0]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][1]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][2]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][3]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][4]].astype('float'))<=max_amp)  & \
+                                 (abs(all_glitches[:,columns['GAI'][5]].astype('float'))<=max_amp)]
+
+
+
+    ### LOOP OVER ALL FILES PASSED
+    for k, waveform_file in enumerate(waveform_files):
+
+        # read stream
+        st        = read2(waveform_file)
+        if components != '*':
+            components = '['+components+']'
+        st_select = st.select(component=components)
+        
+        print()
+        print(u'Plotting: %s' % waveform_file)
+        if not st_select:
+            print('WARNING: No `components` %s found in passed stream. No plotting done.' % components)
+            continue
+
+        # get times
+        glitch_times = []
+        stream_times = st.times
+        if 'U' in components.upper() or 'V' in components.upper() or 'W' in components.upper():
+
+            if 'U' in components.upper():
+                glitch_times += [glitch[1] for glitch in all_glitches if glitch[5]=='1']
+
+            if 'V' in components.upper():
+                glitch_times += [glitch[1] for glitch in all_glitches if glitch[6]=='1']
+
+            if 'W' in components.upper():
+                glitch_times += [glitch[1] for glitch in all_glitches if glitch[7]=='1']
+
+        else:
+            glitch_times = all_glitches[:,1]
+
+        glitch_times = [time for time in glitch_times if time>=str(stream_times[0]) and time<=str(stream_times[1])]
+
+        # make plot
+        title = '%s glitches (components=%s)' % (len(glitch_times),components)
+        if outfile:
+            fileout = '.'.join( outfile.split('.')[:-1]) + '%d.png' % (k+1)
+        else:
+            fileout = None
+        quick_plot(*st.select(component=components), title=title, verts=[glitch_times], xlabel='Time', show=show, outfile=fileout)
 def glitch_overview_plot(*glitch_files, run=True, UNIT='GAI', sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, BAZs=[], outfile=''):
     
     """
