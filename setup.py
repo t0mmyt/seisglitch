@@ -23,10 +23,10 @@ setup(
     maintainer_email = 'john.robert.scholz@gmail.com',
     classifiers      = ['Development Status :: 3 - Alpha',
                        'License :: OSI Approved :: MIT License',
-                       'Programming Language :: Python :: 3.6',
                        'Programming Language :: Python :: 3.7'],
     #install_requires = [],
-    python_requires  =  '>=3.6',
+    python_requires  =  '>=3.7',
+    install_requires = ['numpy==1.16'],
     packages         = ['seisglitch'],
     scripts          = [os.path.join('Scripts',file) for file in os.listdir('Scripts/')],
     url              = 'https://gitlab.com/johnrobertscholz/seisglitch'

@@ -1,6 +1,6 @@
 detect:
   waveform_files:
-    - Example/XB.ELYSE.02.BHUVW_20190619T042225-20190701T000001.mseed
+    - Example/XB.ELYSE.02.BHUVW_20190601T122411-20190602T182247.mseed
 
   detector:
     inventory_file: 'IRIS'             # Either path to file or data centre, e.g. 'IPGP', 'IRIS' ..
@@ -21,77 +21,61 @@ detect:
     plot_all: False
 
 
+
   glitch_detector_files:
-    - /home/scholz/Desktop/glitch_detector/glitches_all.txt
+    - Example/glitches_XB.ELYSE.02.BHUVW_20190601T122411-20190602T182247
 
-  plotter:
+  plot_params:
     show: True
+    UNIT: GAI
+    sols: [150, 250]
+    LMST_range: ['00:00:00', '24:00:00']
+    min_amp: 1e-7
+    max_amp: False
+    BAZs: []
+    upper_percent: 100
 
-    glitch_detector_plot:
-      run: True
-      components: '*'
-      LMST_range: ['00:00:00', '24:00:00']
-      min_amp: False
-      max_amp: False
-      outfile: ''
 
-    glitch_overview_plot:
-      run: True
-      UNIT: GAI
-      sols: [120,350]
-      LMST_range: ['16:00:00', '04:00:00']
-      min_amp: 1e-7
-      max_amp: False
-      BAZs: [120,240]
-      outfile: '/home/scholz/Desktop/overview.png'
+  glitch_detector_plot:
+    run: False
+    components: '*'     # `*` means all compments found in each of specified`waveform_files`. `UV` means only for components "U" and "V"
+    outfile: ''
 
-    glitch_gutenberg_plot: 
-      run: False
-      UNIT: GAI
-      sols: []
-      LMST_range: ['00:00:00', '24:00:00']
-      outfile: ''
+  glitch_LMST_sol_plot:
+    run: False
+    mode: BAZ           # `AMP` or `BAZ`
+    outfile: ''
 
-    glitch_waveform_plot:
-      run: False
-      sols: [120,350]
-      LMST_range: ['05:00:00', '11:00:00']
-      min_amp: 5e-8
-      max_amp: False      
-      BAZs: [60, 270]
-      scale: 10
-      outfile: ''
+  glitch_overview_plot:
+    run: True
+    outfile: ''
 
-    glitch_XoverBAZ_plot:
-      run: False
-      comp: Z
-      UNIT: GAI
-      sols: []
-      LMST_range: ['0', '24']
-      min_amp: False
-      max_amp: False
-      outfile: ''
+  glitch_gutenberg_plot: 
+    run: False
+    outfile: ''
 
-    glitch_align_plot:
-      run: False
-      sols: [140,320]
-      LMST_range: ['21000', '020000']
-      min_amp: False
-      max_amp: False      
-      mode: largest
-      scale: 60
-      align: maximumW
-      outfile: ''
+  glitch_waveform_plot:
+    run: False
+    scale: 10
+    outfile: ''
 
-    glitch_ppol_plot:
-      run: False
-      UNIT: GAI      
-      glitch_number: '027991'
-      outfile: ''
+  glitch_align_plot:
+    run: False   
+    mode: largest
+    scale: 60
+    align: maximumW
+    outfile: ''
+
+  glitch_ppol_plot:
+    run: False
+    glitch_number: '027991'
+    outfile: ''
+
 
 
 remove:
   # not yet implemented
+
 
 
 evaluate:

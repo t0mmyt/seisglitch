@@ -1477,7 +1477,7 @@ def pierce_stream(file, format_out='mseed'):
 
 
 
-    ### handle overlaps first (if there any gaps, data will be masked array), that is why then split masked array contiguous unmasked traces to apply piercing
+    ### handle overlaps first (if there any gaps, data will be masked array, that is why then split masked array contiguous unmasked traces to apply piercing)
     stream = read2(file)
     stream.merge(method=1, fill_value=None, interpolation_samples=0)
     stream = stream.split()
@@ -1622,7 +1622,7 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
     except ZeroDivisionError:
         glitch_indivdual_ratio = np.nan
 
-    output1   = [u'MERGED:']
+    output1   = [u'MERGED GLITCH DETECTOR FILES:']
     output2   = ['  %s' % file for file in glitch_detector_files]
     output3   = [u'',
                  u'RESULTS:',      
@@ -1686,9 +1686,6 @@ def read_config(config_file):
     print(os.path.abspath(config_file))
 
 
-
-
-
     try:
         with open(config_file, 'r') as yamlfile:
 
@@ -1707,7 +1704,8 @@ def read_config(config_file):
             params = yaml.load(yamlfile, Loader=loader)
 
     except FileNotFoundError:
-        print(u'ERROR: read_config: Config file not found.')
+        print()
+        print(u'ERROR: read_config: config file not found.')
         sys.exit()
 
     return params

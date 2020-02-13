@@ -84,21 +84,22 @@ if mode=='detect':
 
 elif mode=='plot':
 
+    glitch_detector_files = params['plot']['glitch_detector_files']
+
+    plot_params           = params['plot']['plot_params']
     waveform_files        = params['detect']['waveform_files']
     inventory_file        = params['detect']['detector']['inventory_file']
-    glitch_detector_files = params['plot']['glitch_detector_files']
-    plot_params           = params['plot']['plotter']
-    show                  = params['plot']['plotter']['show']
 
-    plot.glitch_detector_plot(  *glitch_detector_files, waveform_files=waveform_files, show=show, **plot_params['glitch_detector_plot'])
-    plot.glitch_overview_plot(  *glitch_detector_files, **plot_params['glitch_overview_plot'] )
-    plot.glitch_gutenberg_plot( *glitch_detector_files, **plot_params['glitch_gutenberg_plot'] )
-    plot.glitch_waveform_plot(  *glitch_detector_files, waveform_files=waveform_files, **plot_params['glitch_waveform_plot'] )
-    plot.glitch_XoverBAZ_plot(  *glitch_detector_files, **plot_params['glitch_XoverBAZ_plot'] )
-    plot.glitch_align_plot(     *glitch_detector_files, waveform_files=waveform_files, **plot_params['glitch_align_plot'] )
-    plot.glitch_ppol_plot(      *glitch_detector_files, waveform_files=waveform_files, inventory_file=inventory_file, show=show, **plot_params['glitch_ppol_plot'] )
 
-    if show:
+    plot.glitch_detector_plot(  *glitch_detector_files, **plot_params, **params['plot']['glitch_detector_plot'], waveform_files=waveform_files)
+    plot.glitch_LMST_sol_plot(  *glitch_detector_files, **plot_params, **params['plot']['glitch_LMST_sol_plot'])
+    plot.glitch_overview_plot(  *glitch_detector_files, **plot_params, **params['plot']['glitch_overview_plot'] )
+    plot.glitch_gutenberg_plot( *glitch_detector_files, **plot_params, **params['plot']['glitch_gutenberg_plot'] )
+    plot.glitch_waveform_plot(  *glitch_detector_files, **plot_params, **params['plot']['glitch_waveform_plot'], waveform_files=waveform_files)
+    plot.glitch_align_plot(     *glitch_detector_files, **plot_params, **params['plot']['glitch_align_plot'],    waveform_files=waveform_files)
+    plot.glitch_ppol_plot(      *glitch_detector_files, **plot_params, **params['plot']['glitch_ppol_plot'],     waveform_files=waveform_files, inventory_file=inventory_file)
+
+    if plot_params['show']:
       plt.show()
     plt.close()
 
