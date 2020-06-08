@@ -40,6 +40,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 import numpy as np
+import scipy
 
 
 #####  matplotlib modules import  #####
@@ -65,9 +66,9 @@ from seisglitch.math import normalise, covariance_matrix, rotate_2D, unit_vector
 
 
 # Extended Obspy Stream class (adding some more functionality)
-def read2(file=None, headonly=False):
+def read2(file=None, **kwargs):
     # wrapper to make to return Stream2 objects instead of (ObsPy's) Stream object.
-    st = read(file, headonly=headonly)
+    st = read(file, **kwargs)
     st = Stream2(st, file=file)
     return st
 class Stream2(Stream):
@@ -83,21 +84,22 @@ class Stream2(Stream):
         self.unit         = 'RAW'
         self.times        = self._get_times()
         self.inventory    = None
-        self.filters      = {'0' : {'type' : False,       'options' : {                                                               },   'string':'0: no filter'},
+        self.filters      = {'0' : {'type' : False,       'options' : {                                                               },   'string':'no filter'},
                              '1' : {'type' : 'highpass',  'options' : {'freq':1.0,                       'corners':3, 'zerophase':True},   'string':'1: >1 Hz'},
                             #'2' : {'type' : 'highpass',  'options' : {'freq':0.1,                       'corners':3, 'zerophase':True},   'string':'2: >0.1 Hz'},
                             #'3' : {'type' : False,       'options' : {                                                               },   'string':'3: >0.01 Hz'},
-                             '2' : {'type' : 'bandpass',  'options' : {'freqmin':0.001,  'freqmax':1.0,  'corners':3, 'zerophase':True},   'string':'2: 0.001s < f < 1'},
-                             '3' : {'type' : 'bandpass',  'options' : {'freqmin':0.001,  'freqmax':0.1,  'corners':3, 'zerophase':True},   'string':'3: 0.001s < f < 0.1'},
-                             '4' : {'type' : 'bandpass',  'options' : {'freqmin':0.01,   'freqmax':0.1,  'corners':3, 'zerophase':True},   'string':'4: 0.01s < f < 0.1'},
-                             '5' : {'type' : 'highpass',  'options' : {'freq':0.001,                     'corners':3, 'zerophase':True},   'string':'5: 0.001s < f'},
+                             '2' : {'type' : 'bandpass',  'options' : {'freqmin':0.01,  'freqmax':0.1,   'corners':1, 'zerophase':False},   'string':'2: 0.01s < f < 0.1'},
+                             '3' : {'type' : 'lowpass',   'options' : {'freq':0.5,                       'corners':3, 'zerophase':True},   'string':'3: <0.5Hz'},
+                             '4' : {'type' : 'bandpass',  'options' : {'freqmin':0.001,  'freqmax':0.1,  'corners':1, 'zerophase':True},   'string':'4: 0.001s < f < 0.1'},
+                            #'5' : {'type' : 'highpass',  'options' : {'freq':0.001,                     'corners':3, 'zerophase':True},   'string':'5: 0.001s < f'},
                             #'6' : {'type' : 'highpass',  'options' : {'freq':1./200,                    'corners':3, 'zerophase':True},   'string': '6: Lowpass 200s'},
                             #'7' : {'type' : 'highpass',  'options' : {'freq':1./300,                    'corners':3, 'zerophase':True},   'string':'7: Lowpass 300s'},
                             #'8' : {'type' : 'highpass',  'options' : {'freq':1./400,                    'corners':3, 'zerophase':True},   'string':'8: Lowpass 400s'},
                             #'9' : {'type' : 'highpass',  'options' : {'freq':1./500,                    'corners':3, 'zerophase':True},   'string':'9: Lowpass 500s'},
                             #'5' : {'type' : 'bandpass',  'options' : {'freqmin':0.1,    'freqmax':2.0,  'corners':3, 'zerophase':True},   'string':'5: RFs (0.1-2 Hz)'},
-                             '6' : {'type' : 'bandpass',  'options' : {'freqmin':1/9.0,  'freqmax':1.0,  'corners':3, 'zerophase':True},   'string':'6: BP 1-9 s'},
-                             '7' : {'type' : 'bandpass',  'options' : {'freqmin':1/6.0,  'freqmax':1.0,  'corners':3, 'zerophase':True},   'string':'7: BP 1-6 s'},
+                             '5' : {'type' : 'bandpass',  'options' : {'freqmin':1/6.0,  'freqmax':1.0,  'corners':3, 'zerophase':True},   'string':'5: BP 1-6 s'},
+                             '6' : {'type' : 'bandpass',  'options' : {'freqmin':1/8.0,  'freqmax':1.0,  'corners':3, 'zerophase':True},   'string':'6: BP 1-8 s'},
+                             '7' : {'type' : 'highpass',  'options' : {'freq':5,                         'corners':3, 'zerophase':True},   'string':'7: >5 Hz'},
                              '8' : {'type' : 'bandpass',  'options' : {'freqmin':2.0,    'freqmax':3.0,  'corners':3, 'zerophase':True},   'string':'8: 2-3 Hz'},
                              '9' : {'type' : 'bandpass',  'options' : {'freqmin':2.0,    'freqmax':10,   'corners':3, 'zerophase':True},   'string':'9: BP 2-10 Hz'},
                              }
@@ -279,7 +281,6 @@ class Stream2(Stream):
             try:
 
                 if not self.gain_removed:
-                    self.gain_removed = True
                     for trace in self:
                         response   = self.inventory.get_response(trace.id, trace.stats.starttime)
                         gain       = response._get_overall_sensitivity_and_gain()[1]                
@@ -287,8 +288,9 @@ class Stream2(Stream):
 
                         if verbose:
                             print(u'  %15s : overall sensitivity and gain (division) %s' % (trace.id, gain))
+                    self.gain_removed = True
+
                 else:
-                    self.gain_removed = False
                     for trace in self:
                         response   = self.inventory.get_response(trace.id, trace.stats.starttime)
                         gain       = response._get_overall_sensitivity_and_gain()[1]                
@@ -296,13 +298,18 @@ class Stream2(Stream):
 
                         if verbose:
                             print(u'  %15s : overall sensitivity and gain (multiplication) %s' % (trace.id, gain))
+                    self.gain_removed = False
+                
+                return 0
 
             except Exception as err:
-                print(u'WARNING:  %s' % err)
+                print(u'WARNING: %s No gain correction done.' % err)
+                return -1
 
         else:
             print()
-            print(u'No matching response found for gain correction. Nothing done.')
+            print(u'Info: No inventory found. Nothing done.')
+            return 0
     def filtering(self, filter_num):
     
         """ 
@@ -337,30 +344,38 @@ class Stream2(Stream):
                     if 'filter' in processed_step:
                         filt = re.findall(r'filter\(options={(.*)}', processed_step)[0]
                         break
-            except AttributeError:
+            except Exception:
                 pass
 
         return filt
     def _get_components(self):
-        components = '*'
+        components = []
         try:
-            components = sorted( set( [tr.stats.channel[-1] for tr in self] ))
+            components = [tr.stats.channel[-1] for tr in self]
         except AttributeError:
             pass
 
         return components
     def _get_channels(self):
-        channels = '*'
+        channels = []
         try:
-            channels = sorted( list( set( [tr.stats.channel for tr in self] )), reverse=False)
+            channels = [tr.stats.channel for tr in self]
         except AttributeError:
             pass
 
         return channels
-    def _get_ids(self):
-        ids = '*'
+    def _get_sampling_rates(self):
+        sampling_rates = []
         try:
-            ids = sorted( set( [tr.id for tr in self] ), reverse=False)
+            sampling_rates = [tr.stats.sampling_rate for tr in self]
+        except AttributeError:
+            pass
+
+        return sampling_rates
+    def _get_ids(self):
+        ids = []
+        try:
+            ids = [tr.id for tr in self]
         except AttributeError:
             pass
 
@@ -372,10 +387,10 @@ class Stream2(Stream):
             times = None, None
 
         return times
-    def _get_inventory(self, source):
+    def _get_inventory(self, source, verbose=True):
 
         """
-        Gets latest `source` and reads it as an Obspy inventory object.
+        Gets latest `inventory` and reads it as an Obspy inventory object.
         From this inventory, only the part is extracted that matches the start and end times of the stream `self`,
         as well as matches all networks, stations, locations and channels of the stream.
 
@@ -387,61 +402,55 @@ class Stream2(Stream):
 
         inv = Inventory()
 
-        try:
+        if isinstance(source, Inventory): 
+            for trace in self:
+                network, station, location, channel = trace.id.split('.')
+                inv += source.select(network   = network, 
+                                     station   = station, 
+                                     location  = location, 
+                                     channel   = channel, 
+                                     starttime = trace.stats.starttime, 
+                                     endtime   = trace.stats.endtime)
+            if verbose:
+                print(u'Info: Inventory used that was passed.')
 
-            inv_file  = max( glob.glob( source ), key=os.path.getctime)   # most recent one, in case there multiple
-            inventory = read_inventory(inv_file)
 
+        elif os.path.isfile(source):
+            inventory = read_inventory(source)
             for trace in self:
                 network, station, location, channel = trace.id.split('.')
                 inv += inventory.select(network   = network, 
                                         station   = station, 
                                         location  = location, 
                                         channel   = channel, 
-                                        starttime = self.times[0], 
-                                        endtime   = self.times[1])
-            
-            print()
-            print(u'Info: Inventory read from source %s' % source)
+                                        starttime = trace.stats.starttime, 
+                                        endtime   = trace.stats.endtime)
+            if verbose:            
+                print(u"Info: Inventory read from file '%s'." % source)
 
 
-        except Exception:      # `source` couldn't be read, because it was e.g. something like 'IRIS' or 'IPGP'
-            
-            print()
-            print(u'Info: Inventory retrieval online from %s' % source)
-           
+        else:
             client = Client(source)
-
             for trace in self:
                 network, station, location, channel = trace.id.split('.')
-                inv += client.get_stations(network = network, 
-                                         station   = station, 
-                                         location  = location, 
-                                         channel   = channel,
-                                         starttime = self.times[0], 
-                                         endtime   = self.times[1],
-                                         level     = 'response')                
+                inv += client.get_stations(network   = network, 
+                                           station   = station, 
+                                           location  = location, 
+                                           channel   = channel,
+                                           starttime = trace.stats.starttime, 
+                                           endtime   = trace.stats.endtime,
+                                           level     = 'response')                
+            if verbose:
+                print(u"Info: Inventory retrieved online from '%s'." % source)
 
         return inv
-    def _set_inventory(self, source='IRIS', inventory=None):
+    def _set_inventory(self, source='IPGP', verbose=True):
 
         """
         
         """
 
-
-        # small output
-        if inventory is not None:
-            print()
-            print(u'Info: Inventory used that was passed.')
-        
-
-        # if not `inventory` is passed, get it from `source` 
-        else:
-            inventory = self._get_inventory(source=source)
-
-
-        # assign final inventory to object
+        inventory      = self._get_inventory(source=source, verbose=verbose)
         self.inventory = inventory
     def rotate_2D(self, angle, components='NE', new_components='12', clockwise=False):
 
@@ -474,7 +483,7 @@ class Stream2(Stream):
         st_obs_select.times        = self.times
         st_obs_select.inventory    = self.inventory
         return st_obs_select
-    def plot2(self, store_dir=os.getcwd(), store_name='*', verticals=(), time='normal', method='full', xlim=[], ylim=[], store_plot=False, show=True, **kwargs):
+    def plot2(self, store_dir=os.getcwd(), store_name='*', verticals=[], time='normal', method='full', xlim=[], ylim=[], store_plot=False, show=True, **kwargs):
 
 
         """
@@ -532,19 +541,14 @@ class Stream2(Stream):
                 except:
                     mouse_clicks[stat_id] = 0
 
+
                 if evt.button==3:                                                               # right-click
+
                     for i in indexes:
                         lines = axes[i].lines
-                        remove = []
-                        for l in range(len(lines)):
-                            xdata = lines[l].get_xdata()
-                            if xdata[0] == xdata[-1]:
-                                remove.append(l)
-                    
-                        remove.sort(reverse=True)
-                        for k in remove:
-                            lines[k].remove()
-                    mouse_clicks[stat_id] = 0
+                        for line in lines[::-1][:mouse_clicks[stat_id]]:
+                            line.remove()
+                    mouse_clicks[stat_id] = 0          
 
 
                 if evt.button == 1:                                                             # left-click
@@ -801,16 +805,14 @@ class Stream2(Stream):
                     ax_1st        = axes[indexes[0]]
                     xlim          = sorted( [ax_1st.lines[-1].get_xdata()[0], ax_1st.lines[-2].get_xdata()[0]] )
                     if time == 'normal':
-                        xlim   = [ UTCDateTime(mdates.num2date(x)) for x in xlim ]
+                        xlim = [ UTCDateTime(mdates.num2date(x)) for x in xlim ]
                     elif time == 'relative':
                         xlim =  [ min_starttime+x for x in xlim ]
-                    
                     polar = self.copy()
                     polar = polar.select(id=stat_id+'*')
-                    polar.trim(starttime=xlim[0], endtime=xlim[1])
 
                     title = '%s, %s, %s, %s-%s'% (stat_id, self.unit, self._get_filter_str(), xlim[0].strftime('%H:%M:%S'), xlim[1].strftime('%H:%M:%S'))
-                    measurement = ppol(stream=polar)
+                    measurement = ppol(stream=polar, starttime=xlim[0], endtime=xlim[1], **kwargs)
                     measurement.display()
                     measurement.plot(title=title)
 
@@ -1116,7 +1118,7 @@ class Stream2(Stream):
                 
                 filt.removed = self.removed
                 filt.filtering(evt.key)
-                filt.plot2(xlim=xlim)    
+                filt.plot2(xlim=xlim, verticals=verticals, time=time, method=method, show=True, **kwargs)    
     
         # variables
         mouse_clicks  = {}
@@ -1124,7 +1126,7 @@ class Stream2(Stream):
         colours       = 'bgcm'
         outfile       = os.path.join(store_dir, store_name+'.png')  # change format if desired (used if plot shall be saved)
         title         = '%s, %s' % (self.unit, self._get_filter_str())
-        min_starttime = min( np.array( [tr.stats.starttime for tr in self] ))
+        min_starttime = min( np.array( [tr.stats.starttime for tr in self] ), default=np.nan)
     
     
         # plotting seismogram
@@ -1149,26 +1151,14 @@ class Stream2(Stream):
         for i in range(len(axes)):          
             if verticals:
                 x_startpoint = axes[i].lines[0].get_xdata()[0]
-                for time, label, colour, index in verticals:
-                    time = float(time)
-                    if type == 'normal':
-                        v_line_y     = UTCDateTime( mdates.num2date(x_startpoint) )
-                        v_line_y     = (v_line_y+time).datetime
-                    elif type == 'relative':
-                        v_line_y     = x_startpoint+time
-                    if index == 'all' or float(index)==i:
-                        axes[i].plot([v_line_y,v_line_y], axes[i].get_ylim(), color=colour, lw=1.0)
+                for vert in verticals:
+                    axes[i].plot([vert.datetime,vert.datetime], axes[i].get_ylim(), color='red', lw=1.0)
     
             if i == 0:
                 axes[i].text(0.99, 0.92, self._get_filter_str(), horizontalalignment='right', color='red', transform=axes[i].transAxes, fontsize=8, bbox=dict(boxstyle='round,pad=0.2', fc='white', ec="red", lw=0.5))
     
             if i+1 == len(self):
                 axes[i].text(0.99, 0.93, "Close all windows: 'w'.", horizontalalignment='right', color='red', transform=axes[i].transAxes, fontsize=7)
-                if verticals:
-                    verts = np.unique( np.array(verticals)[:,:-1], axis=0 )
-                    verts = verts[verts[:,0].astype('float').argsort()]
-                    for j, verts_uni in enumerate(verts):
-                        axes[i].text(0.99, 0.95-j*0.06, "%s" % verts_uni[1], horizontalalignment='right', color=verts_uni[2], transform=axes[i].transAxes, fontsize=6)
 
 
         # set lims
@@ -1393,79 +1383,13 @@ def mars_list(sols_range=[], hms='120000', is_UTC=False):
             time_mars    = marstime( LMST_time=LMST_time )
 
         print('%s    %s' % (time_mars.UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), time_mars.LMST))
-def rotate2VBBUVW(stream, inventory, is_UVW=False, plot=False):
-
-    """
-    Returns data (no copy of data)!
-    No gain correction applied, must be done beforehand!
-
-    https://docs.obspy.org/packages/autogen/obspy.signal.rotate.rotate2zne.html
-    """
- 
-
-    # VALUES EXTRACTED from INVENTORY FILE
-    VBBU_azimuth = 135.11
-    VBBV_azimuth = 15.04
-    VBBW_azimuth = 254.96
-    
-    VBBU_dip     = -29.28   # defined as down from horizontal!
-    VBBV_dip     = -29.33
-    VBBW_dip     = -29.61
-
-
-    # case data (SP or VBB) are in UVW, first go to ZNE using inventory file
-    if is_UVW:
-        stream_new = stream.select(component='[UVW]')
-        stream_new.sort()
-        stream_new.rotate('->ZNE', inventory=inventory, components=('UVW'))     # in case SP data are passed (or similar)
-
-    else:
-        stream_new = stream.select(component='[ZNE]')
-        stream_new.sort(reverse=True)
-
-
-    # rotate from ZNE data to VBB UVW
-    stream_new[0].data, stream_new[1].data, stream_new[2].data = rotate.rotate2zne( data_1     = stream_new[0].data,
-                                                                                    azimuth_1  = VBBU_azimuth, 
-                                                                                    dip_1      = VBBU_dip, 
-
-                                                                                    data_2     = stream_new[1].data, 
-                                                                                    azimuth_2  = VBBV_azimuth, 
-                                                                                    dip_2      = VBBV_dip, 
-
-                                                                                    data_3     = stream_new[2].data, 
-                                                                                    azimuth_3  = VBBW_azimuth, 
-                                                                                    dip_3      = VBBW_dip, 
-
-                                                                                    inverse    = True)
-
-    # because of sorting, can just index new component
-    stream_new[0].stats.channel = stream_new[0].stats.channel[:-1] + 'U'
-    stream_new[1].stats.channel = stream_new[1].stats.channel[:-1] + 'V'
-    stream_new[2].stats.channel = stream_new[2].stats.channel[:-1] + 'W'
-
-
-    # plot, if desired
-    if plot:
-        if is_UVW:
-            data_labels=('U old', 'U new', 'V old', 'V new', 'W old', 'W new')
-        else:
-            data_labels=('Z old', 'U new', 'N old', 'V new', 'E old', 'W new')
-        quick_plot(stream[0], stream_new[0], stream[1], stream_new[1], stream[2], stream_new[2], data_labels=data_labels)
-    
-    return stream_new
 
 
 # Other
-def pierce_stream(file, format_out='mseed'): 
+def pierce_stream(stream, merge_before=False, ids=None, minimum_sample_length=2, sort_starttime=True, outfile=None):
 
     """
-    ObsPy's merge function is first applied to stream.
 
-    See options:
-    https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.__add__.html#obspy.core.trace.Trace.__add__
-
-    After that:
     Pierce stream into X streams, in which each stream contains all unique channels of the input stream,
     all with same start and end times. For example useful, if you need 3-D component, equally trimmed data
     that are contained within one gappy stream ..
@@ -1473,25 +1397,35 @@ def pierce_stream(file, format_out='mseed'):
     NOTE: all unique traces in stream are considered. so if there are 5 different traces, the
     resulting streams will have the start and end times where all 5 traces are present, nothing more.
     So make sure stream contains only those traces that you'd like.
+
+    New stream is sorted and then returned.
     """
 
 
+    ### PARAMETERS
+    MERGE_METHOD                = 1
+    MERGE_FILL_VALUE            = None
+    MERGE_INTERPOLATION_SAMPLES = 0
+    NEAREST_SAMPLE              = True
+
 
     ### handle overlaps first (if there any gaps, data will be masked array, that is why then split masked array contiguous unmasked traces to apply piercing)
-    stream = read2(file)
-    stream.merge(method=1, fill_value=None, interpolation_samples=0)
-    stream = stream.split()
+    if merge_before:
+        stream = read2(file)
+        stream.merge(method=MERGE_METHOD, fill_value=MERGE_FILL_VALUE, interpolation_samples=MERGE_INTERPOLATION_SAMPLES)
+        stream = stream.split()
+
+    return_stream = Stream()
 
 
-
-    ### piercing traces 
-    ids           = list(set( [tr.id for tr in stream] ))
+    ### piercing traces
+    if ids is None:
+        ids = sorted(set( [tr.id for tr in stream] ))
     array         = np.array([[len(stream.select(id=id)),id] for id in ids])
     id_max_traces = array[np.argmax(array[:,0].astype('float')),1]
 
-    new_streams   = []
-    for l, trace in enumerate( stream.select(id=id_max_traces) ): 
-
+    
+    for l, trace in enumerate( stream.select(id=id_max_traces) ):
         traces = []
         for tr in stream:
             if tr.id != trace.id:
@@ -1499,7 +1433,8 @@ def pierce_stream(file, format_out='mseed'):
                     traces.append(tr)
 
         traces     = [trace] + traces
-        tmp_stream = Stream2(traces=traces).copy()
+        tmp_stream = Stream2(traces=traces)
+        tmp_stream = tmp_stream.copy()
         tmp_ids    = list( set( [tr.id for tr in tmp_stream] ))
 
 
@@ -1509,7 +1444,7 @@ def pierce_stream(file, format_out='mseed'):
         
 
         # containing multiple traces of one ID
-        if len(tmp_stream) != len(ids):
+        if len(tmp_stream)>len(ids):
 
             for possibility in itertools.combinations(tmp_stream, len(ids)):
 
@@ -1519,40 +1454,64 @@ def pierce_stream(file, format_out='mseed'):
                     continue
 
                 else:
-                    new_stream = Stream2(traces=possibility)
-                    new_stream = new_stream.copy()
+                    pierced_stream = Stream2(traces=possibility)        
+                    pierced_stream = pierced_stream.copy()          # necessary as otherwise you also trim `possibilities` (which one don't wants)
                     try:
-                        new_stream.trim2(common=True)
-                    except ValueError:
+                        pierced_stream.trim2(common=True, nearest_sample=NEAREST_SAMPLE)
+                        if pierced_stream[0].stats.npts >= minimum_sample_length:
+                            return_stream += pierced_stream
+                    except ValueError:                              # can happen that `pierced_stream` has traces not overlapping at all, then continue
                         continue
-                    new_streams.append(new_stream)
-        
+
         else:
-            tmp_stream.trim2(common=True)
-            new_streams.append(tmp_stream)
-
-    new_streams = sorted(new_streams, key=lambda x: x[0].stats.starttime)
-
+            tmp_stream.trim2(common=True, nearest_sample=NEAREST_SAMPLE)
+            if tmp_stream[0].stats.npts >= minimum_sample_length:
+                return_stream += tmp_stream
 
 
-    ### WRITING FILES OUT
-    for stream in new_streams:
-        print( str(stream).replace('\n','\n  '))
+    ### SORT STARTTIME EQUALLY FOR EACH ID (SO ORDER WITH RESPECT TO EACH OTHER IS KEPT)
+    if sort_starttime:    
+        sort_indices = np.argsort( [trace.stats.starttime for trace in return_stream.select(id=id_max_traces)])
+        final_stream = Stream()
+        for id in ids:
+            traces        = return_stream.select(id=id).traces
+            traces        = [traces[i] for i in sort_indices]
+            final_stream += Stream(traces=traces)
 
-    print()
-    print(u'STREAMS PIERCED AND WRITTEN:')
-    for l, stream in enumerate(new_streams):
-        start_str = stream[0].stats.starttime.strftime('%Y%m%dT%H%M%S')
-        end_str   = stream[0].stats.endtime.strftime('%Y%m%dT%H%M%S')
-        ids       = stream._get_ids()
-        comps     = ''.join( stream._get_components() )
 
-        filepath  = os.path.dirname( file )
-        filename  = '%s_%s-%s.%s' % (ids[0][:-1] + comps, start_str, end_str, format_out)
-        fileout   = os.path.join(filepath, filename)
+    ### WRITE / RETURN
+    if outfile is not None:
+        final_stream.write(outfile)
 
-        stream.write(fileout, format=format_out)
-        print(fileout)
+
+    return tuple(final_stream.select(id=id) for id in ids)
+def glitch_statistic(glitches, total_time_s_UTC):
+
+    glitches       = np.array( glitches )
+
+    if glitches.size != 0:
+
+        t1                = UTCDateTime( datetime.datetime.utcnow() )
+        t2                = t1 + float(total_time_s_UTC)
+        total_LMST        = marstime(t2).LMST_time - marstime(t1).LMST_time
+        
+        glitch_number     = len(glitches)
+        glitch_per_sol    = len(glitches)*86400/total_LMST
+        glitch_U          = len(glitches[ glitches[:,5]=='1'])
+        glitch_V          = len(glitches[ glitches[:,6]=='1'])
+        glitch_W          = len(glitches[ glitches[:,7]=='1'])
+        glitch_Uonly      = len(glitches[(glitches[:,5]=='1') & (glitches[:,6]=='0') & (glitches[:,7]=='0')])
+        glitch_Vonly      = len(glitches[(glitches[:,5]=='0') & (glitches[:,6]=='1') & (glitches[:,7]=='0')])
+        glitch_Wonly      = len(glitches[(glitches[:,5]=='0') & (glitches[:,6]=='0') & (glitches[:,7]=='1')])
+        try:
+            glitch_indivdual_ratio = (glitch_Uonly+glitch_Vonly+glitch_Wonly)/glitch_number*100
+        except ZeroDivisionError:
+            glitch_indivdual_ratio = np.nan
+
+        return glitch_number, glitch_per_sol, glitch_U, glitch_V, glitch_W, glitch_Uonly, glitch_Vonly, glitch_Wonly, glitch_indivdual_ratio
+
+    else:
+        return 0, 0, 0, 0, 0, 0, 0, 0, np.nan
 def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=True):
 
     """
@@ -1563,6 +1522,7 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
 
     now                   = time.time()
     glitch_detector_files = get_files(path, pattern=pattern)
+
 
 
     ### SANITY CHECK
@@ -1581,7 +1541,7 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
 
     ### RETRIEVE HEADER AND ALL DATA
     data    = []
-    times   = []
+    lengths = []
     with open(outfile, 'w') as fp: 
         counter = 0
 
@@ -1591,11 +1551,10 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
                 lines    = fp2.readlines() 
                 header   = lines[0:3]
                 data    += [line for line in lines[3:] if line.strip() and not line.startswith('#')]
-                
-                start    = [marstime(line.split()[4]) for line in lines[3:] if line.strip() and line.startswith('#') and 'UTC start:' in line][0]
-                end      = [marstime(line.split()[4]) for line in lines[3:] if line.strip() and line.startswith('#') and 'UTC end:' in line][0]
-                times.append( [start,end] )
-                    
+
+                length   = [re.search(r'.*UTC length.*:\s*( \d*)\s*\w{0,4}.*\s*( \d{1,2}):(\d{2}):(\d{2})', line).groups() for line in lines[3:] if line.strip() and line.startswith('#') and 'UTC length' in line][0]
+                lengths.append( length )
+
 
     ### SORTING
     if starttime_sort:
@@ -1606,38 +1565,34 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
 
 
     ### STATISTICS    
-    data_split     = np.array( [line.split() for line in data] )
-    total_LMST     = sum( [time[1].LMST_time-time[0].LMST_time for time in times] )
+    data_split = np.array( [line.split() for line in data] )
+    total_UTC = 0
+    for days, hours, minutes, seconds in lengths:
+        #print(days, hours, minutes, seconds)
+        if days.rstrip():
+            total_UTC += int(days) * 24*3600
+        total_UTC += int(hours) * 3600
+        total_UTC += int(minutes) * 60
+        total_UTC += int(seconds) 
 
-    glitch_all     = len(data)
-    glitch_per_sol = len(data)*86400/total_LMST
-    glitch_U       = len(data_split[ data_split[:,5]=='1'])
-    glitch_V       = len(data_split[ data_split[:,6]=='1'])
-    glitch_W       = len(data_split[ data_split[:,7]=='1'])
-    glitch_Uonly   = len(data_split[(data_split[:,5]=='1') & (data_split[:,6]=='0') & (data_split[:,7]=='0')])
-    glitch_Vonly   = len(data_split[(data_split[:,5]=='0') & (data_split[:,6]=='1') & (data_split[:,7]=='0')])
-    glitch_Wonly   = len(data_split[(data_split[:,5]=='0') & (data_split[:,6]=='0') & (data_split[:,7]=='1')]) 
-    try:
-        glitch_indivdual_ratio = (glitch_Uonly+glitch_Vonly+glitch_Wonly)/glitch_all*100
-    except ZeroDivisionError:
-        glitch_indivdual_ratio = np.nan
 
-    output1   = [u'MERGED GLITCH DETECTOR FILES:']
-    output2   = ['  %s' % file for file in glitch_detector_files]
-    output3   = [u'',
-                 u'RESULTS:',      
-                 u'  Glitches total:            %s'           % glitch_all,
-                 u'       all / sol:            %.0f'         % glitch_per_sol,
-                 u'            on U:            %s'           % glitch_U,
-                 u'            on V:            %s'           % glitch_V,
-                 u'            on W:            %s'           % glitch_W,
-                 u'       only on U:            %s'           % glitch_Uonly,
-                 u'       only on V:            %s'           % glitch_Vonly,
-                 u'       only on W:            %s'           % glitch_Wonly,
-                 u'    indi./ all %%:            %.1f'        % glitch_indivdual_ratio,
-                 u'',
-                 u'Done in:   %s (h:m:s).'                    % sec2hms( time.time()-now ),
-                 u'Timestamp: %s'                             % datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')]
+    statistic  = glitch_statistic(data_split, total_UTC)
+
+    output1    = [u'MERGED GLITCH DETECTOR FILES:']
+    output2    = ['  %s' % file for file in glitch_detector_files]
+    output3    = [u'',
+                  u'RESULTS:',      
+                  u'  Glitches total:            %s'           % statistic[0],
+                  u'       all / sol:            %.0f'         % statistic[1],
+                  u'            on U:            %s'           % statistic[2],
+                  u'            on V:            %s'           % statistic[3],
+                  u'            on W:            %s'           % statistic[4],
+                  u'       only on U:            %s'           % statistic[5],
+                  u'       only on V:            %s'           % statistic[6],
+                  u'       only on W:            %s'           % statistic[7],
+                  u'    indi./ all %%:            %.1f'        % statistic[8],
+                  u'',
+                  u'Timestamp: %s'                             % datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')]
 
     # create good-looking output for later
     len_max_line  = max( [len(line) for line in output1+output2+output3] )
@@ -1777,21 +1732,228 @@ def get_files(this, pattern='*'):
         files = []
 
     return sorted(files)
+def decimate_SEIS(trace, decimation_factor, verbose=True):
 
+    """
+    Downsample (decimate) original trace! That is,
+    no copy is retured, the input trace is changed!
+    """
+
+    decimation_factor = int(decimation_factor)
+    coeffs, delay = SEIS_FIR_coefficients(decimation_factor)
+    if not coeffs:
+        return trace
+
+    trace_mean        = np.mean(trace)
+    trace.data        = trace.data - trace_mean
+    
+    filtered_signal   = np.convolve(trace.data, coeffs, mode = "full")
+    old_delta         = trace.stats.delta
+    new_delta         = decimation_factor * old_delta
+    index_time_sample = np.arange(trace.stats.npts)
+    itimes            = index_time_sample[delay::int(decimation_factor)]
+    mask              = (itimes < trace.stats.npts)
+    itimes            = itimes[mask]
+    
+    trace.data        = filtered_signal[itimes]
+    trace.data        = trace.data + trace_mean
+    trace.stats.delta = new_delta
+
+    if verbose:
+        print(u'Info: Decimated trace by factor %s.' % decimation_factor)
+def SEIS_FIR_coefficients(decimation_factor):
+
+    """
+    Valid for VBB and SP.
+    """
+
+    if int(decimation_factor) is 2 :
+        coeffs = [0.47312629, 0.31697387, 0.026678406, -0.10212776, -0.026100356
+                , 0.057145566, 0.025159817, -0.036581896, -0.023883324, 0.024321463
+                , 0.022318326, -0.016004425, -0.020517055, 0.0099688675, 0.018537275
+                , -0.0054459628, -0.016433518, 0.0020369552, 0.014277564, 0.00050962088
+                , -0.012123583, -0.0023524212, 0.010030696, 0.0036127516, -0.0080487542
+                , -0.0043881042, 0.0062203603, 0.0047640391, -0.0045795627, -0.0048192143
+                , 0.0031499979, 0.0046267062, -0.0019449759, -0.004253204, 0.00096769247
+                , 0.0037597087, -0.00021371132, -0.0032004546, -0.00032992219, 0.0026274207
+                , 0.00067918003, -0.0020938036, -0.00085202418, 0.0016962707, 0.00087003352
+                , -0.0019099547, -0.0033559431, -0.00033131917]
+    elif int(decimation_factor) is 3 :
+        coeffs = [0.31535816, 0.26616585, 0.14575759, 0.017844718, -0.057989098
+                                    , -0.061381415, -0.017455403, 0.027205415, 0.038973324, 0.016825307
+                                    , -0.014348116, -0.027822647, -0.015969098, 0.0071774079, 0.0207357
+                                    , 0.014920589, -0.0026327996, -0.015616039, -0.013714714, -0.00041046151
+                                    , 0.01165056, 0.012385793, 0.0024693119, -0.0084637869, -0.010977356
+                                    , -0.0038227537, 0.0058662295, 0.0095316246, 0.0046434188, -0.0037460821
+                                    , -0.0080886949, -0.0050521158, 0.0020347144, 0.0066878777, 0.0051394254
+                                    , -0.00068287796, -0.0053611984, -0.0049797446, -0.00035139307, 0.0041367821
+                                    , 0.0046373457, 0.0011029486, -0.0030388678, -0.0041676573, -0.0016067328
+                                    , 0.0020830208, 0.0036205212, 0.0018995546, -0.0012775299, -0.0030384576
+                                    , -0.0020179669, 0.00062483293, 0.0024575219, 0.0019959896, -0.00012281968
+                                    , -0.0019090844, -0.0018706999, -0.00023879687, 0.0014155055, 0.0016748102
+                                    , 0.00047103246, -0.0010020733, -0.0014473109, -0.00058572053, 0.00071034848
+                                    , 0.0012577202, 0.00060853921, -0.00079453795, -0.001507015, -0.0027735722
+                                    , -0.0005772619]
+    elif int(decimation_factor) is 4 :
+        coeffs = [0.23653504, 0.2153236, 0.15848082, 0.083793312, 0.013365105, -0.034419119
+                                    , -0.051046878, -0.039812922, -0.013070323, 0.013739644, 0.028548554
+                                    , 0.026923735, 0.012592813, -0.0055519193, -0.018260375, -0.020213991
+                                    , -0.011949001, 0.0011730746, 0.012122922, 0.015773855, 0.011154728
+                                    , 0.0014588218, -0.0079624243, -0.012446117, -0.010243686, -0.0030995123
+                                    , 0.0049446635, 0.0097706541, 0.0092410743, 0.0040912377, -0.0026885252
+                                    , -0.0075423168, -0.0081806388, -0.0046254322, 0.00098837493, 0.0056574643
+                                    , 0.0070931828, 0.0048204092, 0.00027697056, -0.0040607406, -0.0060094716
+                                    , -0.0047603725, -0.0011885283, 0.0027206815, 0.0049573286, 0.0045121713
+                                    , 0.0018078703, -0.0016159373, -0.0039624022, -0.0041275406, -0.002183456
+                                    , 0.00072517502, 0.0030510179, 0.0036549442, 0.002359204, -3.6519799e-05
+                                    , -0.0022335923, -0.0031325626, -0.0023753699, -0.0004719717, 0.0015254335
+                                    , 0.002596593, 0.00226994, 0.00081899471, -0.00093285192, -0.0020744186
+                                    , -0.002075599, -0.001027084, 0.00045596727, 0.0015875453, 0.0018238572
+                                    , 0.0011186297, -9.3354625e-05, -0.0011566642, -0.0015448434, -0.0011173668
+                                    , -0.00015881853, 0.00079965324, 0.0012694919, 0.0010489, 0.00030336727
+                                    , -0.00054487761, -0.0010457698, -0.00094576413, -0.00029340666, 0.00060871453
+                                    , 0.0013765346, 0.0017459453, 0.0017342302, 0.0017703171, -0.00078610331]
+    elif int(decimation_factor) is 5 :
+        coeffs = [0.18922436, 0.17825589, 0.14762825, 0.10361496, 0.054943368, 0.010695269
+                                    , -0.021801252, -0.038539425, -0.039482988, -0.028172743, -0.010461548
+                                    , 0.007229303, 0.019629899, 0.023857031, 0.019867271, 0.010076012, -0.0016730814
+                                    , -0.011430031, -0.016343743, -0.015406003, -0.009560192, -0.0012011472
+                                    , 0.0067212107, 0.01168697, 0.012363423, 0.0089212917, 0.0028455369, -0.003654296
+                                    , -0.00841631, -0.010022298, -0.0081948247, -0.0038015433, 0.0015175294
+                                    , 0.0059415763, 0.0080774855, 0.0073840916, 0.0042904904, -1.4044337e-05
+                                    , -0.0040227529, -0.0064289104, -0.0065423511, -0.0044770911, -0.0010602982
+                                    , 0.0024869707, 0.004979196, 0.0056554032, 0.0044051381, 0.0017638088
+                                    , -0.00130429, -0.003753541, -0.0048074462, -0.0042014252, -0.002237522
+                                    , 0.00034752686, 0.0026567061, 0.0039369017, 0.0038236496, 0.0024387422
+                                    , 0.00031702407, -0.0017899896, -0.0031829374, -0.0034412947, -0.0025477768
+                                    , -0.000868481, 0.00098881521, 0.0023946902, 0.002907305, 0.0024096994
+                                    , 0.001126837, -0.00046738447, -0.0018248872, -0.0025087805, -0.0023346422
+                                    , -0.0014139037, -0.00010080911, 0.0011430616, 0.0019060248, 0.001963608
+                                    , 0.0013379015, 0.00027951988, -0.00083641545, -0.0016343265, -0.0018772145
+                                    , -0.0015157261, -0.00071785948, 0.00022151141, 0.00098129292, 0.001313176
+                                    , 0.001132468, 0.00053038984, -0.00026810885, -0.00099059893, -0.0014061579
+                                    , -0.0014018975, -0.0010119241, -0.00039880717, 0.00021137166, 0.00060708891
+                                    , 0.00066196767, 0.00036935217, -0.00016124418, -0.00074757589, -0.0011960072
+                                    , -0.0013651208, -0.0012058818, -0.00077180623, -0.00019336015, 0.00036705163
+                                    , 0.00076842657, 0.00092948624, 0.0022739838]
+    elif int(decimation_factor) is 6 :
+        coeffs = [0.16570362, 0.15829441, 0.13725868, 0.10594265, 0.06921123, 0.032528229
+                                    , 0.00095806678, -0.021721859, -0.033611827, -0.034888856, -0.027580921
+                                    , -0.014997372, -0.00094359554, 0.011083508, 0.018581118, 0.020429686
+                                    , 0.016964789, 0.0097183716, 0.00092194974, -0.0070848679, -0.012422763
+                                    , -0.014064534, -0.011991728, -0.0071014166, -0.00089137035, 0.0049562268
+                                    , 0.00900786, 0.01040828, 0.0090432446, 0.0054955026, 0.00085260952
+                                    , -0.0036210883, -0.006805297, -0.0079971515, -0.0070541361, -0.0043872511
+                                    , -0.00080762105, 0.0027008946, 0.0052497657, 0.0062641921, 0.0056016045
+                                    , 0.003556136, 0.00075419003, -0.0020313612, -0.004091803, -0.0049545085
+                                    , -0.0044863801, -0.002905136, -0.00069879252, 0.0015243914, 0.0031950874
+                                    , 0.0039263805, 0.0035993042, 0.0023769522, 0.00063838286, -0.0011335427
+                                    , -0.0024846792, -0.0030999891, -0.0028772806, -0.0019367724, -0.00057383557
+                                    , 0.00083092984, 0.0019156958, 0.0024286588, 0.0022825976, 0.0015665065
+                                    , 0.00050730573, -0.00059655984, -0.0014599159, -0.0018816034, -0.0017901543
+                                    , -0.0012505304, -0.00043752801, 0.00041982584, 0.0010982298, 0.0014395756
+                                    , 0.0013833372, 0.00097796321, 0.00035366282, -0.00030664937, -0.00083971326
+                                    , -0.0010991644, -0.0010712864, -0.00071174919, -0.00025581248, 0.00043810415
+                                    , 0.00071178772, 0.0014833882, 0.00072977401, 0.0022810167, 0.0011542854]
+    elif int(decimation_factor) is 7 :
+        coeffs = [0.14208198, 0.13739452, 0.12389062, 0.10316056, 0.077608004, 0.050108083
+                                    , 0.023616169, 0.00077113276, -0.016440101, -0.02690912, -0.030497886
+                                    , -0.027981848, -0.020865075, -0.011100596, -0.00076022197, 0.0082820896
+                                    , 0.014618799, 0.017472565, 0.016758278, 0.013016257, 0.007257143, 0.00074292615
+                                    , -0.0052608857, -0.0097016394, -0.011911346, -0.011686133, -0.009284161
+                                    , -0.0053405212, -0.00071840314, 0.003663674, 0.0070070671, 0.0087675247
+                                    , 0.0087357759, 0.0070546297, 0.0041608354, 0.00068841781, -0.0026673293
+                                    , -0.0052824821, -0.0067139948, -0.0067736702, -0.0055438336, -0.00334271
+                                    , -0.00065325515, 0.0019840142, 0.0040728515, 0.005251891, 0.0053568939
+                                    , 0.0044368859, 0.0027307249, 0.0006137155, -0.0014870598, -0.0031737122
+                                    , -0.0041507659, -0.0042769266, -0.003582113, -0.0022478071, -0.00056846417
+                                    , 0.0011144583, 0.0024819272, 0.0032929941, 0.0034265392, 0.0029004803
+                                    , 0.0018556728, 0.00052273611, -0.00082722993, -0.0019346501, -0.0026047612
+                                    , -0.0027381419, -0.0023428579, -0.001526694, -0.00047217472, 0.00060416642
+                                    , 0.0014966615, 0.0020483169, 0.0021752114, 0.0018809054, 0.0012483622
+                                    , 0.00042107934, -0.00043112988, -0.0011449105, -0.0015943006, -0.0017113318
+                                    , -0.0014960549, -0.001011861, -0.0003693403, 0.0002983216, 0.00086243439
+                                    , 0.0012237863, 0.0013277864, 0.0011733547, 0.00080783467, 0.0003159871
+                                    , -0.00019982469, -0.00063952431, -0.00092532497, -0.0010140305, -0.00090339431
+                                    , -0.00062933657, -0.00025537529, 0.00013938319, 0.00047917303, 0.00070110161
+                                    , 0.00077338412, 0.00068326876, 0.00047101121, 0.00014812217, -0.00015542324
+                                    , -0.0005331845, -0.00062111754, -0.0010503677, -0.00043352076, -0.001660049
+                                    , -0.00079061883]
+    else:
+        print(u'WARNING: Only decimation factors 2 .. 7 are implmented currently. Choose another decimation factor or provide FIRs within the code.')
+        return False
+
+    delay  = len(coeffs)-1
+    coeffs = coeffs[-1:0:-1] + coeffs
+    return coeffs, delay
+def normalise(data, scale_to_between=[]):
+
+    """
+    Normalise passed data (array-like).
+    `scale_to_between` is list with 2 elements.
+
+    Returns data as was if length of data is one or two.
+    """
+
+    data = np.asarray( data )
+    
+    if len(data)==0 or len(data)==1:
+        return data
+
+    if isinstance(scale_to_between, (int, float)):
+        scale_to_between = [scale_to_between]
+
+    if scale_to_between:
+        if len(scale_to_between) == 1:
+            scale_to_between = [0, scale_to_between[0]]
+        scale_to_between.sort()
+
+        scale  = abs(scale_to_between[-1]-scale_to_between[0]) / 2.
+        drange = max(data)-min(data)
+        data   = data * 2 / drange
+        data   = data - max(data)+1             # data have y values between [-1,1]
+        data  *= scale                          # data have y values between [-1/scale,1/scale] 
+        data  += scale_to_between[-1]-scale     # eacht trace has y values filling range `scale_to_between`
+    
+    else:
+        data /= max(abs(data))
+
+    return data
 
 # Ppol (P-wave Polarization)
 class ppol():
 
     """
-    TO DO:
-        - data gaps
+    results = PHI_2D,     PHI_err_2D, PHI_3D,     PHI_err_3D, \
+              INC_2D,     INC_err_2D, INC_3D,     INC_err_3D, \
+              SNR_HOR_2D, SNR_3D,     SNR_RZp_2D, SNR_RZp_3D, \
+              POL_HOR_2D, POL_3D,     POL_RZp_2D, POL_RZp_3D, \
+              eig_vec_2D, eig_val_2D, eig_vec_3D, eig_val_3D, \
+              data_R_2D,  data_T_2D,  data_R_3D,  data_T_3D
     """
 
-    def __init__(self, comp_N=None, comp_E=None, comp_Z=None, stream=None, demean=True, **kwargs):
-        traces       = self._assign_traces(comp_N=comp_N, comp_E=comp_E, comp_Z=comp_Z, stream=stream)
+    def __init__(self, comp_N=None, comp_E=None, comp_Z=None, stream=None, starttime=None, endtime=None, demean=True, **kwargs):
+        traces = self._assign_traces(comp_N=comp_N, comp_E=comp_E, comp_Z=comp_Z, stream=stream)
         self.trace_N = traces[0].copy()
         self.trace_E = traces[1].copy()
         self.trace_Z = traces[2].copy()
+
+        self.traces = [self.trace_N.copy(), self.trace_E.copy(), self.trace_Z.copy()]  # have only effect if start- & endtime are given and for plotting, so one can zoom out from the ppol data! ;)
+
+        if starttime:
+            self.starttime = UTCDateTime(starttime)
+            self.trace_N.trim(starttime=self.starttime)
+            self.trace_E.trim(starttime=self.starttime)
+            self.trace_Z.trim(starttime=self.starttime)
+        else:
+            self.starttime = starttime
+        if endtime:
+            self.endtime = UTCDateTime(endtime)
+            self.trace_N.trim(endtime=self.endtime)
+            self.trace_E.trim(endtime=self.endtime)
+            self.trace_Z.trim(endtime=self.endtime)            
+        else:
+            self.endtime = endtime
 
         if demean:
             self.trace_N.detrend('demean')
@@ -1809,10 +1971,16 @@ class ppol():
         When calling print(...)
         """
 
+        if self.fix_angles == 'AMP':
+            info = '(in this mode, radial-transverse data are ambiguous but BAZs & INCs are correct)'
+        else:
+            info = ''
+
         if print_3D:
             string =    u'\n' \
                       + u'PPOL CALCULATIONS: %s   \n' % tag \
-                      + u'   %11s : %s            \n' % ('demeaned',   self.demeaned) \
+                      + u'   %11s : %s %s         \n' % ('Fix angles', self.fix_angles, info) \
+                      + u'   %11s : %s            \n' % ('demeaned',   self.demeaned)   \
                       + u'   %11s : %s            \n' % ('NPTS',       len(self.trace_N.data)) \
                       + u'   %11s : %-5.1f ± %3.1f\n' % ('BAZ_2D',     self.results[0], self.results[1]) \
                       + u'   %11s : %-5.1f ± %3.1f\n' % ('BAZ_3D',     self.results[2], self.results[3]) \
@@ -1826,24 +1994,25 @@ class ppol():
                       + u'   %11s : %-10.3f       \n' % ('POL_3D',     self.results[13]) \
                       + u'   %11s : %-10.3f       \n' % ('POL_RZp_2D', self.results[14]) \
                       + u'   %11s : %-10.3f       \n' % ('POL_RZp_3D', self.results[15]) \
-                      + u'   %11s : %s            \n' % ('EigVecs_2D', self.results[20][0]) \
-                      + u'   %11s : %s            \n' % (''          , self.results[20][1]) \
-                      + u'   %11s : %s            \n' % ('EigVals_2D', self.results[21]) \
-                      + u'   %11s : %s            \n' % ('EigVecs_3D', self.results[22][0]) \
-                      + u'   %11s : %s            \n' % (''          , self.results[22][1]) \
-                      + u'   %11s : %s            \n' % (''          , self.results[22][2]) \
-                      + u'   %11s : %s              ' % ('EigVals_3D', self.results[23])
+                      + u'   %11s : %s            \n' % ('EigVecs_2D', self.results[16][0]) \
+                      + u'   %11s : %s            \n' % (''          , self.results[16][1]) \
+                      + u'   %11s : %s            \n' % ('EigVals_2D', self.results[17]) \
+                      + u'   %11s : %s            \n' % ('EigVecs_3D', self.results[18][0]) \
+                      + u'   %11s : %s            \n' % (''          , self.results[18][1]) \
+                      + u'   %11s : %s            \n' % (''          , self.results[18][2]) \
+                      + u'   %11s : %s              ' % ('EigVals_3D', self.results[19])
         else:
             string =    u'\n' \
                       + u'PPOL CALCULATIONS: %s   \n' % tag \
+                      + u'   %11s : %s            \n' % ('Fix angles', self.fix_angles) \
                       + u'   %11s : %s            \n' % ('demeaned',   self.demeaned) \
                       + u'   %11s : %s            \n' % ('NPTS',       len(self.trace_N.data)) \
                       + u'   %11s : %-5.1f ± %3.1f\n' % ('BAZ_2D',     self.results[0], self.results[1]) \
                       + u'   %11s : %-10.1g       \n' % ('SNR_HOR_2D', self.results[8]) \
                       + u'   %11s : %-10.3f       \n' % ('POL_HOR_2D', self.results[12]) \
-                      + u'   %11s : %s            \n' % ('EigVecs_2D', self.results[20][0]) \
-                      + u'   %11s : %s            \n' % (''          , self.results[20][1]) \
-                      + u'   %11s : %s              ' % ('EigVals_2D', self.results[21])
+                      + u'   %11s : %s            \n' % ('EigVecs_2D', self.results[16][0]) \
+                      + u'   %11s : %s            \n' % (''          , self.results[16][1]) \
+                      + u'   %11s : %s              ' % ('EigVals_2D', self.results[17])
 
         return string
     def _assign_traces(self, comp_N=None, comp_E=None, comp_Z=None, stream=None):
@@ -1930,17 +2099,17 @@ class ppol():
 
         if len_Z != 0:
             if start_N!=start_E or start_N!=start_Z or start_E!=start_Z:
-                print(u'WARNING: Data do not start at the same time. Analysis is performed nevertheless.')
+                print(u'WARNING: Data do not start at the same time. Ppol analysis is performed nevertheless.')
                 print('  '+self.trace_N.__str__())
                 print('  '+self.trace_E.__str__())
                 print('  '+self.trace_Z.__str__())
 
         else:
             if start_N!=start_E:
-                print(u'WARNING: Data do not start at the same time. Analysis is performed nevertheless.')
+                print(u'WARNING: Data do not start at the same time. Ppol analysis is performed nevertheless.')
                 print('  '+self.trace_N.__str__())
                 print('  '+self.trace_E.__str__())
-    def calc(self, bias=False, fix_angles='EQ', Xoffset_samples_for_amplitude=None, **kwargs):
+    def calc(self, bias=False, fix_angles='EQ', Xoffset_samples_for_amplitude=0, **kwargs):
 
         r"""
         DO INDIVIDUAL PPOL MEASUREMENTS
@@ -1980,6 +2149,9 @@ class ppol():
 
 
         ### assign needed data
+        self.fix_angles = fix_angles.upper()
+        Xoffset_samples_for_amplitude = int(Xoffset_samples_for_amplitude)
+
         data_1 = self.trace_N.data
         data_2 = self.trace_E.data
         data_Z = self.trace_Z.data
@@ -1993,13 +2165,13 @@ class ppol():
             ### 2-D phi, horizontal plane
             covariance_matrix_2D_hori      = covariance_matrix(data_1, data_2, bias=bias)                                  # does be default no demeaning internally!
             eig_val_2D, eig_vec_2D         = np.linalg.eig(covariance_matrix_2D_hori)
-            index_array_descending_eig_val = eig_val_2D.argsort()[::-1]
-            eig_val_2D                     = eig_val_2D[index_array_descending_eig_val]                                    # E-values descending
-            eig_vec_2D                     = eig_vec_2D[:,index_array_descending_eig_val]                                  # E-vectors sorted acc. to E-values
+            index_array_descending_eig_val = np.abs(eig_val_2D.argsort()[::-1])
+            eig_val_2D                     = eig_val_2D[index_array_descending_eig_val]                                    # Eig-values descending
+            eig_vec_2D                     = eig_vec_2D[:,index_array_descending_eig_val]                                  # Eig-vectors sorted acc. to E-values
             eig_vec_2D_1                   = eig_vec_2D[:,0]
             
             # Derived
-            PHI_2D                         = (np.arctan2( eig_vec_2D_1[1], eig_vec_2D_1[0] ) * 180/np.pi )%360
+            PHI_2D                         = (np.arctan2( eig_vec_2D_1[1].real, eig_vec_2D_1[0].real ) * 180/np.pi )%360
             PHI_err_2D                     = np.arctan( np.sqrt( eig_val_2D[1]/eig_val_2D[0] )) * 180/np.pi
             SNR_HOR_2D                     = (eig_val_2D[0] - eig_val_2D[1]) / eig_val_2D[1]                               # De Meersman et al. (2006)
             POL_HOR_2D                     = 1 - eig_val_2D[1]/eig_val_2D[0]                                               # rectilinearity in horizontal plane (1 for linearised, 0 for circular polarisation). Jurkevics (1988)
@@ -2020,21 +2192,21 @@ class ppol():
             POL_RZp_3D                     = np.nan
             data_R_3D                      = np.nan*data_R_2D
             data_T_3D                      = np.nan*data_T_2D
-            eig_val_3D                     = np.nan*np.ones(3)                                                            # E-values descending
+            eig_val_3D                     = np.nan*np.ones(3)                                                            # Eig-values descending
             eig_vec_3D                     = np.nan*np.ones(3)                                     
 
 
             ### AMBIGUITY 180°
-            if fix_angles.upper()=='EQ':         # Nothing we can do solving the 180° ambiguity in 2D (this code doesn't make use of first motion information)
+            if self.fix_angles=='EQ':                # Nothing we can do solving the 180° ambiguity in 2D (this code doesn't make use of first motion information)
                 pass
 
 
-            elif fix_angles.upper()=='AMP':
+            elif self.fix_angles=='AMP':
                 data_1_offest = data_1[Xoffset_samples_for_amplitude:]
                 data_2_offest = data_2[Xoffset_samples_for_amplitude:]
                 
-                amp_1         = data_1[np.argmax(np.abs(data_1_offest))]
-                amp_2         = data_2[np.argmax(np.abs(data_2_offest))]
+                amp_1         = data_1_offest[np.argmax(np.abs(data_1_offest))]
+                amp_2         = data_2_offest[np.argmax(np.abs(data_2_offest))]
                 
                 PHI_2D_OLD    = PHI_2D
 
@@ -2042,27 +2214,29 @@ class ppol():
                 if abs(amp_1)>=abs(amp_2):              # `data_1` more significant than `data_2` 
                     if amp_1>=0:                        # `data_1` positive
                         if PHI_2D>=90 and PHI_2D<180 or PHI_2D>=270 and PHI_2D<360:
-                            PHI_2D = PHI_2D%180
-                        else:
                             PHI_2D = PHI_2D%180 + 180
+                        else:
+                            PHI_2D = PHI_2D%180
                     else:                               # `data_1` negative
                         if PHI_2D>=90 and PHI_2D<180 or PHI_2D>=270 and PHI_2D<360:
-                            PHI_2D = PHI_2D%180 + 180
-                        else:
                             PHI_2D = PHI_2D%180
+                        else:
+                            PHI_2D = PHI_2D%180 + 180
                 else:                                   # `data_2` more significant than `data_1` 
                     if amp_2>=0:                        # `data_2` positive
-                        PHI_2D = PHI_2D%180 + 180
+                        PHI_2D = PHI_2D%180
                     else:                               # `data_2` negative
-                        PHI_2D = PHI_2D%180             
+                        PHI_2D = PHI_2D%180 + 180        
 
                 # correct radial and transverse data
                 data_R_2D, data_T_2D = rotate.rotate_ne_rt(data_1, data_2, PHI_2D)
 
                 # 2-D INC
-                if PHI_2D_OLD != PHI_2D:
-                    INC_2D *= -1
-                INC_2D = INC_2D % 180
+                INC_2D_OLD = INC_2D
+                if amp_Z>=0:
+                    INC_2D = np.abs(INC_2D) % 180
+                else:
+                    INC_2D = -1*np.abs(INC_2D) % 180
 
 
             else:
@@ -2077,14 +2251,15 @@ class ppol():
             ### 2-D phi, horizontal plane
             covariance_matrix_2D_hori      = covariance_matrix(data_1, data_2, bias=bias)                               # does be default no demeaning internally!
             eig_val_2D, eig_vec_2D         = np.linalg.eig(covariance_matrix_2D_hori)
+            eig_val_2D                     = np.abs(eig_val_2D)                                                         # Veeery mall eig-values may be negative
             index_array_descending_eig_val = eig_val_2D.argsort()[::-1]
-            eig_val_2D                     = eig_val_2D[index_array_descending_eig_val]                                 # E-values descending
-            eig_vec_2D                     = eig_vec_2D[:,index_array_descending_eig_val]                               # E-vectors sorted acc. to E-values
+            eig_val_2D                     = eig_val_2D[index_array_descending_eig_val]                                 # Eig-values descending
+            eig_vec_2D                     = eig_vec_2D[:,index_array_descending_eig_val]                               # Eig-vectors sorted acc. to E-values
             eig_vec_2D_1                   = eig_vec_2D[:,0]
             
             # Derived
-            PHI_2D                         = (np.arctan2( eig_vec_2D_1[1], eig_vec_2D_1[0] ) * 180/np.pi )%360
-            PHI_err_2D                     = np.arctan( np.sqrt( eig_val_2D[1]/eig_val_2D[0] )) * 180/np.pi
+            PHI_2D                         = (np.arctan2( eig_vec_2D_1[1].real, eig_vec_2D_1[0].real ) * 180/np.pi ) % 360
+            PHI_err_2D                     = np.arctan( np.sqrt( eig_val_2D[1]/eig_val_2D[0] )) * 180/np.pi             # Reymond (2010)
             SNR_HOR_2D                     = (eig_val_2D[0] - eig_val_2D[1]) / eig_val_2D[1]                            # De Meersman et al. (2006)
             POL_HOR_2D                     = 1 - eig_val_2D[1]/eig_val_2D[0]                                            # rectilinearity in horizontal plane (1 for linearised, 0 for circular polarisation). Jurkevics (1988)
             data_R_2D, data_T_2D           = rotate.rotate_ne_rt(data_1, data_2, PHI_2D)
@@ -2092,11 +2267,12 @@ class ppol():
 
             ### 2-D phi, radial-vertical plane
             data_R_2D, data_T_2D             = rotate.rotate_ne_rt(data_1, data_2, PHI_2D)
-            covariance_matrix_2D_radZ        = covariance_matrix(data_Z, data_R_2D, bias=bias)
+            covariance_matrix_2D_radZ        = covariance_matrix(data_Z, data_R_2D, bias=bias)                          # does be default no demeaning internally!
             eig_val_2D_radZ, eig_vec_2D_radZ = np.linalg.eig(covariance_matrix_2D_radZ)
+            eig_val_2D_radZ                  = np.abs(eig_val_2D_radZ)                                                  # Veeery mall eig-values may be negative
             index_array_descending_eig_val   = np.argsort( eig_val_2D_radZ )[::-1]
-            eig_val_2D_radZ                  = eig_val_2D_radZ[index_array_descending_eig_val]                          # E-values descending
-            eig_vec_2D_radZ                  = eig_vec_2D_radZ[:,index_array_descending_eig_val]                        # E-vectors sorted acc. to E-values
+            eig_val_2D_radZ                  = eig_val_2D_radZ[index_array_descending_eig_val]                          # Eig-values descending
+            eig_vec_2D_radZ                  = eig_vec_2D_radZ[:,index_array_descending_eig_val]                        # Eig-vectors sorted acc. to E-values
             eig_vec_2D_radZ_1                = eig_vec_2D_radZ[:,0]
 
             # derived
@@ -2109,13 +2285,14 @@ class ppol():
             ### 3-D
             covariance_matrix_3D             = covariance_matrix(data_1, data_2, data_Z, bias=bias)                     # does be default no demeaning internally!
             eig_val_3D, eig_vec_3D           = np.linalg.eig(covariance_matrix_3D)
+            eig_val_3D                       = np.abs(eig_val_3D)                                                       # Veeery mall eig-values may be negative
             index_array_descending_eig_val   = np.argsort( eig_val_3D )[::-1]
-            eig_val_3D                       = eig_val_3D[index_array_descending_eig_val]                               # E-values descending
-            eig_vec_3D                       = eig_vec_3D[:,index_array_descending_eig_val]                             # E-vectors sorted acc. to E-values
+            eig_val_3D                       = eig_val_3D[index_array_descending_eig_val]                               # Eig-values descending
+            eig_vec_3D                       = eig_vec_3D[:,index_array_descending_eig_val]                             # Eig-vectors sorted acc. to E-values
             eig_vec_3D_1                     = eig_vec_3D[:,0]
 
             # derived
-            PHI_3D                           = (np.arctan2( eig_vec_3D_1[1], eig_vec_3D_1[0] ) * 180/np.pi) % 360
+            PHI_3D                           = (np.arctan2( eig_vec_3D_1[1].real, eig_vec_3D_1[0].real ) * 180/np.pi) % 360
             PHI_err_3D                       = np.arctan( np.sqrt( eig_val_3D[2]/(eig_val_3D[1]+eig_val_3D[0]) )) * 180/np.pi
             SNR_3D                           = abs((eig_val_3D[0] - (eig_val_3D[1] + eig_val_3D[2]))) / (eig_val_3D[1] + eig_val_3D[2])  # De Meersman et al. (2006)        
             POL_3D                           = 1 - ( eig_val_3D[1]+eig_val_3D[2] )/( 2*eig_val_3D[0] )                  # rectilinearity in 3-D. (1 for linearised, 0 for circular polarisation). Jurkevics (1988)
@@ -2126,9 +2303,10 @@ class ppol():
             data_R_3D, data_T_3D             = rotate.rotate_ne_rt(data_1, data_2, PHI_3D)
             covariance_matrix_3D_radZ        = covariance_matrix(data_Z, data_R_3D, bias=bias)                          # does be default no demeaning internally!
             eig_val_3D_radZ, eig_vec_3D_radZ = np.linalg.eig(covariance_matrix_3D_radZ)
+            eig_val_3D_radZ                  = np.abs(eig_val_3D_radZ)                                                  # Veeery mall eig-values may be negative
             index_array_descending_eig_val   = np.argsort( eig_val_3D_radZ )[::-1]
-            eig_val_3D_radZ                  = eig_val_3D_radZ[index_array_descending_eig_val]                          # E-values descending
-            eig_vec_3D_radZ                  = eig_vec_3D_radZ[:,index_array_descending_eig_val]                        # E-vectors sorted acc. to E-values
+            eig_val_3D_radZ                  = eig_val_3D_radZ[index_array_descending_eig_val]                          # Eig-values descending
+            eig_vec_3D_radZ                  = eig_vec_3D_radZ[:,index_array_descending_eig_val]                        # Eig-vectors sorted acc. to E-values
             eig_vec_3D_radZ_1                = eig_vec_3D_radZ[:,0]
 
             # derived
@@ -2139,7 +2317,7 @@ class ppol():
 
 
             ### AMBIGUITY 180°
-            if fix_angles.upper()=='EQ':    # However, correct baz must deliver incidence angle>0, therefore can solve ambiguity
+            if self.fix_angles=='EQ':    # However, correct baz must deliver incidence angle>0, therefore can solve ambiguity
                 if INC_2D < 0:
                     PHI_2D               = (PHI_2D+180)%360
                     INC_2D               = abs(INC_2D)
@@ -2150,14 +2328,14 @@ class ppol():
                     data_R_3D, data_T_3D = rotate_2D(data_R_3D, data_T_3D, 180)
 
 
-            elif fix_angles.upper()=='AMP':
+            elif self.fix_angles=='AMP':
                 data_1_offest = data_1[Xoffset_samples_for_amplitude:]
                 data_2_offest = data_2[Xoffset_samples_for_amplitude:]
                 data_Z_offest = data_Z[Xoffset_samples_for_amplitude:]
                 
-                amp_1         = data_1[np.argmax(np.abs(data_1_offest))]
-                amp_2         = data_2[np.argmax(np.abs(data_2_offest))]
-                amp_Z         = data_Z[np.argmax(np.abs(data_Z_offest))]
+                amp_1         = data_1_offest[np.argmax(np.abs(data_1_offest))]
+                amp_2         = data_2_offest[np.argmax(np.abs(data_2_offest))]
+                amp_Z         = data_Z_offest[np.argmax(np.abs(data_Z_offest))]
                 
                 PHI_2D_OLD    = PHI_2D
                 PHI_3D_OLD    = PHI_3D
@@ -2166,51 +2344,54 @@ class ppol():
                 if abs(amp_1)>=abs(amp_2):              # `data_1` more significant than `data_2` 
                     if amp_1>=0:                        # `data_1` positive
                         if PHI_2D>=90 and PHI_2D<180 or PHI_2D>=270 and PHI_2D<360:
-                            PHI_2D = PHI_2D%180
-                        else:
                             PHI_2D = PHI_2D%180 + 180
+                        else:
+                            PHI_2D = PHI_2D%180
                     else:                               # `data_1` negative
                         if PHI_2D>=90 and PHI_2D<180 or PHI_2D>=270 and PHI_2D<360:
-                            PHI_2D = PHI_2D%180 + 180
-                        else:
                             PHI_2D = PHI_2D%180
+                        else:
+                            PHI_2D = PHI_2D%180 + 180
                 else:                                   # `data_2` more significant than `data_1` 
                     if amp_2>=0:                        # `data_2` positive
-                        PHI_2D = PHI_2D%180 + 180
+                        PHI_2D = PHI_2D%180
                     else:                               # `data_2` negative
-                        PHI_2D = PHI_2D%180             
+                        PHI_2D = PHI_2D%180 + 180                  
     
                 # 3-D PHI
                 if abs(amp_1)>=abs(amp_2):              # `data_1` more significant than `data_2` 
                     if amp_1>=0:                        # `data_1` positive
                         if PHI_3D>=90 and PHI_3D<180 or PHI_3D>=270 and PHI_3D<360:
-                            PHI_3D = PHI_3D%180
-                        else:
                             PHI_3D = PHI_3D%180 + 180
+                        else:
+                            PHI_3D = PHI_3D%180
                     else:                               # `data_1` negative
                         if PHI_3D>=90 and PHI_3D<180 or PHI_3D>=270 and PHI_3D<360:
-                            PHI_3D = PHI_3D%180 + 180
-                        else:
                             PHI_3D = PHI_3D%180
+                        else:
+                            PHI_3D = PHI_3D%180 + 180
                 else:                                   # `data_2` more significant than `data_1` 
                     if amp_2>=0:                        # `data_2` positive
-                        PHI_3D = PHI_3D%180 + 180
+                        PHI_3D = PHI_3D%180
                     else:                               # `data_2` negative
-                        PHI_3D = PHI_3D%180   
+                        PHI_3D = PHI_3D%180 + 180        
 
                 # correct radial and transverse data
                 data_R_2D, data_T_2D = rotate.rotate_ne_rt(data_1, data_2, PHI_2D)
                 data_R_3D, data_T_3D = rotate.rotate_ne_rt(data_1, data_2, PHI_3D)
 
                 # 2-D INC
-                if PHI_2D_OLD != PHI_2D:
-                    INC_2D *= -1
-                INC_2D = INC_2D % 180
+                INC_2D_OLD = INC_2D
+                if amp_Z>=0:
+                    INC_2D = np.abs(INC_2D) % 180
+                else:
+                    INC_2D = -1*np.abs(INC_2D) % 180
 
                 # 3-D INC
-                if PHI_3D_OLD != PHI_3D:
-                    INC_3D *= -1
-                INC_3D = INC_3D % 180
+                if amp_Z>=0:
+                    INC_3D = np.abs(INC_3D) % 180
+                else:
+                    INC_3D = -1*np.abs(INC_3D) % 180
 
 
             else:
@@ -2223,15 +2404,15 @@ class ppol():
                   INC_2D,     INC_err_2D, INC_3D,     INC_err_3D, \
                   SNR_HOR_2D, SNR_3D,     SNR_RZp_2D, SNR_RZp_3D, \
                   POL_HOR_2D, POL_3D,     POL_RZp_2D, POL_RZp_3D, \
-                  data_R_2D,  data_T_2D,  data_R_3D,  data_T_3D,  \
-                  eig_vec_2D, eig_val_2D, eig_vec_3D, eig_val_3D
+                  eig_vec_2D, eig_val_2D, eig_vec_3D, eig_val_3D, \
+                  data_R_2D,  data_T_2D,  data_R_3D,  data_T_3D
 
 
 
         ### ASSIGN / RETURN RESULTS
         self.results = results
         return self.results
-    def plot(self, title='', verticals=(), outfile=None, show=True, **kwargs):
+    def plot(self, title='', verticals=(), outfile=None, show=True, original_data=False, **kwargs):
 
         """
         PLOT INDIVIDUAL PPOL MEASUREMENT
@@ -2258,21 +2439,37 @@ class ppol():
         #   only measures based on BAZ_2D printed, because they are always available
         BAZ_2D     = self.results[0]
         BAZ_err_2D = self.results[1]
-        INC_2D     = self.results[4]
-        INC_err_2D = self.results[5]
-        data_R     = self.results[16]   # comp_R_2D
-        eigvecs    = self.results[22]   # eig_vec_3D
+        BAZ_3D     = self.results[2]
+        BAZ_err_3D = self.results[3]
+        INC_3D     = self.results[6]
+        INC_err_3D = self.results[7]
+        eigvecs    = self.results[18]   # eig_vec_3D
+        data_R     = self.results[20]   # comp_R_2D
 
 
         ### PLOT WAVEFORMS
         # Figure instance
-        fig = plt.figure(figsize=(12,8))
-        fig.canvas.set_window_title('Ppol plot individual measurement: %s' % title)
-        fig.suptitle(title, fontsize=11)
-        gs  = fig.add_gridspec(2, 3)
+        if original_data:
+            rows = 3
+            fig  = plt.figure(figsize=(9,9))
+            gs   = fig.add_gridspec(rows, 3)
+            ax0  = fig.add_subplot(gs[0, :])
+            ax0  = quick_plot(*original_data, verts=verticals, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax0, xlim=[self.starttime, self.endtime])
+            ax1  = fig.add_subplot(gs[rows-2, :], sharex=ax0)
+            ax1  = quick_plot(*self.traces, verts=verticals, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
 
-        ax1 = fig.add_subplot(gs[0, :])
-        ax1 = quick_plot(self.trace_N, self.trace_E, self.trace_Z, verts=verticals, ylabel='Amplitudes', xlabel='Time', legend_loc='upper right', axis=ax1)
+        else:
+            rows = 2
+            fig  = plt.figure(figsize=(9,6))
+            gs   = fig.add_gridspec(rows, 3)
+            ax1  = fig.add_subplot(gs[rows-2, :])
+            ax1  = quick_plot(*self.traces, verts=verticals, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
+       
+        if title:
+            fig.canvas.set_window_title('Ppol plot individual measurement: %s' % title)
+        else:
+            fig.canvas.set_window_title('Ppol plot individual measurement')
+        fig.suptitle(title, fontsize=11)
 
 
         ### SMALL HACKS to make sure for small amplitudes everything works out (precisely: arrow head of angle indicators)
@@ -2280,6 +2477,10 @@ class ppol():
         factor_str  = ''
 
         if data_Z is not None:
+            BAZ         = BAZ_3D
+            BAZ_err     = BAZ_err_3D
+            BAZ_label   = 'BAZ_3D'
+
             if max( [max(abs(data_Z)), max(abs(data_1)), max(abs(data_2)), max(abs(data_R))] ) <= 1e-3:
                 factor      = 1e9
                 factor_str  = '%.0g' % (factor**-1)
@@ -2289,6 +2490,10 @@ class ppol():
                 data_R     *= factor
 
         else:
+            BAZ         = BAZ_2D
+            BAZ_err     = BAZ_err_2D
+            BAZ_label   = 'BAZ_2D'
+
             if max( [max(abs(data_1)), max(abs(data_2)), max(abs(data_R))] ) <= 1e-3:
                 factor      = 1e9
                 factor_str  = '%.0g' % (factor**-1)
@@ -2301,25 +2506,24 @@ class ppol():
         colours = [[0, 0, 1-0.6*i/len(data_1)] for i in range(len(data_2))]
         
         maxi    = max( list(np.abs(data_1))+list(np.abs(data_2)) ) * 1.05
-        
         xx      = np.linspace(-maxi, maxi, 100)
-        yy      = 1/np.tan(BAZ_2D*np.pi/180) * xx
-        yy_be   = 1/np.tan((BAZ_2D-BAZ_err_2D)*np.pi/180) * xx
-        yy_af   = 1/np.tan((BAZ_2D+BAZ_err_2D)*np.pi/180) * xx
+        yy      = 1/np.tan(BAZ*np.pi/180) * xx
+        yy_be   = 1/np.tan((BAZ-BAZ_err)*np.pi/180) * xx
+        yy_af   = 1/np.tan((BAZ+BAZ_err)*np.pi/180) * xx
         
-        x       = maxi/2*np.sin( (BAZ_2D-7)*np.pi/180 )
-        y       = maxi/2*np.cos( (BAZ_2D-7)*np.pi/180 )
-        x2      = maxi/2*np.sin( (BAZ_2D+2)*np.pi/180 )
-        y2      = maxi/2*np.cos( (BAZ_2D+2)*np.pi/180 )
+        x       = maxi/2*np.sin( (BAZ-7)*np.pi/180 )
+        y       = maxi/2*np.cos( (BAZ-7)*np.pi/180 )
+        x2      = maxi/2*np.sin( (BAZ+2)*np.pi/180 )
+        y2      = maxi/2*np.cos( (BAZ+2)*np.pi/180 )
 
         # Set-up
-        ax2 = fig.add_subplot(gs[1, 0])
+        ax2 = fig.add_subplot(gs[rows-1, 0])
         ax2.grid(ls='-.', lw=0.5)
         ax2.set(xlabel=label_2, ylabel=label_1)
         ax2.set_ylim([-maxi, maxi])
         ax2.set_xlim([-maxi, maxi])
         ax2.set_aspect('equal', adjustable='box')
-        ax2.text(1, 0, title+' (%s points)' % len(data_1), ha='right', color='red', transform=ax2.transAxes, fontsize=6, bbox=dict(boxstyle='round,pad=0', fc='white', ec="white", lw=0))
+        ax2.text(1, 0, '%s points' % len(data_1), ha='right', color='red', transform=ax2.transAxes, fontsize=6, bbox=dict(boxstyle='round,pad=0', fc='white', ec="white", lw=0))
         ax2.text(0, 1, factor_str, ha='center', color='black', transform=ax2.transAxes, fontsize=9, bbox=dict(boxstyle='round,pad=0', fc='white', ec="white", lw=0))
         
         ax2.spines['right'].set_color('none')
@@ -2328,12 +2532,12 @@ class ppol():
         ax2.spines['bottom'].set_color('none')  
         
         # Plot commands; data & Phi angle + erorrs
-        if (BAZ_2D+BAZ_err_2D)//180 != BAZ_2D//180.001 or BAZ_2D == 0:
+        if (BAZ+BAZ_err)//180 != BAZ//180.001 or BAZ == 0:
             ax2.fill_betweenx(yy_af, xx, facecolor='red', alpha=0.075)
             ax2.fill_betweenx(yy,    xx, facecolor='red', alpha=0.075)
         else:
             ax2.fill_between(xx, yy, yy_af, facecolor='red', alpha=0.075)       # error area of PHI
-        if (BAZ_2D-BAZ_err_2D)//180 != BAZ_2D//180.001 or BAZ_2D == 0:
+        if (BAZ-BAZ_err)//180 != BAZ//180.001 or BAZ == 0:
             ax2.fill_betweenx(yy_be, xx, facecolor='red', alpha=0.075)
             ax2.fill_betweenx(yy,    xx, facecolor='red', alpha=0.075)
         else:
@@ -2344,13 +2548,13 @@ class ppol():
         ax2.plot( xx, yy, 'indianred', lw=1.5, zorder=4)                                  # PHI results
                 
         # Angle arc + arrow head
-        ax2.add_patch( Arc([0,0], maxi,  maxi, 90, -BAZ_2D, 0, color='indianred', lw=1.5, zorder=5))
+        ax2.add_patch( Arc([0,0], maxi,  maxi, 90, -BAZ, 0, color='indianred', lw=1.5, zorder=5))
         a = FancyArrowPatch([x,y], [x2,y2], mutation_scale=20, lw=1.5, arrowstyle="-|>", color="indianred", zorder=6)
         ax2.add_artist(a)       
 
         # Legend
         scatter_proxy = mpl.lines.Line2D([0],[0], c="indianred", marker='>')
-        ax2.legend([scatter_proxy], ['BAZ_2D=(%.1f\u00B1%.1f)\u00b0' % (BAZ_2D, BAZ_err_2D)], numpoints=1, loc='upper right', prop={'size': 8})
+        ax2.legend([scatter_proxy], ['%s=(%.1f\u00B1%.1f)\u00b0' % (BAZ_label, BAZ, BAZ_err)], numpoints=1, loc='upper right', prop={'size': 8})
 
 
         ## plot axis (part) 2 and 3, if there's Z-data
@@ -2360,23 +2564,23 @@ class ppol():
             maxi  = max( list(np.abs(data_R))+list(np.abs(data_Z)) ) * 1.05
             
             xx    = np.linspace(-maxi, maxi, 100)
-            yy    = 1/np.tan( INC_2D*np.pi/180) * xx
-            yy_be = 1/np.tan((INC_2D-INC_err_2D)*np.pi/180) * xx
-            yy_af = 1/np.tan((INC_2D+INC_err_2D)*np.pi/180) * xx
+            yy    = 1/np.tan( INC_3D*np.pi/180) * xx
+            yy_be = 1/np.tan((INC_3D-INC_err_3D)*np.pi/180) * xx
+            yy_af = 1/np.tan((INC_3D+INC_err_3D)*np.pi/180) * xx
             
-            x     = maxi/2*np.sin( (INC_2D-7)*np.pi/180 )
-            y     = maxi/2*np.cos( (INC_2D-7)*np.pi/180 )
-            x2    = maxi/2*np.sin( (INC_2D+2)*np.pi/180 )
-            y2    = maxi/2*np.cos( (INC_2D+2)*np.pi/180 )
+            x     = maxi/2*np.sin( (INC_3D-7)*np.pi/180 )
+            y     = maxi/2*np.cos( (INC_3D-7)*np.pi/180 )
+            x2    = maxi/2*np.sin( (INC_3D+2)*np.pi/180 )
+            y2    = maxi/2*np.cos( (INC_3D+2)*np.pi/180 )
             
             # Set-up
-            ax3 = fig.add_subplot(gs[1, 1])
+            ax3 = fig.add_subplot(gs[rows-1, 1])
             ax3.grid(ls='-.', lw=0.5, zorder=-1)
             ax3.set(xlabel=label_R, ylabel=label_Z)
             ax3.set_ylim([-maxi, maxi])
             ax3.set_xlim([-maxi, maxi])
             ax3.set_aspect('equal', adjustable='box')
-            ax3.text(1, 0, title+' (%s points)' % len(data_2), horizontalalignment='right', color='red', transform=ax3.transAxes, fontsize=6, bbox=dict(boxstyle='round,pad=0', fc='white', ec="white", lw=0))
+            ax3.text(1, 0, '%s points' % len(data_2), horizontalalignment='right', color='red', transform=ax3.transAxes, fontsize=6, bbox=dict(boxstyle='round,pad=0', fc='white', ec="white", lw=0))
             ax3.text(0, 1, factor_str, ha='center', color='black', transform=ax3.transAxes, fontsize=9, bbox=dict(boxstyle='round,pad=0', fc='white', ec="white", lw=0))
         
             ax3.spines['right'].set_color('none')
@@ -2385,12 +2589,12 @@ class ppol():
             ax3.spines['bottom'].set_color('none')  
         
             # Plot commands; data & Phi angle + erorrs
-            if (INC_2D+INC_err_2D)//180 != INC_2D//180.001 or INC_2D == 0:
+            if (INC_3D+INC_err_3D)//180 != INC_3D//180.001 or INC_3D == 0:
                 ax3.fill_betweenx(yy_af, xx, facecolor='red', alpha=0.075)
                 ax3.fill_betweenx(yy,    xx, facecolor='red', alpha=0.075)
             else:
                 ax3.fill_between(xx, yy, yy_af, facecolor='red', alpha=0.075)           # error area of INC
-            if (INC_2D-INC_err_2D)//180 != INC_2D//180.001 or INC_2D == 0:
+            if (INC_3D-INC_err_3D)//180 != INC_3D//180.001 or INC_3D == 0:
                 ax3.fill_betweenx(yy_be, xx, facecolor='red', alpha=0.075)
                 ax3.fill_betweenx(yy,    xx, facecolor='red', alpha=0.075)
             else:
@@ -2401,13 +2605,13 @@ class ppol():
             ax3.plot( xx, yy, 'indianred', lw=1.5, zorder=4)
 
             # Angle arc + arrow head
-            ax3.add_patch( Arc([0,0], maxi,  maxi, 90, -INC_2D, 0, color='indianred', lw=1.5, zorder=5))
+            ax3.add_patch( Arc([0,0], maxi,  maxi, 90, -INC_3D, 0, color='indianred', lw=1.5, zorder=5))
             a = FancyArrowPatch([x,y], [x2,y2], mutation_scale=20, lw=1.5, arrowstyle="-|>", color="indianred", zorder=6)
             ax3.add_artist(a)
             
             # Legend
             scatter_proxy = mpl.lines.Line2D([0],[0], c="indianred", marker='>')
-            ax3.legend([scatter_proxy], ['INC_2D=(%.1f\u00B1%.1f)\u00b0' % (INC_2D, INC_err_2D)], loc='upper right', prop={'size': 8})
+            ax3.legend([scatter_proxy], ['INC_3D=(%.1f\u00B1%.1f)\u00b0' % (INC_3D, INC_err_3D)], loc='upper right', prop={'size': 8})
 
 
 
@@ -2420,7 +2624,7 @@ class ppol():
             max_dist = np.sqrt(3*(maxi*2)**2)
 
             # Set-up
-            ax4 = fig.add_subplot(gs[1, 2], projection='3d')
+            ax4 = fig.add_subplot(gs[rows-1, 2], projection='3d')
             ax4.set_xlabel(label_2, labelpad=5, fontsize=10)
             ax4.set_ylabel(label_1, labelpad=5, fontsize=10)
             ax4.zaxis.set_rotate_label(False)    # disable automatic rotation
@@ -2464,11 +2668,77 @@ class ppol():
         Print the results of `calc`.
         """
 
-        print(self.__str__(tag=tag, print_3D=print_3D))
+        print(self.__str__(tag=tag, print_3D=print_3D)) 
+
+# Mathematical
+def coherence(data1, data2, fs=1.0, window='hann', nperseg=256, noverlap=None, nfft=None, detrend='constant', freq_bounds=[]):
+
+    """
+    La cohérence avec la pression avec la composante Z (plutôt la journée) entre 0.05Hz et 0.2 Hz.
+    Et les horizontaux à plus basses fréquences (0.02-0.1).
+
+
+    Check:
+      https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html#r34b375daf612-1
+      https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.signal.csd.html
+
+
+    Return: - one-sided frequencies (positive), 
+            - coherence array, 
+            - coherence value as average of coherence arraybetween `freq_bounds`
+    """
+
+    data1     = np.array( data1 )
+    data2     = np.array( data2 )
+
+    f11, P11  = scipy.signal.csd(data1, data1, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap, nfft=nfft, detrend=detrend, return_onesided=True, scaling='density', axis=-1)
+    f22, P22  = scipy.signal.csd(data2, data2, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap, nfft=nfft, detrend=detrend, return_onesided=True, scaling='density', axis=-1)
+    f12, P12  = scipy.signal.csd(data1, data2, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap, nfft=nfft, detrend=detrend, return_onesided=True, scaling='density', axis=-1)       #P12 is complex
+
+    coh_array = P12 * np.conj(P12) / (P11 * P22)
+
+    if freq_bounds:
+        idx1  = ( np.abs( np.array(f11)-freq_bounds[0]) ).argmin()
+        idx2  = ( np.abs( np.array(f11)-freq_bounds[1]) ).argmin()
+    else:
+        idx1  = None
+        idx2  = None
+
+    coh_value = np.real( np.average(coh_array[idx1:idx2]) )
+    
+    return f11, coh_array, coh_value
 
 
 # Plot related
-def quick_plot(*y, x=None, data_labels=(), lw=1.5, win_title='', title='', xlabel='Data points', ylabel='Amplitude', x_invert=False, y_invert=False, xlim=None, ylim=None, verts=None, horis=None, legend_loc='best', axis=False, outfile=None, show=True, keep_open=False):
+def quick_plot(*y, 
+    x            = None, 
+    data_labels  = (), 
+    ls           = '-',
+    lw           = 1.5,
+    lc           = None,
+    win_title    = '', 
+    title        = '',
+    title_kwargs = {},
+    xlabel       = 'Data points', 
+    ylabel       = 'Amplitude',
+    grid         = True,
+    xscale       = None,
+    yscale       = None,
+    xinvert      = False, 
+    yinvert      = False, 
+    xlim         = None, 
+    ylim         = None,
+    verts        = None,
+    vertsc       = None,
+    horis        = None,
+    horisc       = None,
+    figsize      = (8,5),
+    legend_loc   = 'best',
+    axis         = False,
+    outfile      = None, 
+    show         = True, 
+    keep_open    = False,
+    **kwargs):
 
     """
     This function allows for some convenient, quick 2-D plotting.
@@ -2548,24 +2818,36 @@ def quick_plot(*y, x=None, data_labels=(), lw=1.5, win_title='', title='', xlabe
     """
 
 
+    ### FIXED VARIABLES
+    fs_title  = 12
+    fs_label  = 10
+    fs_legend = 8
+
+
 
     ### Figure instance & settings
     if not axis:
-        fig = plt.figure(figsize=(16,10), num=title)
+        fig = plt.figure(num=title, figsize=figsize)
         fig.canvas.set_window_title(win_title)
         ax = fig.add_subplot(111)
     else:
         ax = axis
 
     ax.ticklabel_format(axis='y', style='sci', scilimits=(-3, 3))
-    ax.set_title(title, fontsize=13)
-    ax.set_xlabel(xlabel, fontsize=11)
-    ax.set_ylabel(ylabel, fontsize=11)
-    ax.grid(ls='-.', lw=0.5)
-    if y_invert:
-        ax.invert_yaxis()
-    if x_invert:
+    ax.set_title(title, fontsize=fs_title, **title_kwargs)
+    ax.set_xlabel(xlabel, fontsize=fs_label)
+    ax.set_ylabel(ylabel, fontsize=fs_label)
+    if grid:
+        ax.grid(ls='-.', lw=0.5)
+    if xscale:
+        ax.set_xscale(xscale)
+    if yscale:
+        ax.set_yscale(yscale)
+
+    if xinvert:
         ax.invert_xaxis()
+    if yinvert:
+        ax.invert_yaxis()
 
 
 
@@ -2583,26 +2865,60 @@ def quick_plot(*y, x=None, data_labels=(), lw=1.5, win_title='', title='', xlabe
             labels = data_labels
 
     else:
-        labels = [None for i in range(len(y))]
+        legend_loc = None
+        labels     = [None for i in range(len(y))]
 
 
 
     ### Data plotting (empty data are not plotted)
+    if isinstance(ls, str):
+        ls = [ls]
+
+    if isinstance(lw, (int, float)):
+        lw = [lw]
+
+    if isinstance(lc, str) or lc is None:
+        lc = [lc]
+
+    if x is None:
+        x = [None for i in y]
+    elif len(x)==len(y) and all(isinstance(i, (tuple, list, np.ndarray)) for i in x):
+        pass
+    else:
+        x = [x for _ in range(len(y))]
+
+
     for j, data in enumerate(y):
 
+        if len(ls)!=len(y):
+            linestyle = ls[0]
+        else:
+            linestyle = ls[j]
+
+        if len(lw)!=len(y):
+            linewidth = lw[0]
+        else:
+            linewidth = lw[j]
+
+        if len(lc)!=len(y):
+            linecolor = lc[0]
+        else:
+            linecolor = lc[j]
+
         if isinstance(data, Trace):
-            if x is not None:
-                if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in x):
-                    xdata = [UTCDateTime(e).datetime for e in x]    # convert all to datetime.datetime objects
-                    xdata = mdates.date2num(x)                      # convert all to matplotlib times (wouldn't need to, but for later it is need as ax.get_xlim() retrieves matplotlib times!)
-                    ax.plot_date(x, data.data, '-', lw=lw, label=labels[j])
+            if x[j] is not None:
+                xdata = x[j]
+                if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in xdata):
+                    xdata = [UTCDateTime(e).datetime for e in xdata]    # convert all to datetime.datetime objects
+                    xdata = mdates.date2num(xdata)                      # convert all to matplotlib times (wouldn't need to, but for later it is need as ax.get_xlim() retrieves matplotlib times!)
+                    ax.plot_date(xdata, data.data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])
                     #myFmt = mdates.DateFormatter()
                     #ax.xaxis.set_major_formatter(myFmt)                # because we want dates in customised way, not matplotlib times
                 else:   # normal array, relative times, matlab times, or POSIX timestamps
-                    ax.plot(xdata, data, lw=lw, label=labels[j])        
+                    ax.plot(xdata, data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])        
             else:
                 xdata = data.times(type="matplotlib")
-                ax.plot_date(xdata, data.data, '-', lw=lw, label=labels[j])
+                ax.plot_date(xdata, data.data, ls=linestyle, marker=None, lw=linewidth, c=linecolor, label=labels[j])
                 #myFmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
                 #ax.xaxis.set_major_formatter(myFmt)
 
@@ -2613,30 +2929,31 @@ def quick_plot(*y, x=None, data_labels=(), lw=1.5, win_title='', title='', xlabe
             return
 
         else:
-            if x is not None:
-                if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in x):
-                    xdata = [UTCDateTime(e).datetime for e in x]    # convert all to datetime.datetime objects
+            if x[j] is not None:
+                xdata = x[j]
+                if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in xdata):
+                    xdata = [UTCDateTime(e).datetime for e in xdata]    # convert all to datetime.datetime objects
                     #xdata = mdates.date2num(xdata)                     # convert all to matplotlib times (wouldn't need to, but for later it is need as ax.get_xlim() retrieves matplotlib times!)
                     #myFmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
-                    ax.plot(xdata, data, '-', lw=lw, label=labels[j])
+                    ax.plot(xdata, data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])
                     #ax.xaxis.set_major_formatter(myFmt)                # because we want dates in customised way, not matplotlib times
                 else:   # normal array, relative times, matlab times, or POSIX timestamps
-                    ax.plot(x, data, lw=lw, label=labels[j])
+                    ax.plot(xdata, data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])
             else:
                 xdata = np.arange(len(data))
-                ax.plot(xdata, data, lw=lw, label=labels[j])
+                ax.plot(xdata, data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])
 
 
 
     ### Limits of x- and y-axis
-    if xlim is not None:
+    if xlim is not None and not all(x is None for x in xlim):
         if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in xlim):
             xlim = [UTCDateTime(e).datetime for e in xlim]
             xlim = [mdates.date2num(e) for e in xlim]
         ax.set_xlim( xlim )
     
 
-    if ylim is not None:
+    if ylim is not None and not all(y is None for y in ylim):
         ax.set_ylim( ylim )
     else:           # make sure ylim is according to newly set xlim
         y_mins = []
@@ -2644,29 +2961,35 @@ def quick_plot(*y, x=None, data_labels=(), lw=1.5, win_title='', title='', xlabe
         for line in ax.lines:
             x = line.get_xdata()
             y = line.get_ydata()
-            i = np.where( (x >= ax.get_xlim()[0]) & (x <= ax.get_xlim()[1]) )[0]          # all indexes of y_data according to xlim
-            try:                                                        # e.g. if one of the `y` is empty
-                line_min = y[i].min()                                   # get minimum y within all data according to xlim
-                line_max = y[i].max()                                   # get maximum y within all data according to xlim
+            try:                                                                    # e.g. if one of the `y` is empty
+                i = np.where( (x >= ax.get_xlim()[0]) & (x <= ax.get_xlim()[1]) )[0]    # all indexes of y_data according to xlim
+                line_min = np.nanmin(y[i])                                          # get minimum y within all data according to xlim
+                line_max = np.nanmax(y[i])                                          # get maximum y within all data according to xlim
                 y_mins.append(line_min)
                 y_maxs.append(line_max)
-            except ValueError:
+            except:
                 continue
 
-        y_min = min(y_mins, default=None)
-        y_max = max(y_maxs, default=None)
-        if y_min is not None and y_max is not None:
+        try:
+            y_min = np.nanmin(y_mins)
+            y_max = np.nanmax(y_maxs)
             ylim = [y_min-0.025*np.abs(y_max-y_min), y_max+0.025*np.abs(y_max-y_min)] # give 2.5% margin that works both for pos. & neg. values 
-            ax.set_ylim( ylim )     
-        else:
-            print(u'WARNING: quick_plot: specified `xlim` outside data boundaries.')
-    xlim    = ax.get_xlim()
-    ylim    = ax.get_ylim()
+            ax.set_ylim( ylim )
+        except:
+            pass
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
 
     
 
     ### Vertical lines for data indications
-    colours = ['k', 'grey', 'lightgrey', 'red', 'green']
+    if isinstance(vertsc, str):
+        colours = [vertsc]
+    elif vertsc is None:
+        colours = ['k']
+    else:
+        colours = vertsc
+    
     if verts is not None:
                                                         # make list of lists so fo-loops work
 
@@ -2699,7 +3022,13 @@ def quick_plot(*y, x=None, data_labels=(), lw=1.5, win_title='', title='', xlabe
 
 
     ### Horinzontal lines for data indications
-    colours = ['deepskyblue','darkorange','olivedrab', 'indianred', 'orchid', 'red', 'sienna']
+    if isinstance(horisc, str):
+        colours = [horisc]
+    elif horisc is None:
+        colours = ['k']
+    else:
+        colours = horisc
+
     if horis is not None:
                                                           # make list of lists so fo-loops work
         for k, hori in enumerate(horis):
@@ -2715,8 +3044,11 @@ def quick_plot(*y, x=None, data_labels=(), lw=1.5, win_title='', title='', xlabe
             for hline in hori:
                 ax.plot( xlim, [hline, hline], lw=1, color=colours[colour_index])
 
+
+
     ### Saving & showing ..
-    ax.legend(loc=legend_loc)
+    if legend_loc is not None:
+        ax.legend(loc=legend_loc, prop={'size': fs_legend})
     if axis:
         return ax
 
@@ -2746,6 +3078,7 @@ class _Arrow3D(FancyArrowPatch):
         FancyArrowPatch.draw(self, renderer)    
 
 
-################  _ _ N A M E _ _ = = " _ _ M A I N _ _ "  ################
+
+### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  
 if __name__ == "__main__":
     pass

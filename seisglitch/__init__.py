@@ -28,18 +28,20 @@
 
 """
 **Seisglitch** is a Python package based on ObsPy_.
-Its purpose is to detect glitches on InSight's seismometer SEIS
-(both on VBB and SP sensors), plot the detected glitches in different ways,
-remove the glitches based on differing methods, and finally evaluate the removal.
+Its purpose is to detect glitches on InSight's seismometers VBB (very broadband) and SP (short period)
+that are both part of the SEIS instrument package, plot the detected glitches in different ways,
+and remove the glitches.
 
 | 
 | Find the actual Python code at:
-| https://gitlab.com/johnrobertscholz/seisglitch
+| https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch
 | 
 
-The code is based on the following, peer-reviewed paper. If you find ``seisglitch`` useful, please consider citing it. :)
+The code is based on the following, peer-reviewed paper. If you find ``seisglitch`` useful, please consider citing. :)
 
-    Scholz, John-Robert, ...
+    Scholz, J.-R., Widmer-Schnidrig, R., P. Davis, P. Lognonne, B. Pinot, R. F. Garcia, Francis Nimmo, et al. 
+    “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” Journal of Geophysical Research: 
+    Planets submitted (2020).
 
 
 .. _ObsPy: https://github.com/obspy/obspy/wiki
@@ -48,5 +50,5 @@ The code is based on the following, peer-reviewed paper. If you find ``seisglitc
 
 
 ### VERSION
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 __author__  = 'John-Robert Scholz'

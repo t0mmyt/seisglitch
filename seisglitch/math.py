@@ -114,105 +114,6 @@ def unit_vector(vec):
     """
 
     return vec / np.linalg.norm(vec)
-def circ_stat(*angles, axis = None):
-
-    """
-    The arithmetic mean / median is not always appropriate for angles.
-    For this, polar angles are converted to cartesian coordinates, the mean / median
-    is then calculated, and the result finally converted back to polar coordinates.
-
-    Check for example:
-    https://en.wikipedia.org/wiki/Directional_statistics
-    
-    ---------
-
-    INPUT: *angles: either angles to be transformed seperated by comma
-                    or one list with all angles inside. 
-
-                    All values must be floats, not strings.
-
-
-    :param mean: circular mean of angles
-
-    :param ang_deviation: corresponds to one standard deviation
-                          This estimate is used for circular mean errors in the
-                          Ppol package.
-                          Paper:
-                            Berens, P., 2009. CircStat: a MATLAB toolbox for circular 
-                            statistics, J. Stat. Softw., 31(10), 1–21.
-
-    :param circ_STD: circular standard deviation, according to common sources.
-                     This estimate is NOT used for circular mean errors in the
-                     Ppol package.
-
-    :param median: circular median of angles. If len(list) = odd, median is 
-                   value in the middle. If len(list) = even, left &
-                   right values are interpolated.
-
-    :param mad: median absolute deviation, according to common sources
-                This estimate is NOT used for circular median errors in the
-                Ppol package.
-
-    :param smad: mad times 1.4826, is approx. standad deviation
-                 (for normally, gaussian distributed data)
-                 This estimate is used for circular mean errors in the
-                 Ppol package.                 
-                 Paper: 
-                   Rousseeuw, P.J. & Croux, C., 1993. Alternatives to the median 
-                   absolute deviation, J. Am. Stat. Assoc., 88(424), 1273–1283
-
-    :return: mean, ang_deviation, circ_STD, median, mad, smad
-    """
-
-
-
-    ### CONVERT ANGLES FROM DEGREE INTO RADIANTS
-    if isinstance( angles[0], (list, tuple, np.ndarray)):
-        angles = angles[0]
-    angles_rad = np.array( angles ) / 180*np.pi
-
-
-
-    ### CIRCUCLAR MEAN
-    mean_rad = np.arctan2( np.mean( np.sin(angles_rad),axis ), np.mean( np.cos(angles_rad),axis ) )
-    mean     = (mean_rad * 180/np.pi) % 360
-
-    # calc length of  mean resultant vector of  circular distribution
-    if np.ma.isMaskedArray(angles_rad) and angles_rad.mask.shape!=():
-        N = np.sum(~angles_rad.mask,axis)
-    else:
-        if axis is None:
-            N = angles_rad.size
-        else:
-            N = angles_rad.shape[axis]
-    R = np.sqrt( np.sum(np.sin(angles_rad),axis)**2 + np.sum(np.cos(angles_rad),axis)**2 ) / N
-
-    # error estimates
-    circ_Var      = 1-R                                         # circular variance
-    circ_STD      = np.sqrt( -2*np.log(R) ) * 180/np.pi         # circular STD: values between 0 and infinity (without term: 180/np.pi)
-    ang_deviation = np.sqrt(  2*(1-R)     ) * 180/np.pi         # values between 0 and sqrt(2)  (without term: 180/np.pi) check:  Berens, P. (2009). CircStat: A MATLAB toolbox for circular statistics
-    #print('circ stat: ', mean, ang_deviation, circ_STD)
-
-
-    ### CIRCULAR MEDIAN
-    median_rad = np.arctan2( np.median( np.sin(angles_rad),axis ), np.median( np.cos(angles_rad),axis ) )
-    median     = (median_rad * 180/np.pi) % 360
-
-    mad_rad = np.arctan2( np.median( np.absolute(np.sin(angles_rad-median_rad)) ), np.median( np.absolute( np.cos(angles_rad-median_rad) )) )
-    mad = mad_rad * 180/np.pi
-    smad = 1.4826 * mad
-
-
-
-    ### RETURN
-    return mean, ang_deviation, circ_STD, median, mad, smad
-def fit_function1(x, a, b, c, d, e):
-    
-    """
-    `x` data should be in radiants.
-    """
-    
-    return a + b * np.sin(x) + c * np.cos(x) + d * np.sin(2*x) + e * np.cos(2*x)    # 
 def split_into_connecting_parts(array, distance=1):
 
     """
@@ -259,7 +160,7 @@ def moving_window(data, window_length_in_samples=100, step_in_samples=50, equal_
                 break
 
         yield index_window_start, index_window_end, data[index_window_start:index_window_end]
-def rotate_2D(comp_1, comp_2, angle, clockwise=False):
+def rotate_2D(comp_1, comp_2, angle, clockwise=True):
 
     """
     This function rotates 2 data traces (i.e. numpy arrays, e.g., seismological data) 
