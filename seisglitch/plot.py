@@ -59,15 +59,17 @@ from seisglitch.math import normalise
 #                     u' NUM         GLITCH-UTC-S         GLITCH-UTC-E  GLITCH-LMST-S  GLITCH-LMST-E    U-GLITCH  V-GLITCH  W-GLITCH         U-RAW      V-RAW      W-RAW        U-GAI      V-GAI      W-GAI      Z-GAI      N-GAI      E-GAI    PHI_3D_GAI  PHI_ERR_3D_GAI      INC_3D_GAI  INC_ERR_3D_GAI      SNR_3D_GAI  POL_3D_GAI\n' \
 #                     u
 def select_glitches(glitch_files,
-    doubles_out=False, 
-    components='3',
-    sols=[], 
-    LMST_range=['0','24'], 
-    BAZs=[], 
-    INCs=[], 
-    glitch_min_polarization=0, 
-    glitch_max_polarization=1, 
-    inverse_selection=False,
+    components          = '',
+    sols                = [], 
+    LMST_range          = ['0','24'], 
+    Amplitudes          = {},
+    AZs                 = [], 
+    AZ_Errs             = [], 
+    INCs                = [],
+    INC_Errs            = [], 
+    glitch_polarization = [],
+    glitch_SNR          = [],
+    inverse_selection   = False,
     **kwargs):
 
 
@@ -79,21 +81,8 @@ def select_glitches(glitch_files,
 
     ### READ GLITCH-FILE
     all_glitches = []
-
     for gf, glitch_file in enumerate(glitch_files):
-        glitches      = np.loadtxt(glitch_file, dtype='str')
-        #glitches      = glitch_exclude(glitches, verbose=False)
-        if doubles_out and gf>0:
-            stay            = []
-            max_glitchstart = all_glitches[np.argmax(np.array(all_glitches)[:,1])][1]
-            for gl, glitch in enumerate(glitches):
-                for aglitch in all_glitches:
-                    if glitch[1]>=aglitch[1] and glitch[1]<=aglitch[2] or glitch[1]>max_glitchstart:
-                        break
-                stay.append(gl)
-            all_glitches.append( list(glitches[stay]) )
-        else:
-            all_glitches += list(glitches)
+        all_glitches += list(glitches)
     all_glitches = np.array(all_glitches)
 
 
@@ -101,23 +90,25 @@ def select_glitches(glitch_files,
     ### SELECT GLITCHES ON GIVEN `components`
     components = str(components).upper().strip()
     if components=='1':
-        keep = [g for g in range(len(all_glitches)) if (all_glitches[g][5]=='1' and all_glitches[g][6]=='0' and all_glitches[g][7]=='0') or (all_glitches[g][5]=='0' and all_glitches[g][6]=='1' and all_glitches[g][7]=='0') or (all_glitches[g][5]=='0' and all_glitches[g][6]=='0' and all_glitches[g][7]=='1')]
+        keep = [g for g in range(len(all_glitches)) if (all_glitches[g,5]=='1' and all_glitches[g,6]=='0' and all_glitches[g,7]=='0') or (all_glitches[g,5]=='0' and all_glitches[g,6]=='1' and all_glitches[g,7]=='0') or (all_glitches[g,5]=='0' and all_glitches[g,6]=='0' and all_glitches[g,7]=='1')]
     elif components=='2':
-        keep = [g for g in range(len(all_glitches)) if (all_glitches[g][5]=='1' and all_glitches[g][6]=='1' and all_glitches[g][7]=='0') or (all_glitches[g][6]=='1' and all_glitches[g][6]=='0' and all_glitches[g][7]=='1') or (all_glitches[g][5]=='0' and all_glitches[g][6]=='1' and all_glitches[g][7]=='1')]
+        keep = [g for g in range(len(all_glitches)) if (all_glitches[g,5]=='1' and all_glitches[g,6]=='1' and all_glitches[g,7]=='0') or (all_glitches[g,6]=='1' and all_glitches[g,6]=='0' and all_glitches[g,7]=='1') or (all_glitches[g,5]=='0' and all_glitches[g,6]=='1' and all_glitches[g,7]=='1')]
     elif components=='3':
-        keep = [g for g in range(len(all_glitches))]
+        keep = [g for g in range(len(all_glitches)) if (all_glitches[g,5]=='1' and all_glitches[g,6]=='1' and all_glitches[g,7]=='1')]
     elif components=='U':
-        keep = [g for g in range(len(all_glitches)) if all_glitches[g][5]=='1' and all_glitches[g][6]=='0' and all_glitches[g][7]=='0']
+        keep = [g for g in range(len(all_glitches)) if all_glitches[g,5]=='1' and all_glitches[g,6]=='0' and all_glitches[g,7]=='0']
     elif components=='V':
-        keep = [g for g in range(len(all_glitches)) if all_glitches[g][5]=='0' and all_glitches[g][6]=='1' and all_glitches[g][7]=='0']
+        keep = [g for g in range(len(all_glitches)) if all_glitches[g,5]=='0' and all_glitches[g,6]=='1' and all_glitches[g,7]=='0']
     elif components=='W':
-        keep = [g for g in range(len(all_glitches)) if all_glitches[g][5]=='0' and all_glitches[g][6]=='0' and all_glitches[g][7]=='1']
-    elif components=='UV' or components=='VU':
-        keep = [g for g in range(len(all_glitches)) if all_glitches[g][5]=='1' and all_glitches[g][6]=='1' and all_glitches[g][7]=='0']
-    elif components=='UW' or components=='WU':
-        keep = [g for g in range(len(all_glitches)) if all_glitches[g][5]=='1' and all_glitches[g][6]=='0' and all_glitches[g][7]=='1']
-    elif components=='VW' or components=='WV':
-        keep = [g for g in range(len(all_glitches)) if all_glitches[g][5]=='0' and all_glitches[g][6]=='1' and all_glitches[g][7]=='1']
+        keep = [g for g in range(len(all_glitches)) if all_glitches[g,5]=='0' and all_glitches[g,6]=='0' and all_glitches[g,7]=='1']
+    elif sorted(components)=='UV':
+        keep = [g for g in range(len(all_glitches)) if all_glitches[g,5]=='1' and all_glitches[g,6]=='1' and all_glitches[g,7]=='0']
+    elif sorted(components)=='UW':
+        keep = [g for g in range(len(all_glitches)) if all_glitches[g,5]=='1' and all_glitches[g,6]=='0' and all_glitches[g,7]=='1']
+    elif sorted(components)=='VW':
+        keep = [g for g in range(len(all_glitches)) if all_glitches[g,5]=='0' and all_glitches[g,6]=='1' and all_glitches[g,7]=='1']
+    elif sorted(components)=='UVW':
+        keep = [g for g in range(len(all_glitches)) if all_glitches[g,5]=='1' and all_glitches[g,6]=='1' and all_glitches[g,7]=='1']
     else:
         keep = [g for g in range(len(all_glitches))]
 
@@ -131,73 +122,98 @@ def select_glitches(glitch_files,
 
 
     ### SELECT GLITCHES IN SPECIFIED `LMST RANGE`
-    LMST_range        = [(str(t).replace(':','') + '000000')[:6] for t in LMST_range]
-    LMST_range        = [[t[i:i+2] for i in range(0,len(t),2)] for t in LMST_range]
-    LMST_range        = [':'.join(t) for t in LMST_range]
-    glitch_start_LMST = np.array( [all_glitches[g][3].split('M')[1] for g in keep] )
-    try:
-        if LMST_range[0]<=LMST_range[1]:
-            indices = np.where( (glitch_start_LMST >= LMST_range[0]) & (glitch_start_LMST <= LMST_range[1]) )
-        else:
-            indices = np.where( (glitch_start_LMST >= LMST_range[0]) | (glitch_start_LMST <= LMST_range[1]) )
-        keep = list(np.array(keep)[indices[0]])
-    except:
-        pass
+    if LMST_range and len(LMST_range)==2:
+        LMST_range        = [(str(t).replace(':','') + '000000')[:6] for t in LMST_range]
+        LMST_range        = [[t[i:i+2] for i in range(0,len(t),2)] for t in LMST_range]
+        LMST_range        = [':'.join(t) for t in LMST_range]
+        glitch_start_LMST = np.array( [all_glitches[g,3].split('M')[1] for g in keep] )
+        try:
+            if LMST_range[0]<=LMST_range[1]:
+                indices = np.where( (glitch_start_LMST >= LMST_range[0]) & (glitch_start_LMST <= LMST_range[1]) )
+            else:
+                indices = np.where( (glitch_start_LMST >= LMST_range[0]) | (glitch_start_LMST <= LMST_range[1]) )
+            keep = list(np.array(keep)[indices[0]])
+        except:
+            pass
 
 
 
-    ### SELECT GLITCHES ON GIVEN `BAZs`
-    if BAZs:
-        BAZs = [float(BAZ) for BAZ in BAZs]
+    ### SELECT GLITCHES ON GIVEN `Amplitudes`
+    if Amplitudes:
+        for comp in Amplitudes.keys():
+            if comp.upper()=='U':
+                column = 11
+            elif comp.upper()=='V':
+                column = 12
+            elif comp.upper()=='W':
+                column = 13
+            elif comp.upper()=='Z':
+                column = 14
+            elif comp.upper()=='N':
+                column = 15
+            elif comp.upper()=='E':
+                column = 16
+            else:
+                continue    
 
-        if len(BAZs)==2:
-            if BAZs[0]<=BAZs[1]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if float(all_glitches[g,17])>=BAZs[0] and float(all_glitches[g,17])<=BAZs[1]]
-            else:                   # e.g.: 300 - 40 deg
-                keep = [g for g in keep if float(all_glitches[g,17])>=BAZs[0] or  float(all_glitches[g,17])<=BAZs[1]]
+            if not isinstance(Amplitudes[comp], (list, tuple, np.ndarray)):
+                Amplitudes[comp] = [Amplitudes[comp]]
 
-        elif len(BAZs)==4:
-            if BAZs[0]<=BAZs[1] and BAZs[2]<=BAZs[3]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if (float(all_glitches[g,17])>=BAZs[0] and float(all_glitches[g,17])<=BAZs[1]) or 
-                                           (float(all_glitches[g,17])>=BAZs[2] and float(all_glitches[g,17])<=BAZs[3])]
-
-        elif len(BAZs)==6:
-            if BAZs[0]<=BAZs[1] and BAZs[2]<=BAZs[3] and BAZs[4]<=BAZs[5]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if (float(all_glitches[g,17])>=BAZs[0] and float(all_glitches[g,17])<=BAZs[1]) or 
-                                           (float(all_glitches[g,17])>=BAZs[2] and float(all_glitches[g,17])<=BAZs[3]) or
-                                           (float(all_glitches[g,17])>=BAZs[4] and float(all_glitches[g,17])<=BAZs[5])]
-
-        elif len(BAZs)==8:
-            if BAZs[0]<=BAZs[1] and BAZs[2]<=BAZs[3] and BAZs[4]<=BAZs[5] and BAZs[6]<=BAZs[7]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if (float(all_glitches[g,17])>=BAZs[0] and float(all_glitches[g,17])<=BAZs[1]) or 
-                                           (float(all_glitches[g,17])>=BAZs[2] and float(all_glitches[g,17])<=BAZs[3]) or
-                                           (float(all_glitches[g,17])>=BAZs[4] and float(all_glitches[g,17])<=BAZs[5]) or
-                                           (float(all_glitches[g,17])>=BAZs[6] and float(all_glitches[g,17])<=BAZs[7])]
-
-        elif len(BAZs)==10:
-            if BAZs[0]<=BAZs[1] and BAZs[2]<=BAZs[3] and BAZs[4]<=BAZs[5] and BAZs[6]<=BAZs[7] and BAZs[8]<=BAZs[9]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if (float(all_glitches[g,17])>=BAZs[0] and float(all_glitches[g,17])<=BAZs[1]) or 
-                                           (float(all_glitches[g,17])>=BAZs[2] and float(all_glitches[g,17])<=BAZs[3]) or
-                                           (float(all_glitches[g,17])>=BAZs[4] and float(all_glitches[g,17])<=BAZs[5]) or
-                                           (float(all_glitches[g,17])>=BAZs[6] and float(all_glitches[g,17])<=BAZs[7]) or
-                                           (float(all_glitches[g,17])>=BAZs[8] and float(all_glitches[g,17])<=BAZs[9])]
-
-        elif len(BAZs)==12:
-            if BAZs[0]<=BAZs[1] and BAZs[2]<=BAZs[3] and BAZs[4]<=BAZs[5] and BAZs[6]<=BAZs[7] and BAZs[8]<=BAZs[9] and BAZs[10]<=BAZs[11]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if (float(all_glitches[g,17])>=BAZs[0] and float(all_glitches[g,17])<=BAZs[1]) or 
-                                           (float(all_glitches[g,17])>=BAZs[2] and float(all_glitches[g,17])<=BAZs[3]) or
-                                           (float(all_glitches[g,17])>=BAZs[4] and float(all_glitches[g,17])<=BAZs[5]) or
-                                           (float(all_glitches[g,17])>=BAZs[6] and float(all_glitches[g,17])<=BAZs[7]) or
-                                           (float(all_glitches[g,17])>=BAZs[8] and float(all_glitches[g,17])<=BAZs[9]) or
-                                           (float(all_glitches[g,17])>=BAZs[10] and float(all_glitches[g,17])<=BAZs[11])]
+            if len(Amplitudes[comp])==1:
+                keep = [g for g in range(len(keep)) if float(all_glitches[g,column])<=float(Amplitudes[comp][0])]
+            elif len(Amplitudes[comp])==2:
+                keep = [g for g in range(len(keep)) if float(all_glitches[g,column])>=float(Amplitudes[comp][0]) and float(all_glitches[g,column])<=float(Amplitudes[comp][1])]
+            
 
 
-        elif BAZs[0]<=BAZs[1] and BAZs[2]>BAZs[3]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if (float(all_glitches[g,17])>=BAZs[0] and float(all_glitches[g,17])<=BAZs[1]) or 
-                                           (float(all_glitches[g,17])>=BAZs[2] or  float(all_glitches[g,17])<=BAZs[3])]           
+    ### SELECT GLITCHES ON GIVEN `AZs`
+    if AZs:
+        AZs = [float(BAZ) for BAZ in AZs]
+
+        if len(AZs)==2:
+            keep = [g for g in keep if float(all_glitches[g,17])>=AZs[0] and float(all_glitches[g,17])<=AZs[1]]
+
+        elif len(AZs)==4:
+            keep = [g for g in keep if (float(all_glitches[g,17])>=AZs[0] and float(all_glitches[g,17])<=AZs[1]) or 
+                                       (float(all_glitches[g,17])>=AZs[2] and float(all_glitches[g,17])<=AZs[3])]
+
+        elif len(AZs)==6:
+            keep = [g for g in keep if (float(all_glitches[g,17])>=AZs[0] and float(all_glitches[g,17])<=AZs[1]) or 
+                                       (float(all_glitches[g,17])>=AZs[2] and float(all_glitches[g,17])<=AZs[3]) or
+                                       (float(all_glitches[g,17])>=AZs[4] and float(all_glitches[g,17])<=AZs[5])]
+
+        elif len(AZs)==8:
+            keep = [g for g in keep if (float(all_glitches[g,17])>=AZs[0] and float(all_glitches[g,17])<=AZs[1]) or 
+                                       (float(all_glitches[g,17])>=AZs[2] and float(all_glitches[g,17])<=AZs[3]) or
+                                       (float(all_glitches[g,17])>=AZs[4] and float(all_glitches[g,17])<=AZs[5]) or
+                                       (float(all_glitches[g,17])>=AZs[6] and float(all_glitches[g,17])<=AZs[7])]
+
+        elif len(AZs)==10:
+            keep = [g for g in keep if (float(all_glitches[g,17])>=AZs[0] and float(all_glitches[g,17])<=AZs[1]) or 
+                                       (float(all_glitches[g,17])>=AZs[2] and float(all_glitches[g,17])<=AZs[3]) or
+                                       (float(all_glitches[g,17])>=AZs[4] and float(all_glitches[g,17])<=AZs[5]) or
+                                       (float(all_glitches[g,17])>=AZs[6] and float(all_glitches[g,17])<=AZs[7]) or
+                                       (float(all_glitches[g,17])>=AZs[8] and float(all_glitches[g,17])<=AZs[9])]
+
+        elif len(AZs)==12:
+            keep = [g for g in keep if (float(all_glitches[g,17])>=AZs[0] and float(all_glitches[g,17])<=AZs[1]) or 
+                                       (float(all_glitches[g,17])>=AZs[2] and float(all_glitches[g,17])<=AZs[3]) or
+                                       (float(all_glitches[g,17])>=AZs[4] and float(all_glitches[g,17])<=AZs[5]) or
+                                       (float(all_glitches[g,17])>=AZs[6] and float(all_glitches[g,17])<=AZs[7]) or
+                                       (float(all_glitches[g,17])>=AZs[8] and float(all_glitches[g,17])<=AZs[9]) or
+                                       (float(all_glitches[g,17])>=AZs[10] and float(all_glitches[g,17])<=AZs[11])]   
         
         else:
-            print(u'WARNING: BAZs list must contain 2 or 4 elements: %s' % BAZs)
+            print(u'WARNING: AZs list must contain 2, 4, 6, 8, 10, or 12 elements. Given: %s' % AZs)
+
+
+
+    ### SELECT GLITCHES ON GIVEN `AZ_Errs`
+    if AZ_Errs:
+        if len(AZ_Errs)==1:
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,18])<=float(AZ_Errs[0])]
+        elif len(AZ_Errs)==2:
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,18])>=float(AZ_Errs[0]) and float(all_glitches[g,18])<=float(AZ_Errs[1])]
 
 
 
@@ -206,32 +222,46 @@ def select_glitches(glitch_files,
         INCs = [float(INC) for INC in INCs]
 
         if len(INCs)==2:
-            if INCs[0]<=INCs[1]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if float(all_glitches[g,19])>=INCs[0] and float(all_glitches[g,19])<=INCs[1]]
-            else:                   # e.g.: 300 - 40 deg
-                keep = [g for g in keep if float(all_glitches[g,19])>=INCs[0] or  float(all_glitches[g,19])<=INCs[1]]
+            keep = [g for g in keep if float(all_glitches[g,19])>=INCs[0] and float(all_glitches[g,19])<=INCs[1]]
 
         elif len(INCs)==4:
-            if INCs[0]<=INCs[1] and INCs[2]<=INCs[3]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if (float(all_glitches[g,19])>=INCs[0] and float(all_glitches[g,19])<=INCs[1]) or 
-                                           (float(all_glitches[g,19])>=INCs[2] and float(all_glitches[g,19])<=INCs[3])]
+            keep = [g for g in keep if (float(all_glitches[g,19])>=INCs[0] and float(all_glitches[g,19])<=INCs[1]) or 
+                                       (float(all_glitches[g,19])>=INCs[2] and float(all_glitches[g,19])<=INCs[3])]
 
         elif len(INCs)==6:
-            if INCs[0]<=INCs[1] and INCs[2]<=INCs[3] and INCs[4]<=INCs[5]:    # e.g.: 40 - 300 deg
-                keep = [g for g in keep if (float(all_glitches[g,19])>=INCs[0] and float(all_glitches[g,19])<=INCs[1]) or 
-                                           (float(all_glitches[g,19])>=INCs[2] and float(all_glitches[g,19])<=INCs[3]) or
-                                           (float(all_glitches[g,19])>=INCs[4] and float(all_glitches[g,19])<=INCs[5])]
+            keep = [g for g in keep if (float(all_glitches[g,19])>=INCs[0] and float(all_glitches[g,19])<=INCs[1]) or 
+                                       (float(all_glitches[g,19])>=INCs[2] and float(all_glitches[g,19])<=INCs[3]) or
+                                       (float(all_glitches[g,19])>=INCs[4] and float(all_glitches[g,19])<=INCs[5])]
 
         else:
-            print(u'WARNING: INCs list must contain 2 or 4 elements: %s' % INCs)
+            print(u'WARNING: INCs list must contain 2, 4, or 6 elements. Given: %s' % INCs)
 
 
 
-    ### SELECT GLITCHES ON GIVEN `glitch_min_polarization` and `glitch_max_polarization`
-    if glitch_min_polarization != 0 or glitch_max_polarization != 1:
-        glitch_min_polarization = float(glitch_min_polarization)
-        glitch_max_polarization = float(glitch_max_polarization)
-        keep = [g for g in keep if float(all_glitches[g,22])>=glitch_min_polarization and float(all_glitches[g,22])<=glitch_max_polarization]
+    ### SELECT GLITCHES ON GIVEN `INC_Errs`
+    if INC_Errs:
+        if len(INC_Errs)==1:
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,20])<=float(INC_Errs[0])]
+        elif len(INC_Errs)==2:
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,20])>=float(INC_Errs[0]) and float(all_glitches[g,20])<=float(INC_Errs[1])]
+
+
+
+    ### SELECT GLITCHES ON GIVEN `glitch_SNR`
+    if glitch_SNR:
+        if len(glitch_SNR)==1:
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,21])<=float(glitch_SNR[0])]
+        elif len(glitch_SNR)==2:
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,21])>=float(glitch_SNR[0]) and float(all_glitches[g,21])<=float(glitch_SNR[1])]
+
+
+
+    ### SELECT GLITCHES ON GIVEN `glitch_polarization`
+    if glitch_polarization:
+        if len(glitch_polarization)==1:
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,22])<=float(glitch_polarization[0])]
+        elif len(glitch_polarization)==2:
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,22])>=float(glitch_polarization[0]) and float(all_glitches[g,22])<=float(glitch_polarization[1])]
 
 
 
@@ -282,7 +312,7 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], starttime=N
 
     ### CHECK IF WAVEFORM FILES PASSED
     if not waveform_files:
-        print(u'ERROR: You need to specify `waveform_files` in the config.yaml so waveform data can be read.')
+        print(u'ERROR: You need to specify `waveform_files` in the config.yml so waveform data can be read.')
         sys.exit()
 
 
@@ -669,7 +699,7 @@ def plot_glitch_LMST_sol(*glitch_files, run=True, mode='BAZ', outfile='', **kwar
     LMSTs        = np.array( [time.LMST_time.datetime-datetime.timedelta(days=time.sol) for time in glitch_times] )
     sols         = np.array( [time.sol for time in glitch_times] )
     amps         = np.array( np.abs( [glitch[columns[UNIT][0:3]].astype('float') for glitch in all_glitches] ))
-    BAZs         = np.array( [glitch[columns[UNIT][6]].astype('float') for glitch in all_glitches] )
+    AZs         = np.array( [glitch[columns[UNIT][6]].astype('float') for glitch in all_glitches] )
     mini_amp     = np.min( np.abs( amps ))
     maxi_amp     = np.max( np.abs( amps ))
     sols_range   = sorted( set( sols ))
@@ -702,7 +732,7 @@ def plot_glitch_LMST_sol(*glitch_files, run=True, mode='BAZ', outfile='', **kwar
         norm      = mpl.colors.Normalize(vmin=0, vmax=360)
         label     = 'Glitch azimuth'
         scalarMap = cmx.ScalarMappable(norm=norm, cmap=cmap)
-        colours   = np.array( [scalarMap.to_rgba(BAZ) for BAZ in BAZs] )
+        colours   = np.array( [scalarMap.to_rgba(BAZ) for BAZ in AZs] )
 
     cax1 = fig.add_axes([0.005, 0.5, 0.005, 0.4]) # left, bottom, width, height
     cax1.yaxis.set_ticks_position('left')
@@ -899,7 +929,7 @@ def plot_glitch_ppol(glitch_start=None, glitch_length=30, run=True, waveform_fil
     else:
         print(u'Could not find any waveform data corresponding to glitch time.')
 
-def plot_glitch_waveform(*glitch_files, run=True, waveform_files=[], sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, BAZs=[], scale=1, outfile='', **kwargs):
+def plot_glitch_waveform(*glitch_files, run=True, waveform_files=[], sols=[], LMST_range=['0', '24'], min_amp=None, max_amp=None, AZs=[], scale=1, outfile='', **kwargs):
 
 
 
@@ -997,13 +1027,13 @@ def plot_glitch_waveform(*glitch_files, run=True, waveform_files=[], sols=[], LM
 
 
 
-    ### SELECT GLITCHES ON GIVEN `BAZs`
-    if BAZs:
-        BAZs = [float(BAZ) for BAZ in BAZs]
-        if BAZs[0]<=BAZs[1]:    # e.g.: 40 - 300 deg
-            all_glitches = np.array( [glitch for glitch in all_glitches if float(glitch[columns['GAI'][6]])>=BAZs[0] and float(glitch[columns['GAI'][6]])<=BAZs[1]] )
+    ### SELECT GLITCHES ON GIVEN `AZs`
+    if AZs:
+        AZs = [float(BAZ) for BAZ in AZs]
+        if AZs[0]<=AZs[1]:    # e.g.: 40 - 300 deg
+            all_glitches = np.array( [glitch for glitch in all_glitches if float(glitch[columns['GAI'][6]])>=AZs[0] and float(glitch[columns['GAI'][6]])<=AZs[1]] )
         else:                   # e.g.: 300 - 40 deg
-            all_glitches = np.array( [glitch for glitch in all_glitches if float(glitch[columns['GAI'][6]])>=BAZs[0] or  float(glitch[columns['GAI'][6]])<=BAZs[1]] )
+            all_glitches = np.array( [glitch for glitch in all_glitches if float(glitch[columns['GAI'][6]])>=AZs[0] or  float(glitch[columns['GAI'][6]])<=AZs[1]] )
 
 
 

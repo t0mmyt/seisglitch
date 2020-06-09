@@ -39,8 +39,10 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+import urllib
 import numpy as np
 import scipy
+
 
 
 #####  matplotlib modules import  #####
@@ -270,7 +272,7 @@ class Stream2(Stream):
         Print filter of stream, if it was fitlered.
         """
         print( self.current_filter_str )
-    def gain_correction(self, verbose=False): 
+    def gain_correction(self, verbose=False, channel='?[LMH]?'): 
         if self.inventory:
 
             if verbose:
@@ -281,7 +283,7 @@ class Stream2(Stream):
             try:
 
                 if not self.gain_removed:
-                    for trace in self:
+                    for trace in self.select(channel=channel):
                         response   = self.inventory.get_response(trace.id, trace.stats.starttime)
                         gain       = response._get_overall_sensitivity_and_gain()[1]                
                         trace.data = trace.data / gain
@@ -291,7 +293,7 @@ class Stream2(Stream):
                     self.gain_removed = True
 
                 else:
-                    for trace in self:
+                    for trace in self.select(channel=channel):
                         response   = self.inventory.get_response(trace.id, trace.stats.starttime)
                         gain       = response._get_overall_sensitivity_and_gain()[1]                
                         trace.data = trace.data * gain
@@ -307,8 +309,7 @@ class Stream2(Stream):
                 return -1
 
         else:
-            print()
-            print(u'Info: No inventory found. Nothing done.')
+            print(u'INFO: No inventory found. No gain correction done.')
             return 0
     def filtering(self, filter_num):
     
@@ -412,7 +413,7 @@ class Stream2(Stream):
                                      starttime = trace.stats.starttime, 
                                      endtime   = trace.stats.endtime)
             if verbose:
-                print(u'Info: Inventory used that was passed.')
+                print(u'INFO: Inventory used that was passed.')
 
 
         elif os.path.isfile(source):
@@ -426,7 +427,7 @@ class Stream2(Stream):
                                         starttime = trace.stats.starttime, 
                                         endtime   = trace.stats.endtime)
             if verbose:            
-                print(u"Info: Inventory read from file '%s'." % source)
+                print(u"INFO: Inventory read from file '%s'." % source)
 
 
         else:
@@ -441,7 +442,7 @@ class Stream2(Stream):
                                            endtime   = trace.stats.endtime,
                                            level     = 'response')                
             if verbose:
-                print(u"Info: Inventory retrieved online from '%s'." % source)
+                print(u"INFO: Inventory retrieved online from '%s'." % source)
 
         return inv
     def _set_inventory(self, source='IPGP', verbose=True):
@@ -1383,6 +1384,113 @@ def mars_list(sols_range=[], hms='120000', is_UTC=False):
             time_mars    = marstime( LMST_time=LMST_time )
 
         print('%s    %s' % (time_mars.UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), time_mars.LMST))
+def download_data(outdir=os.getcwd(), 
+    starttime='2019-04-10T00:00:00', 
+    endtime='2019-04-11T00:00:00', 
+    network='XB', 
+    station='ELYSE', 
+    location='02', 
+    channel='BH?', 
+    source='IRIS', 
+    username='', 
+    password='', 
+    gain_correction=False, 
+    remove_response=False, 
+    rotate2zne=False, 
+    format_DATA='MSEED', 
+    format_INV='STATIONXML'):
+
+    """
+    :copyright:
+        Simon Staehler (simon.staehler@erdw.ethz.ch), 2018
+        with a fair amount of changes by John-Robert Scholz, 2020.
+    """
+
+    # Variables
+    if not outdir:
+        outdir = os.getcwd()
+    os.makedirs(outdir, exist_ok=True)
+    starttime       = UTCDateTime(starttime)
+    endtime         = UTCDateTime(endtime)
+    network         = str(network)
+    station         = str(station)
+    location        = str(location)
+    channel         = str(channel)
+    username        = str(username)
+    password        = str(password)
+    if remove_response:
+        remove_response = str(remove_response).upper()
+
+    # Client
+    if username and password and username!='None' and password!='None':
+        client = Client(source, user=username, password=password)
+    else:
+        client = Client(source)
+
+    # Waveform data
+    st = client.get_waveforms(network   = network,
+                              station   = station,
+                              location  = location,
+                              channel   = channel,
+                              starttime = starttime,
+                              endtime   = endtime)
+    st = Stream2(st)
+    st._set_inventory(source=source, verbose=False)
+    print()
+
+    # Paths
+    times           = st.times
+    request         = '%s.%s.%s.%s' % (network, station, location, channel)
+    outfile_inv     = os.path.join(outdir, 'inventory.xml')
+    oufile_raw      = os.path.join(outdir, '%s_%s-%s_raw.%s'      % (request,st.times[0],st.times[1],format_DATA))
+    oufile_gain     = os.path.join(outdir, '%s_%s-%s_gain.%s'     % (request,st.times[0],st.times[1],format_DATA))
+    oufile_gain_rot = os.path.join(outdir, '%s_%s-%s_gain_rot.%s' % (request,st.times[0],st.times[1],format_DATA))
+    outfile_rem     = os.path.join(outdir, '%s_%s-%s_%s.%s'       % (request,st.times[0],st.times[1],remove_response,format_DATA))
+    outfile_rem_rot = os.path.join(outdir, '%s_%s-%s_%s_rot.%s'   % (request,st.times[0],st.times[1],remove_response,format_DATA))
+
+    # Processing
+    st.inventory.write(outfile_inv, format=format_INV)
+    print(u'INFO: written inventory file to:                %s' % outfile_inv)
+
+    st.write(oufile_raw, format=format_DATA)
+    print(u'INFO: written raw waveform data to:             %s' % oufile_raw)
+
+
+    if gain_correction:
+        st_gain = st.copy()
+        st_gain.gain_correction(channel='?[LMH]?')
+    
+        if rotate:
+            st_gain.rotate('->ZNE', inventory=st_gain.inventory, components=('UVW'))
+            st_gain.write(oufile_gain_rot, format=format_DATA)
+            print(u'INFO: written gain corrected + rotated data to: %s' % oufile_gain_rot)
+        else:
+            st_gain.write(oufile_gain, format=format_DATA)
+            print(u'INFO: written gain corrected data to:           %s' % oufile_gain)
+
+
+    if remove_response:
+        st_rem = st.copy()
+        st_rem.detrend(type='demean')
+        st_rem.taper(0.1)
+        st_rem.detrend()
+        st_seis = st_rem.select(channel='?[LMH]?')
+        for tr in st_seis:
+            try:
+                tr.remove_response(st_rem.inventory, output=remove_response, pre_filt=None, water_level=60)
+            except ValueError:
+                print(u'WARNING: Could not remove response for channel: %s' % tr)
+
+        if rotate:
+            st_seis.rotate('->ZNE', inventory=st_rem.inventory, components=('UVW'))
+            st_rem.write(outfile_rem_rot, format=format_DATA)
+            print(u'INFO: written %s waveform + rotated data to:   %s' % (remove_response[:3], outfile_rem_rot))
+        else:
+            st_rem.write(outfile_rem, format=format_DATA)
+            print(u'INFO: written %s waveform data to:             %s' % (remove_response[:3], outfile_rem))            
+
+
+    print(u'Finished.')
 
 
 # Other
@@ -1396,7 +1504,7 @@ def pierce_stream(stream, merge_before=False, ids=None, minimum_sample_length=2,
 
     NOTE: all unique traces in stream are considered. so if there are 5 different traces, the
     resulting streams will have the start and end times where all 5 traces are present, nothing more.
-    So make sure stream contains only those traces that you'd like.
+    So make sure the stream contains from the beginning only those traces that you'd like.
 
     New stream is sorted and then returned.
     """
@@ -1455,11 +1563,12 @@ def pierce_stream(stream, merge_before=False, ids=None, minimum_sample_length=2,
 
                 else:
                     pierced_stream = Stream2(traces=possibility)        
-                    pierced_stream = pierced_stream.copy()          # necessary as otherwise you also trim `possibilities` (which one don't wants)
+                    pierced_stream = pierced_stream.copy()          # necessary as otherwise you also trim `possibilities` (which one doesn't want)
                     try:
                         pierced_stream.trim2(common=True, nearest_sample=NEAREST_SAMPLE)
                         if pierced_stream[0].stats.npts >= minimum_sample_length:
-                            return_stream += pierced_stream
+                            if all(pierced_stream[0].stats.starttime!=trace.stats.starttime or pierced_stream[0].stats.endtime!=trace.stats.endtime for trace in return_stream):
+                                return_stream += pierced_stream
                     except ValueError:                              # can happen that `pierced_stream` has traces not overlapping at all, then continue
                         continue
 
@@ -1512,7 +1621,7 @@ def glitch_statistic(glitches, total_time_s_UTC):
 
     else:
         return 0, 0, 0, 0, 0, 0, 0, 0, np.nan
-def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=True):
+def merge_glitch_detector_files(glitch_detector_files, outfile, starttime_sort=True, multiples_out=None):
 
     """
     Merging together glitch extration files produced by `glitch_detector`.
@@ -1521,8 +1630,6 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
 
 
     now                   = time.time()
-    glitch_detector_files = get_files(path, pattern=pattern)
-
 
 
     ### SANITY CHECK
@@ -1531,12 +1638,10 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
         sys.exit()
 
 
-
     ### OUTPUT
     print(u'Merging the following files:')
     for file in glitch_detector_files:
         print(file)
-
 
 
     ### RETRIEVE HEADER AND ALL DATA
@@ -1558,10 +1663,44 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
 
     ### SORTING
     if starttime_sort:
-        data_to_sort = np.array( [line.split() for line in data] )
-        sort_indices = data_to_sort[:,1].argsort()
+        data_sort    = np.array( [line.split() for line in data] )
+        sort_indices = data_sort[:,1].argsort()
         data         = np.array(data)
         data         = data[sort_indices]
+
+
+    ### MULTIPLES OUT
+    if multiples_out:
+
+        multiples_out = float(multiples_out)
+        data_keep     = np.array( [line.split() for line in data] )
+        discard       = []
+
+        if starttime_sort:
+            for i in range(len(data_keep)):
+                j = i+1
+                while True:
+                    try:
+                        if UTCDateTime(data_keep[i][1])+multiples_out>UTCDateTime(data_keep[j][1]):
+                            discard.append(j)
+                            j += 1
+                        else:
+                            break
+                    except IndexError:
+                        break
+
+        else:
+            for i in range(len(data_keep)):
+                for j in range(len(data_keep)):
+                    if i==j:
+                        continue
+                    if UTCDateTime(data_keep[i][1])+multiples_out>UTCDateTime(data_keep[j][1]):
+                        discard.append(j)
+
+        print(u'Discarded %s glitches that occured within %s s to another glitch.' % (len(discard),multiples_out))
+        data = np.array(data)
+        keep = [i for i in range(len(data_keep)) if i not in discard]
+        data = data[keep]
 
 
     ### STATISTICS    
@@ -1572,7 +1711,6 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
         if days.rstrip():
             total_UTC += int(days) * 24*3600
         total_UTC += int(hours) * 3600
-        total_UTC += int(minutes) * 60
         total_UTC += int(seconds) 
 
 
@@ -1623,7 +1761,7 @@ def merge_glitch_detector_files(outfile, path='', pattern='*', starttime_sort=Tr
 
     ### OUTPUT
     print()
-    print(u'Merged glitch file to:')
+    print(u'Merged glitch file:')
     print(outfile)
 def read_config(config_file):
 
@@ -1689,49 +1827,6 @@ def sec2hms(seconds, digits=0):
     string = string.rstrip('.')
 
     return string
-def get_files(this, pattern='*'):
-
-    """
-    Return all files in dir 'this' (and sub-directories) if 'this' is dir,
-    or return file (if 'this' is file). You may use 'pattern' to search only for
-    certain file name patterns (eg: file endings, station names, ..).
-
-    Script uses os.walk and thus lists all files in a directory, meaning also
-    those in sub-directories. Bash wildcards are understood, python regex not. 
-
-    :type this: str
-    :param this: file or dir (bash wildcards work)
-
-    :type pattern: str
-    :param pattern: pattern to filter file(s) (bash wildcards work)
-    
-    :return: list of files (or empty list, if no matching files were found)
-    """
-    
-
-    ### get files from 'this' to loop over
-    uber  = glob.glob(this)
-    files = []
-
-    try:
-        for u in uber:
-            if os.path.isfile(u):
-                files.append(u)
-
-            else:
-                # walk trough (sub)-directory and put ALL files into 'files'
-                for root, dirs, files_walk in os.walk(u):
-                    for file_walk in files_walk:
-
-                        # take care on 'pattern'
-                        file = os.path.join( root,file_walk )
-                        if fnmatch.fnmatch( os.path.basename(file), pattern ) and not file in files:
-                            files.append( file )
-
-    except Exception:
-        files = []
-
-    return sorted(files)
 def decimate_SEIS(trace, decimation_factor, verbose=True):
 
     """
@@ -1740,6 +1835,10 @@ def decimate_SEIS(trace, decimation_factor, verbose=True):
     """
 
     decimation_factor = int(decimation_factor)
+
+    if decimation_factor is 1:
+        return trace
+
     coeffs, delay = SEIS_FIR_coefficients(decimation_factor)
     if not coeffs:
         return trace
@@ -1760,7 +1859,7 @@ def decimate_SEIS(trace, decimation_factor, verbose=True):
     trace.stats.delta = new_delta
 
     if verbose:
-        print(u'Info: Decimated trace by factor %s.' % decimation_factor)
+        print(u'INFO: Decimated trace by factor %s.' % decimation_factor)
 def SEIS_FIR_coefficients(decimation_factor):
 
     """
@@ -1881,7 +1980,7 @@ def SEIS_FIR_coefficients(decimation_factor):
                                     , -0.00079061883]
     else:
         print(u'WARNING: Only decimation factors 2 .. 7 are implmented currently. Choose another decimation factor or provide FIRs within the code.')
-        return False
+        return False, False
 
     delay  = len(coeffs)-1
     coeffs = coeffs[-1:0:-1] + coeffs
@@ -1919,6 +2018,7 @@ def normalise(data, scale_to_between=[]):
         data /= max(abs(data))
 
     return data
+
 
 # Ppol (P-wave Polarization)
 class ppol():
@@ -2669,44 +2769,6 @@ class ppol():
         """
 
         print(self.__str__(tag=tag, print_3D=print_3D)) 
-
-# Mathematical
-def coherence(data1, data2, fs=1.0, window='hann', nperseg=256, noverlap=None, nfft=None, detrend='constant', freq_bounds=[]):
-
-    """
-    La cohérence avec la pression avec la composante Z (plutôt la journée) entre 0.05Hz et 0.2 Hz.
-    Et les horizontaux à plus basses fréquences (0.02-0.1).
-
-
-    Check:
-      https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html#r34b375daf612-1
-      https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.signal.csd.html
-
-
-    Return: - one-sided frequencies (positive), 
-            - coherence array, 
-            - coherence value as average of coherence arraybetween `freq_bounds`
-    """
-
-    data1     = np.array( data1 )
-    data2     = np.array( data2 )
-
-    f11, P11  = scipy.signal.csd(data1, data1, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap, nfft=nfft, detrend=detrend, return_onesided=True, scaling='density', axis=-1)
-    f22, P22  = scipy.signal.csd(data2, data2, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap, nfft=nfft, detrend=detrend, return_onesided=True, scaling='density', axis=-1)
-    f12, P12  = scipy.signal.csd(data1, data2, fs=fs, window=window, nperseg=nperseg, noverlap=noverlap, nfft=nfft, detrend=detrend, return_onesided=True, scaling='density', axis=-1)       #P12 is complex
-
-    coh_array = P12 * np.conj(P12) / (P11 * P22)
-
-    if freq_bounds:
-        idx1  = ( np.abs( np.array(f11)-freq_bounds[0]) ).argmin()
-        idx2  = ( np.abs( np.array(f11)-freq_bounds[1]) ).argmin()
-    else:
-        idx1  = None
-        idx2  = None
-
-    coh_value = np.real( np.average(coh_array[idx1:idx2]) )
-    
-    return f11, coh_array, coh_value
 
 
 # Plot related

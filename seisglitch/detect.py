@@ -61,7 +61,7 @@ def detect(*RAW_UVW,
     
 
     """
-    ...
+    WRITE DOCSTRING.
     """
 
 
@@ -75,13 +75,13 @@ def detect(*RAW_UVW,
 
     ### FIXED PARAMETERS
     DATA_MIN_LENGTH = 300      # in s
-    OFFSET_AMP      = 1        # in s, avoiding determining glitch amplitude on glitch precursors
+    OFFSET_AMP      = 1        # in s, avoiding determining glitch amplitude on glitch precursors for majority of cases
 
 
 
     ### SOME VARIABLES
     header         = u'   0                    1                    2              3              4           5         6         7             8          9         10           11         12         13         14         15         16            17              18              19              20              21          22\n' \
-                     u' NUM         GLITCH-UTC-S         GLITCH-UTC-E  GLITCH-LMST-S  GLITCH-LMST-E    U-GLITCH  V-GLITCH  W-GLITCH         U-RAW      V-RAW      W-RAW        U-GAI      V-GAI      W-GAI      Z-GAI      N-GAI      E-GAI    PHI_3D_GAI  PHI_ERR_3D_GAI      INC_3D_GAI  INC_ERR_3D_GAI      SNR_3D_GAI  POL_3D_GAI\n' \
+                     u' NUM         GLITCH-UTC-S         GLITCH-UTC-E  GLITCH-LMST-S  GLITCH-LMST-E    U-GLITCH  V-GLITCH  W-GLITCH         U-RAW      V-RAW      W-RAW        U-GAI      V-GAI      W-GAI      Z-GAI      N-GAI      E-GAI    AZI_3D_GAI  AZI_ERR_3D_GAI      INC_3D_GAI  INC_ERR_3D_GAI      SNR_3D_GAI  POL_3D_GAI\n' \
                      u'--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------'
     line_formatter = u'%06d  %19s  %19s  %13s  %13s    %8d  %8d  %8d     %9d  %9d  %9d    %9.3g  %9.3g  %9.3g  %9.3g  %9.3g  %9.3g    %10.1f  %14.1f  %14.1f  %14.1f  %14.3g  %10.3f'
         
@@ -92,17 +92,18 @@ def detect(*RAW_UVW,
     
 
         ### READ DATA
-        now          = time.time()        
-        stream       = read2(RAW_UVW[o])
-        stream_ids   = sorted(set( stream._get_ids() ))
-        stream_comps = sorted(set( stream._get_components() ))
-        stream_times = [marstime(time) for time in stream.times]
+        now           = time.time()        
+        stream        = read2(RAW_UVW[o])
+        stream_select = stream.select(channel='?[LMH]?')
+        stream_ids    = sorted(set( stream_select._get_ids() ))
+        stream_comps  = sorted(set( stream_select._get_components() ))
+        stream_times  = [marstime(time) for time in stream_select.times]
 
 
         ### OUTPUT
         print()
         print()
-        print(u'Info: Analysing file: %s/%s' % (o+1,len(RAW_UVW)))
+        print(u'INFO: Analysing seismic traces of file: %s/%s' % (o+1,len(RAW_UVW)))
         print(RAW_UVW[o])
         for trace in stream:
             print('  %s' % trace)
@@ -110,7 +111,7 @@ def detect(*RAW_UVW,
 
         ### SANITY CHECK
         if len(stream_ids) != 3:
-            print(u'ERROR: Found %s instead of 3 trace ids in file: %s' % (len(stream_ids), ', '.join(stream_ids)))
+            print(u'ERROR: Found %s instead of 3 seismic trace ids in file: %s' % (len(stream_ids), ', '.join(stream_ids)))
             print(u'       Cannot perform analysis.')
             continue
         if 'U' not in stream_comps or 'V' not in stream_comps or 'W' not in stream_comps:
@@ -128,37 +129,50 @@ def detect(*RAW_UVW,
         glitch_counter         = 0
         print_counter          = 0
 
-
-        for stream2 in stream.slide(12*3600, (1-2*taper_length_per_side)*12*3600-60, offset=0, include_partial_windows=True, nearest_sample=True):
+        for stream2 in stream_select.slide(12*3600, (1-2*taper_length_per_side)*12*3600-60, offset=0, include_partial_windows=True, nearest_sample=True):
 
             start_read                = min([str(tr.stats.starttime) for tr in stream2]) 
             end_read                  = max([str(tr.stats.endtime)   for tr in stream2])
             stWORK                    = read2(RAW_UVW[o], starttime=UTCDateTime(start_read), endtime=UTCDateTime(end_read))
             streamU, streamV, streamW = pierce_stream(stWORK, minimum_sample_length=10, ids=stream_ids)
 
-
             for traceU, traceV, traceW in zip(streamU, streamV, streamW):
 
-                glitch_dict = {}
+                glitch_dict           = {}
 
 
                 ## PRINT INFORMATION
                 print()
-                print(u'Info: Preparing data.')
+                print(u'INFO: Preparing data.')
                 print('  %s' % traceU)
                 print('  %s' % traceV)
                 print('  %s' % traceW)
 
 
-                ## PREPARE DATA
+                ## DATA assignment
+                stRAW = Stream2(traces=[traceU, traceV, traceW])
+                stRAW.sort(reverse=False)                    # Sorted: U then V then W: if you change this, god may stand by your side
+                data_start, data_end  = [marstime(time) for time in stRAW.times]
+
+
+                ## SANITY CHECK
+                if data_end.UTC_time-data_start.UTC_time<DATA_MIN_LENGTH:
+                    print(u'WARNING: Time length <%s s. Too little for proper analysis. Probably related to data overlaps. Skipped.' % DATA_MIN_LENGTH)
+                    continue
+
+                total_data_time_UTC  += data_end.UTC_time  - data_start.UTC_time
+                total_data_time_LMST += data_end.LMST_time - data_start.LMST_time
+
+
+                ## PREPARE RAW DATA
                 # downsampling
-                for trace in [traceU, traceV, traceW]:
+                for trace in stRAW:
                     if trace.stats.sampling_rate==100:
                         decimate_SEIS(trace, 5, verbose=False)      # SPS then 20
                         decimate_SEIS(trace, 5, verbose=False)      # SPS then 4
                         decimate_SEIS(trace, 2, verbose=False)      # SPS then 2
                     elif trace.stats.sampling_rate==25:
-                        print('WARNING: Input sampling rate %s. Cannot go to 2 SPS but only 2.5 SPS. Slight differences in detection may be expected.' % trace.stats.sampling_rate)
+                        print(u'WARNING: Input sampling rate %s. Cannot go to 2 SPS but only 2.5 SPS. Slight differences in detection may be expected.' % trace.stats.sampling_rate)
                         decimate_SEIS(trace, 5, verbose=False)      # SPS then 5
                         decimate_SEIS(trace, 2, verbose=False)      # SPS then 2.5
                     elif trace.stats.sampling_rate==20:
@@ -167,40 +181,30 @@ def detect(*RAW_UVW,
                     elif trace.stats.sampling_rate==10:
                         decimate_SEIS(trace, 5, verbose=False)      # SPS then 2
                     elif trace.stats.sampling_rate==5:
-                        print('WARNING: Input sampling rate %s. Cannot go to 2 SPS but only 2.5 SPS. Slight differences in detection may be expected.' % trace.stats.sampling_rate)
+                        print(u'WARNING: Input sampling rate %s. Cannot go to 2 SPS but only 2.5 SPS. Slight differences in detection may be expected.' % trace.stats.sampling_rate)
                         decimate_SEIS(trace, 2, verbose=False)      # SPS then 2.5
                     elif trace.stats.sampling_rate==4:
                         decimate_SEIS(trace, 2, verbose=False)      # SPS then 2
                     elif trace.stats.sampling_rate<2:
-                        print('WARNING: Input sampling rate %s < 2 SPS. Slight differences in detection may be expected.' % trace.stats.sampling_rate)                
+                        print(u'WARNING: Input sampling rate %s < 2 SPS. Slight differences in detection may be expected.' % trace.stats.sampling_rate)                
                     else:
                         pass
 
-                # data assignment
-                stRAW = Stream2(traces=[traceU, traceV, traceW])
-                stRAW.sort(reverse=False)                    # Sorted: U then V then W: if you change this, god may stand by your side
+
+                ## SANITY CHECK 2
                 stRAW_sampling_rates  = sorted(set( stRAW._get_sampling_rates() ))
-                data_start, data_end  = [marstime(time) for time in stRAW.times]
-
-
-                ## SANITY CHECK
-                if data_end.UTC_time-data_start.UTC_time<DATA_MIN_LENGTH:
-                    print(u'WARNING: Time length <%s s. Too little for proper analysis. Probably related to data overlaps. Skipped.' % DATA_MIN_LENGTH)
-                    continue
                 if len(stRAW_sampling_rates) != 1:
-                    print(u'ERROR: Found %s different sampling rates: %s Hz. They all need to be equal.' % (len(stRAW_sampling_rates), ', Hz'.join(len(stRAW_sampling_rates))))
+                    print(u'ERROR: Found %s different sampling rates after decimation: %s Hz. They all need to be equal.' % (len(stRAW_sampling_rates), ', Hz'.join(len(stRAW_sampling_rates))))
                     print(u'       Cannot perform analysis.')
                     continue                
 
-                total_data_time_UTC  += data_end.UTC_time  - data_start.UTC_time
-                total_data_time_LMST += data_end.LMST_time - data_start.LMST_time
 
-
-                ## PREPARE DATA MORE
+                ## PREPARE RAW DATA 2
                 stRAW._set_inventory(source=inventory_file)      # get & set station inventory for stream (response information)
                 if not stRAW.inventory:                          # Inventory file empty, i.e., for given trace no information available
                     print(u'WARNING: Could not find meta-data for given trace(s). Skipped.')
                     continue
+
                 stGAI = stRAW.copy()
                 if stGAI.gain_correction() == -1:                # Could not gain correct although inventory file given for traces. ==> Inv file maybe faulty
                     log_file = os.path.join(os.getcwd(), 'inventory_error.log')
@@ -211,7 +215,7 @@ def detect(*RAW_UVW,
 
 
                 ## PREPARE ACCELERATION DATA
-                print(u'Info: Removing instrument response, using `pre_filt` and/or `water_level`.')
+                print(u'INFO: Removing instrument response, using `pre_filt` and/or `water_level`.')
 
                 stACC = stRAW.copy()
                 stACC.remove_response(inventory=stACC.inventory, output='ACC',  pre_filt=eval(str(pre_filt)), water_level=eval(str(water_level)))
@@ -228,9 +232,9 @@ def detect(*RAW_UVW,
 
 
                 ## FIND PEAKS FOR EACH OF UVW-COMPONENTS = GLITCH-STARTS FOR EACH OF THE COMPONENTS INDIVIDUALLY !
-                print(u'Info: Finding peaks in time derivative of filtered acceleration, using `ACCfilter` and `threshold`.')
+                print(u'INFO: Finding peaks in time derivative of filtered acceleration, using `ACCfilter` and `threshold`.')
 
-                glitch_start_times = [[] for i in range(len(stWORK))]
+                glitch_start_times = [[] for i in range(len(stACC_grad))]
                 for l in range(len( stACC_grad )):
 
                     peaks_all,  _ = scipy.signal.find_peaks(np.abs(stACC_grad[l].data))            
@@ -275,10 +279,10 @@ def detect(*RAW_UVW,
                 ## SHOW TRIGGERING, if wished
                 if plot_triggering:
 
-                    print(u'Info: Triggering plot: Triggering on derivative of filtered acceleration data is only done on parts not affected by taper.')
-                    print(u'Info: Triggering plot: Amplitudes are scaled so plots are readable, they do not reflect true amplitude values.')
-                    print(u'Info: Triggering plot: Glitches will still be unified across components according to `glitch_min_dist`.')
-                    print(u'Info: Triggering plot: Glitches will still be excluded based on their polarization, according to `glitch_min_polarization`.')
+                    print(u'INFO: Triggering plot: Triggering on derivative of filtered acceleration data is only done on parts not affected by taper.')
+                    print(u'INFO: Triggering plot: Amplitudes are scaled so plots are readable, they do not reflect true amplitude values.')
+                    print(u'INFO: Triggering plot: Glitches will still be unified across components according to `glitch_min_dist`.')
+                    print(u'INFO: Triggering plot: Glitches will still be excluded based on their polarization, according to `glitch_min_polarization`.')
 
                     for p, comp in enumerate(stream_comps):
                         ACC_der = stACC_grad.copy()
@@ -304,7 +308,7 @@ def detect(*RAW_UVW,
 
 
                 ## UNIFY GLITCH START TIMES ACROSS UVW-COMPONENTS (using parameter: `glitch_min_dist` given in seconds)
-                print(u'Info: Unifying glitches across components, using `glitch_min_dist`.')
+                print(u'INFO: Unifying glitches across components, using `glitch_min_dist`.')
 
                 if all(not list(liste) for liste in glitch_start_times):       # no possible glitches detected
                     continue                    
@@ -345,129 +349,136 @@ def detect(*RAW_UVW,
                         glitch_dict[str(unified_glitch_start)]  = unified_glitch_comps
 
 
-            ## CALCULATE GLITCH PARAMETERS (e.g. AMPLITUDES, BACKAZIMUTHS, INCIDENCE ANGLES, SNRs, POLARIZATIONS)
-            glitch_time_comps = np.array( [[UTCDateTime(time), ''.join(sorted(set(glitch_dict[time]))) ] for time in glitch_dict.keys()] )
-            if glitch_time_comps.size==0:
-                print(u'Info: No glitches found.')
-                continue
-            else:
-                print(u'Info: Verifying glitches, using `glitch_min_polarization`.')
-            glitch_time_comps = glitch_time_comps[np.argsort(glitch_time_comps[:,0])]         # time sorted, chronologic
-
-            disregard_counter = 0
-            for glitch_UTC_start, comps in glitch_time_comps:
-
-                ## Prepare data outputs
-                glitch_time_start = marstime(glitch_UTC_start)
-                glitch_time_end   = marstime(glitch_UTC_start+glitch_length)
-                offset            = int(OFFSET_AMP * stRAW_sampling_rates[0])         # 1 second (in samples) offset to avoid "FIR"-precursors 
-
-                ## Glitch flag per UVW-component 
-                if 'U' in comps:
-                    U_GLITCH = 1
-                else:
-                    U_GLITCH = 0
-                
-                if 'V' in comps:
-                    V_GLITCH = 1
-                else:
-                    V_GLITCH = 0
-
-                if 'W' in comps:
-                    W_GLITCH = 1
-                else:
-                    W_GLITCH = 0
-
-                ## Polarization check
-                stGAI_window = stGAI.copy()
-                stGAI_window.trim(starttime=glitch_UTC_start, endtime=glitch_UTC_start+glitch_length)
-                stGAI_window.rotate('->ZNE', inventory=stRAW.inventory, components=('UVW'))
-                GAI_measurement = ppol(stream=stGAI_window, demean=True, fix_angles='AMP', Xoffset_samples_for_amplitude=offset)
-                PHI_3D_GAI, PHI_err_3D_GAI, INC_3D_GAI, INC_err_3D_GAI, SNR_3D_GAI, POL_3D_GAI = np.asarray( GAI_measurement.results )[[2,3,6,7,9,13]]
-
-                # exclude glitches with polarization < `glitch_min_polarization` 
-                # (glitches have high polarization, thus this condition intends to throw out non-glitches)
-                if POL_3D_GAI < float( glitch_min_polarization ):
-                    disregard_counter += 1
-                    if disregard_counter==len(glitch_time_comps):
-                        print(u'Info: No glitches found.')
+                ## CALCULATE GLITCH PARAMETERS (e.g. AMPLITUDES, AZIMUTHS, INCIDENCE ANGLES, SNRs, POLARIZATIONS)
+                glitch_time_comps = np.array( [[UTCDateTime(time), ''.join(sorted(set(glitch_dict[time]))) ] for time in glitch_dict.keys()] )
+                if glitch_time_comps.size==0:
+                    print(u'INFO: No glitches found.')
                     continue
+                else:
+                    print(u'INFO: Verifying glitches, using `glitch_min_polarization`.')
+                glitch_time_comps = glitch_time_comps[np.argsort(glitch_time_comps[:,0])]         # time sorted, chronologic
 
-                ## Glitch amplitudes
-                stRAW_window = stRAW.copy()
-                stRAW_window.trim(starttime=glitch_UTC_start, endtime=glitch_UTC_start+glitch_length)
+                disregard_counter = 0
+                for glitch_UTC_start, comps in glitch_time_comps:
 
-                stZNE = stGAI_window.copy()
-                stZNE.rotate('->ZNE', inventory=stRAW.inventory, components=('UVW'))
-                stZNE.sort(reverse=True)
-                stGAI_window += stZNE    # having in GAI (overall sensitivity and gain corrected): UVWZNE (in that order)    
-                
-                # demean
-                stRAW_window.detrend('demean')
-                stGAI_window.detrend('demean')
+                    ## Prepare data outputs
+                    glitch_time_start = marstime(glitch_UTC_start)
+                    glitch_time_end   = marstime(glitch_UTC_start+glitch_length)
+                    offset            = int(OFFSET_AMP * stRAW_sampling_rates[0])                # 1 second (in samples) offset to avoid glitch precursors 
 
-                # assign data for amplitude determination
-                data_U_RAW = stRAW_window[0].data
-                data_V_RAW = stRAW_window[1].data
-                data_W_RAW = stRAW_window[2].data
-                data_U_GAI = stGAI_window[0].data
-                data_V_GAI = stGAI_window[1].data
-                data_W_GAI = stGAI_window[2].data
-                data_Z_GAI = stGAI_window[3].data
-                data_N_GAI = stGAI_window[4].data
-                data_E_GAI = stGAI_window[5].data
+                    ## Glitch flag per UVW-component 
+                    if 'U' in comps:
+                        U_GLITCH = 1
+                    else:
+                        U_GLITCH = 0
+                    
+                    if 'V' in comps:
+                        V_GLITCH = 1
+                    else:
+                        V_GLITCH = 0
 
-                # get UVWZNE peak2peak amplitudes of glitches                
-                U_RAW  = np.abs (data_U_RAW[offset:][np.argmax(data_U_RAW[offset:])] - data_U_RAW[offset:][np.argmin(data_U_RAW[offset:])] )
-                V_RAW  = np.abs (data_V_RAW[offset:][np.argmax(data_V_RAW[offset:])] - data_V_RAW[offset:][np.argmin(data_V_RAW[offset:])] )
-                W_RAW  = np.abs (data_W_RAW[offset:][np.argmax(data_W_RAW[offset:])] - data_W_RAW[offset:][np.argmin(data_W_RAW[offset:])] )
+                    if 'W' in comps:
+                        W_GLITCH = 1
+                    else:
+                        W_GLITCH = 0
 
-                U_GAI  = np.abs (data_U_GAI[offset:][np.argmax(data_U_GAI[offset:])] - data_U_GAI[offset:][np.argmin(data_U_GAI[offset:])] )
-                V_GAI  = np.abs (data_V_GAI[offset:][np.argmax(data_V_GAI[offset:])] - data_V_GAI[offset:][np.argmin(data_V_GAI[offset:])] )
-                W_GAI  = np.abs (data_W_GAI[offset:][np.argmax(data_W_GAI[offset:])] - data_W_GAI[offset:][np.argmin(data_W_GAI[offset:])] )
-                Z_GAI  = np.abs (data_Z_GAI[offset:][np.argmax(data_Z_GAI[offset:])] - data_Z_GAI[offset:][np.argmin(data_Z_GAI[offset:])] )
-                N_GAI  = np.abs (data_N_GAI[offset:][np.argmax(data_N_GAI[offset:])] - data_N_GAI[offset:][np.argmin(data_N_GAI[offset:])] )
-                E_GAI  = np.abs (data_E_GAI[offset:][np.argmax(data_E_GAI[offset:])] - data_E_GAI[offset:][np.argmin(data_E_GAI[offset:])] )
+                    ## Polarization check
+                    stGAI_window = stGAI.copy()
+                    stGAI_window.trim(starttime=glitch_UTC_start, endtime=glitch_UTC_start+glitch_length)
+                    stGAI_window.rotate('->ZNE', inventory=stRAW.inventory, components=('UVW'))
+                    GAI_measurement = ppol(stream=stGAI_window, demean=True, fix_angles='AMP', Xoffset_samples_for_amplitude=offset)
+                    AZI_3D_GAI, AZI_err_3D_GAI, INC_3D_GAI, INC_err_3D_GAI, SNR_3D_GAI, POL_3D_GAI = np.asarray( GAI_measurement.results )[[2,3,6,7,9,13]]
 
-                ## Collect all glitch measures
-                glitch_counter += 1                
-                glitch = glitch_counter, \
-                         glitch_time_start.UTC,  \
-                         glitch_time_end.UTC,    \
-                         glitch_time_start.LMST, \
-                         glitch_time_end.LMST,   \
-                         U_GLITCH, \
-                         V_GLITCH, \
-                         W_GLITCH, \
-                         U_RAW, \
-                         V_RAW, \
-                         W_RAW, \
-                         U_GAI, \
-                         V_GAI, \
-                         W_GAI, \
-                         Z_GAI, \
-                         N_GAI, \
-                         E_GAI, \
-                         PHI_3D_GAI,     \
-                         PHI_err_3D_GAI, \
-                         INC_3D_GAI,     \
-                         INC_err_3D_GAI, \
-                         SNR_3D_GAI,     \
-                         POL_3D_GAI
+                    # exclude glitches with polarization < `glitch_min_polarization` 
+                    # (glitches have high polarization, thus this condition intends to throw out non-glitches)
+                    if POL_3D_GAI < float( glitch_min_polarization ):
+                        disregard_counter += 1
+                        if disregard_counter==len(glitch_time_comps):
+                            print(u'INFO: No glitches found.')
+                        continue
 
-                glitches_text.append(line_formatter % glitch)
-                glitches.append(glitch)
+                    ## Glitch amplitudes
+                    stRAW_window = stRAW.copy()
+                    stRAW_window.trim(starttime=glitch_UTC_start, endtime=glitch_UTC_start+glitch_length)
 
-                ## Output to user
-                if glitch_counter%5 == 0:
+                    stZNE = stGAI_window.copy()
+                    stZNE.rotate('->ZNE', inventory=stRAW.inventory, components=('UVW'))
+                    stZNE.sort(reverse=True)
+                    stGAI_window += stZNE    # having in GAI (overall sensitivity and gain corrected): UVWZNE (in that order)    
+                    
+                    # demean
+                    stRAW_window.detrend('demean')
+                    stGAI_window.detrend('demean')
 
-                    if print_counter == 0:
-                        print_counter += 1
-                        print()
-                        for header_line in header.split('\n')[1:]:
-                            print('# ' + header_line[:108])
+                    # assign data for amplitude determination
+                    data_U_RAW = stRAW_window[0].data
+                    data_V_RAW = stRAW_window[1].data
+                    data_W_RAW = stRAW_window[2].data
+                    data_U_GAI = stGAI_window[0].data
+                    data_V_GAI = stGAI_window[1].data
+                    data_W_GAI = stGAI_window[2].data
+                    data_Z_GAI = stGAI_window[3].data
+                    data_N_GAI = stGAI_window[4].data
+                    data_E_GAI = stGAI_window[5].data
 
-                    print( (line_formatter % glitch)[:110] )
+                    # get UVWZNE peak2peak amplitudes of glitches                
+                    U_RAW  = np.abs (data_U_RAW[offset:][np.argmax(data_U_RAW[offset:])] - data_U_RAW[offset:][np.argmin(data_U_RAW[offset:])] )
+                    V_RAW  = np.abs (data_V_RAW[offset:][np.argmax(data_V_RAW[offset:])] - data_V_RAW[offset:][np.argmin(data_V_RAW[offset:])] )
+                    W_RAW  = np.abs (data_W_RAW[offset:][np.argmax(data_W_RAW[offset:])] - data_W_RAW[offset:][np.argmin(data_W_RAW[offset:])] )
+
+                    U_GAI  = np.abs (data_U_GAI[offset:][np.argmax(data_U_GAI[offset:])] - data_U_GAI[offset:][np.argmin(data_U_GAI[offset:])] )
+                    V_GAI  = np.abs (data_V_GAI[offset:][np.argmax(data_V_GAI[offset:])] - data_V_GAI[offset:][np.argmin(data_V_GAI[offset:])] )
+                    W_GAI  = np.abs (data_W_GAI[offset:][np.argmax(data_W_GAI[offset:])] - data_W_GAI[offset:][np.argmin(data_W_GAI[offset:])] )
+                    Z_GAI  = np.abs (data_Z_GAI[offset:][np.argmax(data_Z_GAI[offset:])] - data_Z_GAI[offset:][np.argmin(data_Z_GAI[offset:])] )
+                    N_GAI  = np.abs (data_N_GAI[offset:][np.argmax(data_N_GAI[offset:])] - data_N_GAI[offset:][np.argmin(data_N_GAI[offset:])] )
+                    E_GAI  = np.abs (data_E_GAI[offset:][np.argmax(data_E_GAI[offset:])] - data_E_GAI[offset:][np.argmin(data_E_GAI[offset:])] )
+
+                    # Exclude glitches already detected due to small overlap of sliding windows (should not happen often)                    
+                    if glitches:
+                        if not all(glitch_time_start.UTC_time>=UTCDateTime(glitch_already[1])+glitch_min_dist or 
+                                   glitch_time_start.UTC_time<=UTCDateTime(glitch_already[1])-glitch_min_dist for glitch_already in glitches):
+                            continue
+
+                    # Collect all glitch measures                                        
+                    glitch_counter += 1                
+                    glitch = glitch_counter, \
+                             glitch_time_start.UTC,  \
+                             glitch_time_end.UTC,    \
+                             glitch_time_start.LMST, \
+                             glitch_time_end.LMST,   \
+                             U_GLITCH, \
+                             V_GLITCH, \
+                             W_GLITCH, \
+                             U_RAW, \
+                             V_RAW, \
+                             W_RAW, \
+                             U_GAI, \
+                             V_GAI, \
+                             W_GAI, \
+                             Z_GAI, \
+                             N_GAI, \
+                             E_GAI, \
+                             AZI_3D_GAI,     \
+                             AZI_err_3D_GAI, \
+                             INC_3D_GAI,     \
+                             INC_err_3D_GAI, \
+                             SNR_3D_GAI,     \
+                             POL_3D_GAI
+
+
+                    glitches_text.append(line_formatter % glitch)
+                    glitches.append(glitch)
+
+                    # Output to user
+                    if glitch_counter%5 == 0:
+
+                        if print_counter == 0:
+                            print_counter += 1
+                            print()
+                            for header_line in header.split('\n')[1:]:
+                                print('# ' + header_line[:108])
+
+                        print( (line_formatter % glitch)[:110] )
 
 
         ### STATISTICS
@@ -549,4 +560,3 @@ def detect(*RAW_UVW,
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  
 if __name__ == "__main__": 
     pass
-
