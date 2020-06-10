@@ -54,7 +54,7 @@ def detect(*RAW_UVW,
     ACCfilter               = {'type' : 'bandpass',  'options' : {'freqmin':0.001, 'freqmax':0.1}, 'string':'0.001 < f < 0.1'},
     threshold               = 1e-10,
     plot_triggering         = False,
-    glitch_min_dist         = 5, 
+    glitch_min_length         = 5, 
     glitch_length           = 20,
     glitch_min_polarization = 0.9, 
     **kwargs):
@@ -138,7 +138,7 @@ def detect(*RAW_UVW,
 
             for traceU, traceV, traceW in zip(streamU, streamV, streamW):
 
-                glitch_dict           = {}
+                glitch_dict = {}
 
 
                 ## PRINT INFORMATION
@@ -200,7 +200,7 @@ def detect(*RAW_UVW,
 
 
                 ## PREPARE RAW DATA 2
-                stRAW._set_inventory(source=inventory_file)      # get & set station inventory for stream (response information)
+                stRAW.set_inventory(source=inventory_file)      # get & set station inventory for stream (response information)
                 if not stRAW.inventory:                          # Inventory file empty, i.e., for given trace no information available
                     print(u'WARNING: Could not find meta-data for given trace(s). Skipped.')
                     continue
@@ -238,7 +238,7 @@ def detect(*RAW_UVW,
                 for l in range(len( stACC_grad )):
 
                     peaks_all,  _ = scipy.signal.find_peaks(np.abs(stACC_grad[l].data))            
-                    peaks_trig, _ = scipy.signal.find_peaks(np.abs(stACC_grad[l].data), height=threshold, distance=glitch_min_dist*stRAW_sampling_rates[0])
+                    peaks_trig, _ = scipy.signal.find_peaks(np.abs(stACC_grad[l].data), height=threshold, distance=glitch_min_length*stRAW_sampling_rates[0])
                     peaks_keep    = []
                     
                     shifter = 0
@@ -281,7 +281,7 @@ def detect(*RAW_UVW,
 
                     print(u'INFO: Triggering plot: Triggering on derivative of filtered acceleration data is only done on parts not affected by taper.')
                     print(u'INFO: Triggering plot: Amplitudes are scaled so plots are readable, they do not reflect true amplitude values.')
-                    print(u'INFO: Triggering plot: Glitches will still be unified across components according to `glitch_min_dist`.')
+                    print(u'INFO: Triggering plot: Glitches will still be unified across components according to `glitch_min_length`.')
                     print(u'INFO: Triggering plot: Glitches will still be excluded based on their polarization, according to `glitch_min_polarization`.')
 
                     for p, comp in enumerate(stream_comps):
@@ -307,8 +307,8 @@ def detect(*RAW_UVW,
                             quick_plot(ACC_der[p], RAW[p], ACC[p], win_title=title, title=title, xlabel=xlabel, data_labels=data_labels, horis=[[threshold, -threshold]], verts=[verticals], show=True)
 
 
-                ## UNIFY GLITCH START TIMES ACROSS UVW-COMPONENTS (using parameter: `glitch_min_dist` given in seconds)
-                print(u'INFO: Unifying glitches across components, using `glitch_min_dist`.')
+                ## UNIFY GLITCH START TIMES ACROSS UVW-COMPONENTS (using parameter: `glitch_min_length` given in seconds)
+                print(u'INFO: Unifying glitches across components, using `glitch_min_length`.')
 
                 if all(not list(liste) for liste in glitch_start_times):       # no possible glitches detected
                     continue                    
@@ -320,10 +320,10 @@ def detect(*RAW_UVW,
                 shifter_avoid      = 0
                 for l in range( len( flat_starts )):
 
-                    # unify glitch start times: loop glitches, find all +/- `glitch_min_dist`, take minimum, go to next not unified glitch (`shifter_avoid`)
+                    # unify glitch start times: loop glitches, find all +/- `glitch_min_length`, take minimum, go to next not unified glitch (`shifter_avoid`)
                     k = l + shifter_avoid
                     try:
-                        indices_same_glitch = np.where( (flat_starts < flat_starts[k]+glitch_min_dist) & (flat_starts > flat_starts[k]-glitch_min_dist))
+                        indices_same_glitch = np.where( (flat_starts < flat_starts[k]+glitch_min_length) & (flat_starts > flat_starts[k]-glitch_min_length))
                     except IndexError:      # composed index `k` >= len(flat_starts) --> end of data basically
                         break
 
@@ -435,17 +435,17 @@ def detect(*RAW_UVW,
 
                     # Exclude glitches already detected due to small overlap of sliding windows (should not happen often)                    
                     if glitches:
-                        if not all(glitch_time_start.UTC_time>=UTCDateTime(glitch_already[1])+glitch_min_dist or 
-                                   glitch_time_start.UTC_time<=UTCDateTime(glitch_already[1])-glitch_min_dist for glitch_already in glitches):
+                        if not all(glitch_time_start.UTC_time>=UTCDateTime(glitch_already[1])+glitch_min_length or 
+                                   glitch_time_start.UTC_time<=UTCDateTime(glitch_already[1])-glitch_min_length for glitch_already in glitches):
                             continue
 
                     # Collect all glitch measures                                        
                     glitch_counter += 1                
                     glitch = glitch_counter, \
-                             glitch_time_start.UTC,  \
-                             glitch_time_end.UTC,    \
-                             glitch_time_start.LMST, \
-                             glitch_time_end.LMST,   \
+                             glitch_time_start.UTC_string,  \
+                             glitch_time_end.UTC_string,    \
+                             glitch_time_start.LMST_string, \
+                             glitch_time_end.LMST_string,   \
                              U_GLITCH, \
                              V_GLITCH, \
                              W_GLITCH, \
@@ -464,7 +464,6 @@ def detect(*RAW_UVW,
                              INC_err_3D_GAI, \
                              SNR_3D_GAI,     \
                              POL_3D_GAI
-
 
                     glitches_text.append(line_formatter % glitch)
                     glitches.append(glitch)
@@ -489,11 +488,11 @@ def detect(*RAW_UVW,
         output    = [u'DATA:',
                      u'  path:                       %s'           % RAW_UVW[o],
                      u'  IDs:                        %s'           % ', '.join(stream_ids),
-                     u'  UTC start:                  %s'           % stream_times[0].UTC,
-                     u'  UTC end:                    %s'           % stream_times[1].UTC,
+                     u'  UTC start:                  %s'           % stream_times[0].UTC_string,
+                     u'  UTC end:                    %s'           % stream_times[1].UTC_string,
                      u'  UTC length (without gaps):  %s (h:m:s)'   % sec2hms( total_data_time_UTC ),
-                     u'  LMST start:                 %s'           % stream_times[0].LMST,
-                     u'  LMST end:                   %s'           % stream_times[1].LMST,
+                     u'  LMST start:                 %s'           % stream_times[0].LMST_string,
+                     u'  LMST end:                   %s'           % stream_times[1].LMST_string,
                      u'  LMST length (without gaps): %s (h:m:s)'   % sec2hms( total_data_time_LMST ).replace('days', 'sols').replace('day','sol'),
                      u'',      
                      u'PARAMETERS:',      
@@ -504,7 +503,7 @@ def detect(*RAW_UVW,
                      u'                              %s'           % ACCfilter['string'],
                      u'  Threshold:                  %s nm/s**3'   % float(threshold),
                      u"  Show triggering:            %s"           % str(plot_triggering),
-                     u"  Glitches' min dist:         %s s"         % glitch_min_dist,
+                     u"  Glitches' min dist:         %s s"         % glitch_min_length,
                      u"  Glitch length (fix):        %s s"         % glitch_length,
                      u'  Glitch min polarization:    %s'           % glitch_min_polarization,
                      u'',      

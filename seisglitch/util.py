@@ -24,6 +24,7 @@
 
 # -*- coding: utf-8 -*-
 
+
 #####  python modules import  #####
 import os
 import re
@@ -61,6 +62,7 @@ from obspy.core.stream import Stream, Trace
 from obspy.core.inventory import Inventory
 from obspy.signal import rotate
 from obspy.clients.fdsn import Client
+from obspy.clients.fdsn.client import CustomRedirectHandler, NoRedirectionHandler, build_url
 
 
 ##### seisglitch modules import #####
@@ -69,7 +71,7 @@ from seisglitch.math import normalise, covariance_matrix, rotate_2D, unit_vector
 
 # Extended Obspy Stream class (adding some more functionality)
 def read2(file=None, **kwargs):
-    # wrapper to make to return Stream2 objects instead of (ObsPy's) Stream object.
+    # wrapper to return Stream2 objects instead of ObsPy's Stream object.
     st = read(file, **kwargs)
     st = Stream2(st, file=file)
     return st
@@ -445,7 +447,7 @@ class Stream2(Stream):
                 print(u"INFO: Inventory retrieved online from '%s'." % source)
 
         return inv
-    def _set_inventory(self, source='IPGP', verbose=True):
+    def set_inventory(self, source='IPGP', verbose=True):
 
         """
         
@@ -453,27 +455,6 @@ class Stream2(Stream):
 
         inventory      = self._get_inventory(source=source, verbose=verbose)
         self.inventory = inventory
-    def rotate_2D(self, angle, components='NE', new_components='12', clockwise=False):
-
-        """
-        """
-
-        if len(components) != 2:
-            print('To rotate data in 2-D, you need to give two')
-            print('component letters. You gave %s' % len(components))
-
-        self.trim_common()
-        comp_1 = self.select2(component=components[0])
-        comp_2 = self.select2(component=components[1])
-        if comp_1 and comp_2:
-            comp_1[0].data, comp_2[0].data = rotate_2D(comp_1[0].data, comp_2[0].data, angle, clockwise=clockwise)
-            comp_1[0].stats.channel        = comp_1[0].stats.channel[:-1] + new_components[0]
-            comp_2[0].stats.channel        = comp_2[0].stats.channel[:-1] + new_components[1]
-            print('Rotated `components` (%s) to `new_components` (%s)' % (components, new_components))
-            print('`angle` (%s), `clockwise` (%s)' % (angle, clockwise))
-        else:
-            print('No rotation performed, as `components` (%s)' % components)
-            print('are not contained in stream.')
     def select2(self, *args, **kwargs):
         st_obs_select              = self.select(*args, **kwargs)
         st_obs_select.origin       = self.origin   
@@ -667,7 +648,7 @@ class Stream2(Stream):
 
                 else:
                     if not self.inventory:
-                        self._set_inventory()
+                        self.set_inventory()
                     
 
                     components = ''.join( self._get_components() )
@@ -912,7 +893,7 @@ class Stream2(Stream):
 
                 ## inventory & components
                 if not self.inventory:
-                    self._set_inventory()
+                    self.set_inventory()
 
                 components = ''.join( self._get_components() )
 
@@ -1208,29 +1189,40 @@ class Stream2(Stream):
             plt.close()
 
 
-# InSight related (e.g. time conversions, rotation)
+# InSight related
 class marstime():
 
-    def __init__(self, UTC_time=None, LMST_time=None, sec_per_day_mars=88775.2440, sec_per_day_earth=86400, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508)):
+    def __init__(self, UTC=None, LMST=None, sec_per_day_mars=88775.2440, sec_per_day_earth=86400, sol0=UTCDateTime(2018, 11, 26, 5, 10, 50.33508), strftime=('%Y-%m-%dT%H:%M:%S')):
 
         self.sec_per_day_mars  = sec_per_day_mars
         self.sec_per_day_earth = sec_per_day_earth
+
+        self.UTC_time          = None
+        self.UTC_string        = None
+        self.julday            = None
+
+        self.LMST_time         = None
+        self.LMST_string       = None
         self.sol0              = sol0
-        
-        self.UTC_time          = UTC_time
-        self.LMST_time         = LMST_time
-        self.UTC               = None
-        self.LMST              = None
-        self.sol               = None
 
-        if UTC_time is None and LMST_time is None:
-            self.UTC_time = UTCDateTime( datetime.datetime.utcnow() )       # now
+        if UTC is None and LMST is None:
+            self.UTC_time  = UTCDateTime( datetime.datetime.utcnow() )       # now
+            self._LMSTify(strftime)
 
-        if self.UTC_time is not None:
-            self.LMSTify()
+        if UTC is not None:
+            self.UTC_time = UTCDateTime(UTC)
+            self._LMSTify(strftime)
 
-        if self.LMST_time is not None:
-            self.UTCify()
+        if LMST is not None:
+            try:
+                self.LMST_time = UTCDateTime(LMST)
+            except:
+                sol            = LMST.split('M')[0]
+                hms            = '000000.000000'
+                if len(LMST.split('M'))>1:
+                    hms = LMST.split('M')[1].replace(':','') + hms[len(LMST.split('M')[1]):]
+                self.LMST_time = UTCDateTime('1969-12-31T00:00:00.000000Z')+datetime.timedelta(days=int(LMST.split('M')[0]), hours=int(hms[:2]), minutes=int(hms[2:4]), seconds=float(hms[4:]))
+            self._UTCify(strftime)
     def __str__(self):
 
         """
@@ -1239,16 +1231,17 @@ class marstime():
 
         output = []
 
-        output.append(u'TIME GIVEN\n')
-        output.append(u'----------\n')
-        output.append(u'MatLab UTC:     %s\n' % mdates.date2num(self.UTC_time.datetime))
+        output.append(u'TIMES\n')
+        output.append(u'-----\n')
+        output.append(u'UTC string:     %s\n' % self.UTC_string.__repr__())
         output.append(u'DateTime UTC:   %s\n' % self.UTC_time.datetime.__repr__())
         output.append(u'UTCDateTime:    %s\n' % self.UTC_time.__repr__())
-        output.append(u'LocalMeanSolar: %s'   % self.LMST)
+        output.append(u'MatLab UTC:     %s\n' % mdates.date2num(self.UTC_time.datetime))
+        output.append(u'LocalMeanSolar: %s'   % self.LMST_string.__repr__())
 
         string = ''.join( output )
         return string
-    def UTCify(self, LMST_time=None):
+    def _UTCify(self, strftime):
 
         """
         :copyright:
@@ -1258,26 +1251,19 @@ class marstime():
             None
         """
 
-        if LMST_time is not None:
-            LMST_time  = UTCDateTime(LMST_time)
-        elif self.LMST_time is not None:
-            LMST_time  = self.LMST_time
-        else:
-            sys.exit(u'WARNING: No time specified.')
+        MIT              = float(self.LMST_time) / self.sec_per_day_earth + 1
+        UTC_time         = UTCDateTime(MIT  * self.sec_per_day_mars  + float(self.sol0))
         
-        MIT            = float(LMST_time) / self.sec_per_day_earth + 1
-        UTC_time       = UTCDateTime(MIT  * self.sec_per_day_mars  + float(self.sol0))
+        self.LMST_time   = self.LMST_time        
+        self.LMST_string = self._LMST_string()
+        self.sol         = int(self.LMST_string.split('M')[0])
         
-        self.LMST_time = UTCDateTime(LMST_time)
-        self.LMST      = self._LMST_string()
-        self.sol       = int(self.LMST.split('M')[0])
-
-        self.UTC_time  = UTC_time
-        self.UTC       = self._UTC_string()
-        self.julday    = self.UTC_time.julday
+        self.UTC_time    = UTC_time
+        self.UTC_string  = self._UTC_string(strftime)
+        self.julday      = self.UTC_time.julday
 
         return UTC_time
-    def LMSTify(self, UTC_time=None):
+    def _LMSTify(self, strftime):
 
         """
         :copyright:
@@ -1287,33 +1273,19 @@ class marstime():
             None
         """
 
-        if UTC_time is not None:
-            UTC_time  = UTCDateTime(UTC_time)
-        elif self.UTC_time is not None:
-            UTC_time  = self.UTC_time
-        else:
-            sys.exit(u'WARNING: No time specified.')
-
-
-        UTC_time       = UTCDateTime(UTC_time)
+        MIT              = (self.UTC_time - self.sol0) / self.sec_per_day_mars
+        LMST_time        = UTCDateTime((MIT - 1)  * self.sec_per_day_earth)
         
-        MIT            = (UTC_time - self.sol0) / self.sec_per_day_mars
-        LMST_time      = UTCDateTime((MIT - 1)  * self.sec_per_day_earth)
-
-        self.UTC_time  = UTC_time
-        self.UTC       = self._UTC_string()
-        self.julday    = self.UTC_time.julday
-
-        self.LMST_time = LMST_time
-        self.LMST      = self._LMST_string()
-        self.sol       = int(self.LMST.split('M')[0])
+        self.UTC_time    = self.UTC_time
+        self.UTC_string  = self._UTC_string(strftime)
+        self.julday      = self.UTC_time.julday
+        
+        self.LMST_time   = LMST_time
+        self.LMST_string = self._LMST_string()
+        self.sol         = int(self.LMST_string.split('M')[0])
 
         return LMST_time
-    def _UTC_string(self, strftime=('%Y-%m-%dT%H:%M:%S')):
-
-        if self.UTC_time is None:
-            print(u'WARNING: Need to pass time first.')
-            sys.exit()
+    def _UTC_string(self, strftime):
 
         string = self.UTC_time.strftime(strftime)
 
@@ -1324,7 +1296,7 @@ class marstime():
         string = '%03dM%s' % (sol, self.LMST_time.strftime('%H:%M:%S'))
 
         return string
-def mars_list(sols_range=[], hms='120000', is_UTC=False):
+def marstime_list(sols_range=[10], hms='120000', hms_in_UTC=False):
 
     """
     LIST TIME
@@ -1351,10 +1323,10 @@ def mars_list(sols_range=[], hms='120000', is_UTC=False):
     if isinstance(sols_range, (float, int)):
         sols_range = [sols_range]
 
-    elif not sols_range:
+    if len(sols_range)==1:
         now        = time.time()
-        time_mars  = marstime( UTC_time=now )
-        sols_range = [time_mars.sol-10, time_mars.sol]
+        time_mars  = marstime(UTC=now)
+        sols_range = [time_mars.sol-sols_range[0], time_mars.sol]
 
     else:
         pass
@@ -1371,126 +1343,16 @@ def mars_list(sols_range=[], hms='120000', is_UTC=False):
     print('---                    ----')    
     for sol in sols_range:
 
-        if is_UTC:
-            
-            time_mars_sol = marstime( LMST_time=UTCDateTime('1970-01-01T00:00:00.000000Z')+datetime.timedelta(days=int(sol)) )
-            time_str_ymd = time_mars_sol.UTC_time.strftime('%Y-%m-%d')
-            time_str_HMS = '%s:%s:%s' % (hms[0:2], hms[2:4], hms[4:6])
-            time_mars    = marstime( time_str_ymd + 'T' + time_str_HMS )
+        if hms_in_UTC:
+            time_mars_sol = marstime( LMST=UTCDateTime('1969-12-31T00:00:00.000000Z')+datetime.timedelta(days=int(sol)) )
+            time_str_ymd  = time_mars_sol.UTC_time.strftime('%Y-%m-%d')
+            time_str_HMS  = '%s:%s:%s' % (hms[0:2], hms[2:4], hms[4:6])
+            time_mars     = marstime( time_str_ymd + 'T' + time_str_HMS )
 
         else:
+            time_mars     = marstime( LMST='%03dM%s' % (sol,hms))
 
-            LMST_time    = UTCDateTime('1970-01-01T%s:%s:%s.000000Z' % (hms[:2], hms[2:4], hms[4:])) + datetime.timedelta(days=int(sol)-1)
-            time_mars    = marstime( LMST_time=LMST_time )
-
-        print('%s    %s' % (time_mars.UTC_time.strftime('%Y-%m-%dT%H:%M:%S'), time_mars.LMST))
-def download_data(outdir=os.getcwd(), 
-    starttime='2019-04-10T00:00:00', 
-    endtime='2019-04-11T00:00:00', 
-    network='XB', 
-    station='ELYSE', 
-    location='02', 
-    channel='BH?', 
-    source='IRIS', 
-    username='', 
-    password='', 
-    gain_correction=False, 
-    remove_response=False, 
-    rotate2zne=False, 
-    format_DATA='MSEED', 
-    format_INV='STATIONXML'):
-
-    """
-    :copyright:
-        Simon Staehler (simon.staehler@erdw.ethz.ch), 2018
-        with a fair amount of changes by John-Robert Scholz, 2020.
-    """
-
-    # Variables
-    if not outdir:
-        outdir = os.getcwd()
-    os.makedirs(outdir, exist_ok=True)
-    starttime       = UTCDateTime(starttime)
-    endtime         = UTCDateTime(endtime)
-    network         = str(network)
-    station         = str(station)
-    location        = str(location)
-    channel         = str(channel)
-    username        = str(username)
-    password        = str(password)
-    if remove_response:
-        remove_response = str(remove_response).upper()
-
-    # Client
-    if username and password and username!='None' and password!='None':
-        client = Client(source, user=username, password=password)
-    else:
-        client = Client(source)
-
-    # Waveform data
-    st = client.get_waveforms(network   = network,
-                              station   = station,
-                              location  = location,
-                              channel   = channel,
-                              starttime = starttime,
-                              endtime   = endtime)
-    st = Stream2(st)
-    st._set_inventory(source=source, verbose=False)
-    print()
-
-    # Paths
-    times           = st.times
-    request         = '%s.%s.%s.%s' % (network, station, location, channel)
-    outfile_inv     = os.path.join(outdir, 'inventory.xml')
-    oufile_raw      = os.path.join(outdir, '%s_%s-%s_raw.%s'      % (request,st.times[0],st.times[1],format_DATA))
-    oufile_gain     = os.path.join(outdir, '%s_%s-%s_gain.%s'     % (request,st.times[0],st.times[1],format_DATA))
-    oufile_gain_rot = os.path.join(outdir, '%s_%s-%s_gain_rot.%s' % (request,st.times[0],st.times[1],format_DATA))
-    outfile_rem     = os.path.join(outdir, '%s_%s-%s_%s.%s'       % (request,st.times[0],st.times[1],remove_response,format_DATA))
-    outfile_rem_rot = os.path.join(outdir, '%s_%s-%s_%s_rot.%s'   % (request,st.times[0],st.times[1],remove_response,format_DATA))
-
-    # Processing
-    st.inventory.write(outfile_inv, format=format_INV)
-    print(u'INFO: written inventory file to:                %s' % outfile_inv)
-
-    st.write(oufile_raw, format=format_DATA)
-    print(u'INFO: written raw waveform data to:             %s' % oufile_raw)
-
-
-    if gain_correction:
-        st_gain = st.copy()
-        st_gain.gain_correction(channel='?[LMH]?')
-    
-        if rotate:
-            st_gain.rotate('->ZNE', inventory=st_gain.inventory, components=('UVW'))
-            st_gain.write(oufile_gain_rot, format=format_DATA)
-            print(u'INFO: written gain corrected + rotated data to: %s' % oufile_gain_rot)
-        else:
-            st_gain.write(oufile_gain, format=format_DATA)
-            print(u'INFO: written gain corrected data to:           %s' % oufile_gain)
-
-
-    if remove_response:
-        st_rem = st.copy()
-        st_rem.detrend(type='demean')
-        st_rem.taper(0.1)
-        st_rem.detrend()
-        st_seis = st_rem.select(channel='?[LMH]?')
-        for tr in st_seis:
-            try:
-                tr.remove_response(st_rem.inventory, output=remove_response, pre_filt=None, water_level=60)
-            except ValueError:
-                print(u'WARNING: Could not remove response for channel: %s' % tr)
-
-        if rotate:
-            st_seis.rotate('->ZNE', inventory=st_rem.inventory, components=('UVW'))
-            st_rem.write(outfile_rem_rot, format=format_DATA)
-            print(u'INFO: written %s waveform + rotated data to:   %s' % (remove_response[:3], outfile_rem_rot))
-        else:
-            st_rem.write(outfile_rem, format=format_DATA)
-            print(u'INFO: written %s waveform data to:             %s' % (remove_response[:3], outfile_rem))            
-
-
-    print(u'Finished.')
+        print('%s    %s' % (time_mars.UTC_string, time_mars.LMST_string))
 
 
 # Other
@@ -2018,7 +1880,154 @@ def normalise(data, scale_to_between=[]):
         data /= max(abs(data))
 
     return data
+def download_data(outdir=os.getcwd(), 
+    starttime='2019-04-10T00:00:00', 
+    endtime='2019-04-11T00:00:00', 
+    network='XB', 
+    station='ELYSE', 
+    location='02', 
+    channel='BH?', 
+    source='IRIS',
+    username='', 
+    password='', 
+    gain_correction=False, 
+    remove_response=False, 
+    rotate2zne=False, 
+    format_DATA='MSEED', 
+    format_INV='STATIONXML'):
 
+    """
+    :copyright:
+        Simon Staehler (simon.staehler@erdw.ethz.ch), 2018
+        with a fair amount of changes by John-Robert Scholz, 2020.
+    """
+
+    class WrappedClient(Client):
+
+        """
+        Wrapped client to make data request work for restricted InSight data
+        at the SEIS data portal. Data are restricted usually for three 3 months.
+
+        :copyright:
+        Martin van Driel (vandriel@erdw.ethz.ch), 2018
+        """
+
+        # hacking the Basic authentication into the fdsn client
+        def _set_opener(self, user, password, digest=False):
+            # Only add the authentication handler if required.
+            handlers = []
+            if user is not None and password is not None:
+                # Create an OpenerDirector for HTTP Digest Authentication
+                password_mgr = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+                password_mgr.add_password(None, self.base_url, user, password)
+
+                handlers.append(urllib.request.HTTPBasicAuthHandler(password_mgr))
+
+            if (user is None and password is None) or self._force_redirect is True:
+                # Redirect if no credentials are given or the force_redirect
+                # flag is True.
+                handlers.append(CustomRedirectHandler())
+            else:
+                handlers.append(NoRedirectionHandler())
+
+            # Don't install globally to not mess with other codes.
+            self._url_opener = urllib.request.build_opener(*handlers)
+            if self.debug:
+                print('Installed new opener with handlers: {!s}'.format(handlers))
+
+        # MSDS uses query also for authenticated queries
+        def _build_url(self, service, resource_type, parameters={}):
+            return build_url(self.base_url, service, self.major_versions[service],
+                             resource_type, parameters,
+                             service_mappings=self._service_mappings)
+
+    # Variables
+    if not outdir:
+        outdir = os.getcwd()
+    os.makedirs(outdir, exist_ok=True)
+    starttime       = UTCDateTime(starttime)
+    endtime         = UTCDateTime(endtime)
+    network         = str(network)
+    station         = str(station)
+    location        = str(location)
+    channel         = str(channel)
+    source          = str(source)
+    if remove_response:
+        remove_response = str(remove_response).upper()
+
+    # Client
+    if username and password:
+        if source.upper()=='IPGP':
+            client = WrappedClient('https://ws.seis-insight.eu', user=str(username), password=str(password))
+        else:
+            client = Client(source, user=str(username), password=str(password))
+    else:
+        client = Client(source)
+
+    # Waveform data
+    st = client.get_waveforms(network   = network,
+                              station   = station,
+                              location  = location,
+                              channel   = channel,
+                              starttime = starttime,
+                              endtime   = endtime)
+    st = Stream2(st)
+    st.set_inventory(source=source, verbose=False)
+    print()
+
+    # Paths
+    times            = st.times
+    request          = '%s.%s.%s.%s' % (network, station, location, channel)
+    outfile_inv      = os.path.join(outdir, 'inventory_%s-%s.xml'   % (st.times[0],st.times[1]))
+    outfile_raw      = os.path.join(outdir, '%s_%s-%s_raw.%s'       % (request,st.times[0],st.times[1],format_DATA))
+    outfile_gain     = os.path.join(outdir, '%s_%s-%s_gain.%s'      % (request,st.times[0],st.times[1],format_DATA))
+    outfile_gain_rot = os.path.join(outdir, '%s_%s-%s_gain_rot.%s'  % (request,st.times[0],st.times[1],format_DATA))
+    outfile_rem      = os.path.join(outdir, '%s_%s-%s_%s.%s'        % (request,st.times[0],st.times[1],remove_response,format_DATA))
+    outfile_rem_rot  = os.path.join(outdir, '%s_%s-%s_%s_rot.%s'    % (request,st.times[0],st.times[1],remove_response,format_DATA))
+
+    # Processing
+    st.inventory.write(outfile_inv, format=format_INV)
+    print(u'INFO: written inventory file to:                %s' % outfile_inv)
+
+    st.write(outfile_raw, format=format_DATA)
+    print(u'INFO: written raw waveform data to:             %s' % oufile_raw)
+
+
+    if gain_correction:
+        st_gain = st.copy()
+        st_gain.gain_correction(channel='?[LMH]?')
+    
+        if rotate:
+            st_gain.rotate('->ZNE', inventory=st_gain.inventory, components=('UVW'))
+            st_gain.write(outfile_gain_rot, format=format_DATA)
+            print(u'INFO: written gain corrected + rotated data to: %s' % oufile_gain_rot)
+        else:
+            st_gain.write(outfile_gain, format=format_DATA)
+            print(u'INFO: written gain corrected data to:           %s' % oufile_gain)
+
+
+    if remove_response:
+        st_rem = st.copy()
+        st_rem.detrend(type='demean')
+        st_rem.taper(0.1)
+        st_rem.detrend()
+        st_seis = st_rem.select(channel='?[LMH]?')
+        for tr in st_seis:
+            try:
+                tr.remove_response(st_rem.inventory, output=remove_response, pre_filt=None, water_level=60)
+            except ValueError:
+                print(u'WARNING: Could not remove response for channel: %s' % tr)
+
+        if rotate:
+            st_seis.rotate('->ZNE', inventory=st_rem.inventory, components=('UVW'))
+            st_rem.write(outfile_rem_rot, format=format_DATA)
+            print(u'INFO: written %s waveform + rotated data to:   %s' % (remove_response[:3], outfile_rem_rot))
+        else:
+            st_rem.write(outfile_rem, format=format_DATA)
+            print(u'INFO: written %s waveform data to:             %s' % (remove_response[:3], outfile_rem))            
+
+
+    print(u'Finished.')
 
 # Ppol (P-wave Polarization)
 class ppol():
@@ -2512,7 +2521,7 @@ class ppol():
         ### ASSIGN / RETURN RESULTS
         self.results = results
         return self.results
-    def plot(self, title='', verticals=(), outfile=None, show=True, original_data=False, **kwargs):
+    def plot(self, title='', verts=(), outfile=None, show=True, original_data=False, **kwargs):
 
         """
         PLOT INDIVIDUAL PPOL MEASUREMENT
@@ -2554,16 +2563,16 @@ class ppol():
             fig  = plt.figure(figsize=(9,9))
             gs   = fig.add_gridspec(rows, 3)
             ax0  = fig.add_subplot(gs[0, :])
-            ax0  = quick_plot(*original_data, verts=verticals, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax0, xlim=[self.starttime, self.endtime])
+            ax0  = quick_plot(*original_data, verts=verts, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax0, xlim=[self.starttime, self.endtime])
             ax1  = fig.add_subplot(gs[rows-2, :], sharex=ax0)
-            ax1  = quick_plot(*self.traces, verts=verticals, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
+            ax1  = quick_plot(*self.traces, verts=verts, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
 
         else:
             rows = 2
             fig  = plt.figure(figsize=(9,6))
             gs   = fig.add_gridspec(rows, 3)
             ax1  = fig.add_subplot(gs[rows-2, :])
-            ax1  = quick_plot(*self.traces, verts=verticals, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
+            ax1  = quick_plot(*self.traces, verts=verts, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
        
         if title:
             fig.canvas.set_window_title('Ppol plot individual measurement: %s' % title)
@@ -2790,11 +2799,12 @@ def quick_plot(*y,
     yinvert      = False, 
     xlim         = None, 
     ylim         = None,
+    date_format  = '%Y-%m-%d\n%H:%M:%S',
     verts        = None,
     vertsc       = None,
     horis        = None,
     horisc       = None,
-    figsize      = (8,5),
+    figsize      = (10,8),
     legend_loc   = 'best',
     axis         = False,
     outfile      = None, 
@@ -2974,15 +2984,15 @@ def quick_plot(*y,
                     xdata = [UTCDateTime(e).datetime for e in xdata]    # convert all to datetime.datetime objects
                     xdata = mdates.date2num(xdata)                      # convert all to matplotlib times (wouldn't need to, but for later it is need as ax.get_xlim() retrieves matplotlib times!)
                     ax.plot_date(xdata, data.data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])
-                    #myFmt = mdates.DateFormatter()
-                    #ax.xaxis.set_major_formatter(myFmt)                # because we want dates in customised way, not matplotlib times
+                    myFmt = mdates.DateFormatter(date_format)
+                    ax.xaxis.set_major_formatter(myFmt)                # because we want dates in customised way, not matplotlib times
                 else:   # normal array, relative times, matlab times, or POSIX timestamps
                     ax.plot(xdata, data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])        
             else:
                 xdata = data.times(type="matplotlib")
                 ax.plot_date(xdata, data.data, ls=linestyle, marker=None, lw=linewidth, c=linecolor, label=labels[j])
-                #myFmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
-                #ax.xaxis.set_major_formatter(myFmt)
+                myFmt = mdates.DateFormatter(date_format)
+                ax.xaxis.set_major_formatter(myFmt)
 
         elif isinstance(data, (Stream)):
             print(u'Using plot function of %s object and then return.' % type(data))
@@ -2995,10 +3005,9 @@ def quick_plot(*y,
                 xdata = x[j]
                 if all(isinstance(ele, (UTCDateTime, datetime.datetime, str)) for ele in xdata):
                     xdata = [UTCDateTime(e).datetime for e in xdata]    # convert all to datetime.datetime objects
-                    #xdata = mdates.date2num(xdata)                     # convert all to matplotlib times (wouldn't need to, but for later it is need as ax.get_xlim() retrieves matplotlib times!)
-                    #myFmt = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+                    myFmt = mdates.DateFormatter(date_format)
                     ax.plot(xdata, data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])
-                    #ax.xaxis.set_major_formatter(myFmt)                # because we want dates in customised way, not matplotlib times
+                    ax.xaxis.set_major_formatter(myFmt)                # because we want dates in customised way, not matplotlib times
                 else:   # normal array, relative times, matlab times, or POSIX timestamps
                     ax.plot(xdata, data, ls=linestyle, lw=linewidth, c=linecolor, label=labels[j])
             else:
@@ -3138,7 +3147,6 @@ class _Arrow3D(FancyArrowPatch):
         xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         FancyArrowPatch.draw(self, renderer)    
-
 
 
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  

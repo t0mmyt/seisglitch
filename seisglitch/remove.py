@@ -25,7 +25,6 @@
 # -*- coding: utf-8 -*-
 
 
-
 #####  python modules import  #####
 import time
 import scipy
@@ -41,62 +40,56 @@ from obspy.core.trace import Trace
 from seisglitch.util import read2, Stream2, marstime, quick_plot, sec2hms
 
 
-# better fits (+glitch spikes, cutting to avoid residual jump, double glitches ..)
 
 ### GLTICH REMOVAL
-def synthetic_glitch(component_response, sampling_period, glitch_length, acceleration_step=1e-9, displacement_step=1e-11, prepend_straight_in_s=1):
+def synthetic_step(component_response, sampling_period, total_length, step_unit='ACC', step_amp=1e-9, prepend_straight_in_s=1):
 
 
     # Variables
     num_samples = 10000
-    glitch      = np.zeros(4*num_samples)
+    signal      = np.zeros(4*num_samples)
+    step        = np.hstack(( np.zeros(num_samples), 
+                              np.ones(num_samples),
+                             -np.ones(num_samples),
+                              np.zeros(num_samples) ))
 
 
-    # Glitch
-    if acceleration_step:
-        step        = np.hstack(( np.zeros(num_samples), 
-                                  np.ones(num_samples),
-                                 -np.ones(num_samples),
-                                  np.zeros(num_samples) ))
-        step_fft    = np.fft.fft(step)
-        step_freqs  = np.fft.fftfreq(step.size, d=sampling_period)
-        resp_fft    = component_response.get_evalresp_response_for_frequencies(step_freqs, output='ACC')
-        
-        glitch_fft  = step_fft * resp_fft
-        glitch     += np.fft.ifft(glitch_fft).real
-        glitch     *= acceleration_step
+    # FFT
+    step_fft    = np.fft.fft(step)
+    step_freqs  = np.fft.fftfreq(step.size, d=sampling_period)
+
+    if step_unit.upper()=='ACC':
+        # glitch
+        resp_fft = component_response.get_evalresp_response_for_frequencies(step_freqs, output='ACC')
+    elif step_unit.upper()=='VEL':
+        # no terminology defined
+        resp_fft = component_response.get_evalresp_response_for_frequencies(step_freqs, output='VEL')
+    elif step_unit.upper()=='DIS' or step_unit.upper()=='DISP':
+        # precursor
+        resp_fft = component_response.get_evalresp_response_for_frequencies(step_freqs, output='DISP')
 
 
-    # Glitch spike
-    if displacement_step:
-        step        = np.hstack(( np.zeros(num_samples), 
-                                  np.ones(num_samples),
-                                 -np.ones(num_samples),
-                                  np.zeros(num_samples) ))
-        step_fft    = np.fft.fft(step)
-        step_freqs  = np.fft.fftfreq(step.size, d=sampling_period)
-        resp_fft    = component_response.get_evalresp_response_for_frequencies(step_freqs, output='DISP')
-        
-        spike_fft  = step_fft * resp_fft
-        spike      = np.fft.ifft(spike_fft).real
-        spike     *= displacement_step
-
-        glitch    += spike
+    # Synthezising signal
+    signal_fft  = step_fft * resp_fft
+    signal     += np.fft.ifft(signal_fft).real
+    signal     *= float(step_amp)
 
 
-    # Cut only needed part
-    first_index = np.where(glitch>1e-2)[0][0]
-    glitch      = glitch[first_index:first_index+int(glitch_length/sampling_period)]
+    # Cut only away zeroes in front
+    first_index = np.where(signal>1e-2)[0][0]
+    signal      = signal[first_index:]
 
 
-    # Prepend to glitch (can be better for fitting actual data)
+    # Prepend to signal (can be better for fitting actual data, especially for glitches)
     if prepend_straight_in_s:
         prepend_ones = np.ones( int(prepend_straight_in_s/sampling_period) )
-        glitch       = np.hstack(( prepend_ones*glitch[0], glitch )) 
+        signal       = np.hstack(( prepend_ones*0, signal )) 
 
-    # Cut again to fixed length "glitch length" as we need non-varying synthetic glitch length
-    glitch = glitch[:int(glitch_length/sampling_period)]
-    return glitch
+
+    # Cut again to fixed "total_length" as we need non-varying synthetic signal length
+    signal = signal[:int(total_length/sampling_period)]
+
+    return signal
 def remove(*glitch_detector_files, 
     waveform_files        = [], 
     inventory_file        = 'IRIS', 
@@ -158,7 +151,7 @@ def remove(*glitch_detector_files,
         print()
         print(u'Info: Handling: %s' % waveform_file)
 
-        stream._set_inventory(inventory_file)
+        stream.set_inventory(inventory_file)
 
         # loop traces
         for trace in stream:
@@ -323,7 +316,7 @@ def remove(*glitch_detector_files,
 
 
     ### FINAL STATISTIC
-    # vartiables
+    # variables
     var_red_U   = np.array(var_red_U)
     var_red_V   = np.array(var_red_V)
     var_red_W   = np.array(var_red_W)
@@ -361,21 +354,18 @@ def remove(*glitch_detector_files,
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  
 if __name__ == "__main__":
 
-    #stream          = read2('/home/scholz/Desktop/data/201906/XB.ELYSE.02.BHUVW_20190601T122411-20190602T182247.mseed', headonly=True)
-    #stream          = read2('/home/scholz/Desktop/data/XB.ELYSE.67.SH?_Jan-Dec2019.mseed', headonly=True)
     stream          = read2('/home/scholz/Desktop/data/XB.ELYSE.00.HH?_sol423night.mseed', headonly=True)
-    #stream          = read2('/home/scholz/Desktop/data/XB.ELYSE.02.BH?_Apr-Jun2019.mseed', headonly=True)
     #stream.trim2(0,0.01)
     
-    stream._set_inventory('IRIS')
+    stream.set_inventory('IRIS')
     response        = stream.inventory[0][0][0].response
     sampling_period = stream[0].stats.delta
 
-    syn_glitch1     = Trace(data=synthetic_glitch(response, sampling_period, 10, acceleration_step=1e-9, displacement_step=False)+10, header={'delta':sampling_period})
-    syn_glitch2     = Trace(data=synthetic_glitch(response, sampling_period, 20, acceleration_step=1e-9, displacement_step=False)+20, header={'delta':sampling_period})
-    syn_glitch3     = Trace(data=synthetic_glitch(response, sampling_period, 30, acceleration_step=1e-9, displacement_step=False)+30, header={'delta':sampling_period})
-    syn_glitch4     = Trace(data=synthetic_glitch(response, sampling_period, 40, acceleration_step=1e-9, displacement_step=False)+40, header={'delta':sampling_period})
-    syn_glitch5     = Trace(data=synthetic_glitch(response, sampling_period, 50, acceleration_step=1e-9, displacement_step=False)+50, header={'delta':sampling_period})
+    syn_glitch1     = Trace(data=synthetic_step(response, sampling_period, 10, step_unit='ACC', step_amp=1e-9)+10, header={'delta':sampling_period})
+    syn_glitch2     = Trace(data=synthetic_step(response, sampling_period, 20, step_unit='ACC', step_amp=1e-9)+20, header={'delta':sampling_period})
+    syn_glitch3     = Trace(data=synthetic_step(response, sampling_period, 30, step_unit='ACC', step_amp=1e-9)+30, header={'delta':sampling_period})
+    syn_glitch4     = Trace(data=synthetic_step(response, sampling_period, 40, step_unit='ACC', step_amp=1e-9)+40, header={'delta':sampling_period})
+    syn_glitch5     = Trace(data=synthetic_step(response, sampling_period, 50, step_unit='ACC', step_amp=1e-9)+50, header={'delta':sampling_period})
     
     glitch_stream   = Stream2(traces=[syn_glitch1, 
                                       syn_glitch2, 
