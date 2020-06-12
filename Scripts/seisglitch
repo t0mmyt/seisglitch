@@ -76,20 +76,18 @@ config = args['config_file']
 
 
 ### EXECUTE ACCORDING TO SPECIFIED PARAMETERS
-params = util.read_config(config)
+params         = util.read_config(config)
+waveform_files = params['waveform_files']
 
 
 if mode=='detect':
 
-    waveform_files        = params['detect']['waveform_files']
-    detect_params         = params['detect']['detector']
-
+    detect_params = params['detect']['detector']
     detect.detect( *waveform_files, **detect_params )
 
 
 elif mode=='plot':
     
-    waveform_files        = params['detect']['waveform_files']
     inventory_file        = params['detect']['detector']['inventory_file']
     glitch_length         = params['detect']['detector']['glitch_length']
 
@@ -113,7 +111,6 @@ elif mode=='remove':
     glitch_length         = params['detect']['detector']['glitch_length']
 
     glitch_detector_files = params['remove']['glitch_detector_files']
-    waveform_files        = params['remove']['waveform_files']
     remove_params         = params['remove']['remover']
 
     remove.remove( *glitch_detector_files, waveform_files=waveform_files, inventory_file=inventory_file, glitch_length=glitch_length, **remove_params )
@@ -128,7 +125,6 @@ elif mode=='download':
 elif mode=='decimate':
 
     waveform_files        = params['decimate']['waveform_files']
-    
     decimation_factors    = params['decimate']['decimation_factors']
     final_network         = params['decimate']['final_network']
     final_station         = params['decimate']['final_station']

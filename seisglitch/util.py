@@ -1990,7 +1990,7 @@ def download_data(outdir=os.getcwd(),
     print(u'INFO: written inventory file to:                %s' % outfile_inv)
 
     st.write(outfile_raw, format=format_DATA)
-    print(u'INFO: written raw waveform data to:             %s' % oufile_raw)
+    print(u'INFO: written raw waveform data to:             %s' % outfile_raw)
 
 
     if gain_correction:
@@ -2000,10 +2000,10 @@ def download_data(outdir=os.getcwd(),
         if rotate:
             st_gain.rotate('->ZNE', inventory=st_gain.inventory, components=('UVW'))
             st_gain.write(outfile_gain_rot, format=format_DATA)
-            print(u'INFO: written gain corrected + rotated data to: %s' % oufile_gain_rot)
+            print(u'INFO: written gain corrected + rotated data to: %s' % outfile_gain_rot)
         else:
             st_gain.write(outfile_gain, format=format_DATA)
-            print(u'INFO: written gain corrected data to:           %s' % oufile_gain)
+            print(u'INFO: written gain corrected data to:           %s' % outfile_gain)
 
 
     if remove_response:
