@@ -1,4 +1,4 @@
-Seisglitch
+SEISglitch
 ==========
 
 
