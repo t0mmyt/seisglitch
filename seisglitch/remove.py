@@ -210,7 +210,7 @@ def remove(*glitch_detector_files,
 
                 # variables needed
                 x_range_glitch = np.arange(glitch_len)
-                raw_slice      = trace.slice(starttime=glitch_start.UTC_time-glitch_shift_time_s, endtime=glitch_end.UTC_time+glitch_shift_time_s)
+                raw_slice      = trace.slice(starttime=glitch_start.UTC_time-glitch_shift_time_s, endtime=glitch_start.UTC_time+glitch_length+glitch_shift_time_s)
                 original_slice = raw_slice.copy()
                 data_len       = len(raw_slice.data)
                 residuals      = []
@@ -301,7 +301,7 @@ def remove(*glitch_detector_files,
                         tag_precursor = True
                     else:
                         tag_precursor = False
-                        raw_slice.data = deglitched_slice.data
+                        raw_slice.data[:] = deglitched_slice.data[:]
 
                 # variance reduction between original and deglitched or deglitched+deprecursored data
                 var_data           = np.var(original_slice)
@@ -327,7 +327,7 @@ def remove(*glitch_detector_files,
                         label = 'glitch corrected'
                 else:
                     print(u'Glitch %06d,  %s,  %s,  var_red = %4.1f %%.  No correction done.'  % (glitch_number, glitch_start.UTC_string, component, var_red))
-                    raw_slice.data = original_slice.data                    
+                    raw_slice.data[:] = original_slice.data[:]                  
                     label = 'not corrected'
 
                 # only to convey information to user
