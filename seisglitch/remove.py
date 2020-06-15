@@ -30,6 +30,7 @@ import time
 import scipy
 import datetime
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 #####  obspy modules import  #####
@@ -42,23 +43,23 @@ from seisglitch.util import read2, Stream2, marstime, quick_plot, sec2hms
 
 
 ### GLTICH REMOVAL
-def synthetic_step(component_response, sampling_period, total_length, step_unit='ACC', step_amp=1e-9):
+def stepFFT(sampling_period, num_samples=10000):
 
-
-    # Variables
-    num_samples  = 10000
-    total_length = min(total_length, num_samples*sampling_period)       # final signal as long as possible but not longer than distance between two steps (box-car usage)
-    signal       = np.zeros(4*num_samples)
-    step         = np.hstack(( np.zeros(num_samples), 
-                               np.ones(num_samples),
-                              -np.ones(num_samples),
-                               np.zeros(num_samples) ))
-
+    # Step
+    step        = np.hstack(( np.zeros(num_samples), 
+                              np.ones(num_samples),
+                             -np.ones(num_samples),
+                              np.zeros(num_samples) ))
 
     # FFT
     step_fft    = np.fft.fft(step)
     step_freqs  = np.fft.fftfreq(step.size, d=sampling_period)
 
+    # FFT multiplication
+    return step_fft, step_freqs
+def responseFFT(component_response, freqs, step_unit='ACC'):
+
+    # FFT depending on 'step_unit'
     if step_unit.upper()=='ACC':
         # glitch
         resp_fft = component_response.get_evalresp_response_for_frequencies(step_freqs, output='ACC')
@@ -69,24 +70,36 @@ def synthetic_step(component_response, sampling_period, total_length, step_unit=
         # precursor
         resp_fft = component_response.get_evalresp_response_for_frequencies(step_freqs, output='DISP')
 
+    return resp_fft, freqs
+def fft2signal(fft, freqs, tau=0, amp_factor=1):
 
-    # Synthezising signal
-    signal_fft  = step_fft * resp_fft
-    signal     += np.fft.ifft(signal_fft).real
-    signal     *= float(step_amp)
-
-
-    # Cut only away zeroes in front
-    peak2peak_signal = np.max(signal)-np.min(signal)
-    first_index      = np.where(signal>peak2peak_signal/1000.)[0][0]  # factor 1000 has influence on how many non-"zero" values are before actual glitch starts. For 2 SPS data these are more than for higher SPS. Thus influences precursor fits somewhat. 1000 is an okay trade-off.
-    if first_index>0:
-        first_index -= 1
-    signal           = signal[first_index:]
-
-    # Cut again to fixed "total_length" as we need non-varying synthetic signal length
-    signal = signal[:int(total_length/sampling_period)]
+    # 
+    omega        = 2*np.pi*freqs
+    fft         *= np.exp(-1j*omega*tau)         # positive 'tau' produces shift to the right
+    signal       = np.fft.ifft(fft).real
+    signal      *= float(amp_factor)
 
     return signal
+def signal_cut(signal, component_response=None, total_length_samples=None)
+
+    # Cut only away zeroes in front
+    if not component_response:
+        peak2peak_signal = np.max(signal)-np.min(signal)
+        first_index      = np.where(signal>peak2peak_signal/1000.)[0][0]  # factor 1000 has influence on how many non-"zero" values are before actual glitch starts. For 2 SPS data these are more than for higher SPS. Thus influences precursor fits somewhat. 1000 is an okay trade-off.
+        if first_index>0:
+            first_index -= 1
+        signal = signal[first_index:]
+    else:
+        pass
+
+    # Cut again to fixed "total_length" as we need non-varying synthetic signal length
+    if total_length_samples:
+        signal = signal[:total_length_samples]
+
+    return signal
+
+
+
 def remove(*glitch_detector_files, 
     waveform_files         = [], 
     inventory_file         = 'IRIS', 
@@ -119,6 +132,8 @@ def remove(*glitch_detector_files,
     PRECURSOR_LENGTH_SAMPLES         = 35                          # should be >25 and smaller than glitch_length*sampling_period
     PRECURSOR_SHIFT_SAMPLES_PER_SIDE = 7                           # maximum of precursor shifted left and right w.r.t. determined fitted glitch onset (should be larger than samples modeled glitch signal before real glitch starts)
     VAR_REDUCTION_MIN_PRECURSOR      = 2                           # in %
+    #    total_length = min(total_length, num_samples*sampling_period)       # final signal as long as possible but not longer than distance between two steps (box-car usage)
+
 
 
 
@@ -203,14 +218,16 @@ def remove(*glitch_detector_files,
             for g in range(len( glitches )):
 
                 # glitch variables
-                glitch_number  = int(glitches[g][0].replace(':',''))
+                glitch_number  = glitches[g][0].replace(':','')
                 glitch_start   = marstime(glitches[g][1])
                 glitch_end     = marstime(glitches[g][2])
                 glitch_len     = prepend+int(glitch_length/sampling_period)
+                #if glitch_number!='014210' or component!='U':
+                #    continue
 
                 # variables needed
                 x_range_glitch = np.arange(glitch_len)
-                raw_slice      = trace.slice(starttime=glitch_start.UTC_time-glitch_shift_time_s, endtime=glitch_end.UTC_time+glitch_shift_time_s)
+                raw_slice      = trace.slice(starttime=glitch_start.UTC_time-glitch_shift_time_s, endtime=glitch_start.UTC_time+glitch_length+glitch_shift_time_s)
                 original_slice = raw_slice.copy()
                 data_len       = len(raw_slice.data)
                 residuals      = []
@@ -285,6 +302,7 @@ def remove(*glitch_detector_files,
 
                     # actual glitch precursor correction!
                     deglitched_slice = raw_slice.copy()
+                    print(shift, shift2, raw_slice.data[shift2:shift2+len(scaled_precur)])
                     raw_slice.data[shift2:shift2+len(scaled_precur)] = raw_slice.data[shift2:shift2+len(scaled_precur)]-scaled_precur
 
                     # variance reduction between deglitched and deglitched+deprecursored data
@@ -301,7 +319,7 @@ def remove(*glitch_detector_files,
                         tag_precursor = True
                     else:
                         tag_precursor = False
-                        raw_slice.data = deglitched_slice.data
+                        raw_slice.data[:] = deglitched_slice.data[:]
 
                 # variance reduction between original and deglitched or deglitched+deprecursored data
                 var_data           = np.var(original_slice)
@@ -317,17 +335,17 @@ def remove(*glitch_detector_files,
                     removed.append(component)
                     if precursor_fit:
                         if tag_precursor:
-                            print(u'Glitch %06d,  %s,  %s,  var_red = %4.1f %%,  Correction is done.  Acc. step = %6.1f nm/s**2.  Dis. step = %6.1f pm'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2], best_popt2[2]))
+                            print(u'Glitch %6s,  %s,  %s,  var_red = %4.1f %%,  Correction is done.  Acc. step = %6.1f nm/s**2.  Dis. step = %6.1f pm'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2], best_popt2[2]))
                             label = 'glitch+precursor corrected'
                         else:
-                            print(u'Glitch %06d,  %s,  %s,  var_red = %4.1f %%,  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2]))
+                            print(u'Glitch %6s,  %s,  %s,  var_red = %4.1f %%,  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2]))
                             label = 'glitch corrected'
                     else:
-                        print(u'Glitch %06d,  %s,  %s,  var_red = %4.1f %%,  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2]))
+                        print(u'Glitch %6s,  %s,  %s,  var_red = %4.1f %%,  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2]))
                         label = 'glitch corrected'
                 else:
-                    print(u'Glitch %06d,  %s,  %s,  var_red = %4.1f %%.  No correction done.'  % (glitch_number, glitch_start.UTC_string, component, var_red))
-                    raw_slice.data = original_slice.data                    
+                    print(u'Glitch %6s,  %s,  %s,  var_red = %4.1f %%.  No correction done.'  % (glitch_number, glitch_start.UTC_string, component, var_red))
+                    raw_slice.data[:] = original_slice.data[:]               
                     label = 'not corrected'
 
                 # only to convey information to user
@@ -444,7 +462,9 @@ if __name__ == "__main__":
              '/home/scholz/Desktop/data/XB.ELYSE.67.SH?_2019-03-01T00:00:09.731000Z-2019-03-01T12:00:21.214000Z_raw.MSEED',
              '/home/scholz/Desktop/data/XB.ELYSE.65.EH?_2019-03-08T03:59:59.314000Z-2019-03-08T04:30:01.944000Z_raw.MSEED']
 
-    traces = []
+    traces_glitch = []
+    traces_precur = []
+
     for file in files:
         stream = read2(file, headonly=True)
         #stream.trim2(0,0.01)
@@ -458,10 +478,52 @@ if __name__ == "__main__":
                            'channel'  : stream[0].stats.channel}
 
         syn_glitch = Trace(data=synthetic_step(response, sampling_period, 25, step_unit='ACC', step_amp=1e-9), header=header)
-        syn_glitch = Trace(data=syn_glitch.data+synthetic_step(response, sampling_period, 25, step_unit='DIS', step_amp=1e-12), header=header)
-        traces.append(syn_glitch)
-    
-    glitch_stream = Stream2(traces=traces)
-    print(glitch_stream)
-    #quick_plot(*[trace.data for trace in glitch_stream], y_label='Digital Units', data_labels=('VBB 2 SPS', 'VBB 20 SPS', 'VBB 100 SPS', 'SP 2SPS', 'SP 20 SPS', 'SP 100 SPS', ))
-    quick_plot(*glitch_stream, x_label='Relative Time (s)', y_label='Digital Units')    
+        syn_precur = Trace(data=synthetic_step(response, sampling_period, 25, step_unit='DIS', step_amp=1e-12), header=header)
+        traces_glitch.append(syn_glitch)
+        traces_precur.append(syn_precur)
+
+    stream_glitch = Stream2(traces=traces_glitch)
+    stream_precur = Stream2(traces=traces_precur)
+    print(stream_glitch)
+
+    # plotting
+    fig, axes = plt.subplots(2, figsize=(10,15), sharex=True)
+    title     = 'VBB & SP modeled glitches and their precursors'
+    fig.suptitle(title, fontsize=13)
+    fig.align_ylabels()
+    fig.subplots_adjust(hspace=0.2)
+    axes[0].xaxis.set_ticks_position('none')
+
+    data_points = True
+
+    if data_points:
+        axes[0] = quick_plot(*[trace.data for trace in stream_glitch],
+                        axis=axes[0],
+                        title='Glitches (step: 1e-9 m/s**2)',
+                        ylabel='Digital Units',
+                        xlabel=None,
+                        legend_loc='upper right',
+                        show=False)
+        axes[1] = quick_plot(*[trace.data for trace in stream_precur],
+                        axis=axes[1],
+                        title='Precursors (step: 1e-12 m)',
+                        ylabel='Digital Units',
+                        xlabel='Data points',
+                        legend_loc='upper right',
+                        show=False)
+    else:
+        axes[0] = quick_plot(*stream_glitch,
+                        axis=axes[0],
+                        title='Glitches (step: 1e-9 m/s**2)',
+                        ylabel='Digital Units',
+                        xlabel=None,
+                        legend_loc='upper right',
+                        show=False)
+        axes[1] = quick_plot(*stream_precur,
+                        axis=axes[1],
+                        title='Precursors (step: 1e-12 m)',
+                        ylabel='Digital Units',
+                        xlabel='Relative Time (s)',
+                        legend_loc='upper right',
+                        show=False)
+    plt.show()
