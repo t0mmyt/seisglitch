@@ -169,7 +169,7 @@ elif mode=='merge':
 
     glitch_detector_files = params['merge']['glitch_detector_files']
     if not glitch_detector_files:
-        waveform_files        = params['detect']['waveform_files']        
+        waveform_files        = params['waveform_files']        
         glitch_detector_files = [os.path.join( os.path.dirname(file), 'glitches_' + '.'.join(os.path.basename(file).split('.')[:-1]) + '.txt' ) for file in waveform_files]
 
     outfile               = params['merge']['outfile']

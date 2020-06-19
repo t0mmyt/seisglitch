@@ -3061,8 +3061,7 @@ def quick_plot(*y,
     else:
         colours = vertsc
     
-    if verts is not None:
-                                                        # make list of lists so fo-loops work
+    if verts is not None: 
 
         for k, vert in enumerate(verts):
             colour_index = k % len(colours)
