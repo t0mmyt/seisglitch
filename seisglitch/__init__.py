@@ -49,5 +49,5 @@ The code is based on the following, peer-reviewed paper. If you find ``SEISglitc
 
 
 ### VERSION
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 __author__  = 'John-Robert Scholz'

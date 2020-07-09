@@ -362,7 +362,7 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], starttime=N
             title     = '%s glitches' % len(indices)
 
             quick_plot(*stream_plot, title=title, win_title=win_title, verts=[all_glitches[indices][:,1]], xlabel='Time', show=show)
-def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], glitch_length=None, outfile='', **kwargs):
+def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='', **kwargs):
     
     """
     Plot glitches, based on glitch file produced by function `glitch_detector()`.
@@ -418,7 +418,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], glitch_leng
 
         # print first picked glitches
         glitch_start = all_glitches[indices[0],1]
-        plot_glitch_ppol(glitch_start, waveform_files=waveform_files, glitch_length=glitch_length, **kwargs)
+        plot_glitch_ppol(glitch_start, waveform_files=waveform_files, glitch_length=marstime(all_glitches[index,1]).UTC-marstime(all_glitches[index,2]).UTC, **kwargs)
 
 
 

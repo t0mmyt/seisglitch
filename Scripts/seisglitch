@@ -78,27 +78,26 @@ config = args['config_file']
 ### EXECUTE ACCORDING TO SPECIFIED PARAMETERS
 params         = util.read_config(config)
 waveform_files = params['waveform_files']
-
+inventory_file = params['inventory_file']
 
 if mode=='detect':
 
     detect_params = params['detect']['detector']
-    detect.detect( *waveform_files, **detect_params )
+    detect.detect( *waveform_files, inventory_file=inventory_file, **detect_params )
 
 
 elif mode=='plot':
     
-    inventory_file        = params['detect']['detector']['inventory_file']
-    glitch_length         = params['detect']['detector']['glitch_length']
+    
 
     glitch_detector_files = params['plot']['glitch_detector_files']
     plot_params           = params['plot']['plotter']
 
     plot.plot_glitch_detector(    *glitch_detector_files, **plot_params, **params['plot']['glitch_detector_plot'], waveform_files=waveform_files)
-    plot.plot_glitch_overview(    *glitch_detector_files, **plot_params, **params['plot']['glitch_overview_plot'], waveform_files=waveform_files, glitch_length=glitch_length )
+    plot.plot_glitch_overview(    *glitch_detector_files, **plot_params, **params['plot']['glitch_overview_plot'], waveform_files=waveform_files)
     plot.glitch_SOLoverLMST_plot( *glitch_detector_files, **plot_params, **params['plot']['glitch_SOLoverLMST_plot'])
     plot.plot_glitch_gutenberg(   *glitch_detector_files, **plot_params, **params['plot']['glitch_gutenberg_plot'] )
-    plot.plot_glitch_ppol(                                **plot_params, **params['plot']['glitch_ppol_plot'],     waveform_files=waveform_files, inventory_file=inventory_file, glitch_length=glitch_length)
+    plot.plot_glitch_ppol(                                **plot_params, **params['plot']['glitch_ppol_plot'],     waveform_files=waveform_files, inventory_file=inventory_file)
 
     if plot_params['show']:
       plt.show()
@@ -107,13 +106,10 @@ elif mode=='plot':
 
 elif mode=='remove':
 
-    inventory_file        = params['detect']['detector']['inventory_file']
-    glitch_length         = params['detect']['detector']['glitch_length']
-
     glitch_detector_files = params['remove']['glitch_detector_files']
     remove_params         = params['remove']['remover']
 
-    remove.remove( *glitch_detector_files, waveform_files=waveform_files, inventory_file=inventory_file, glitch_length=glitch_length, **remove_params )
+    remove.remove( *glitch_detector_files, waveform_files=waveform_files, inventory_file=inventory_file, **remove_params )
 
 
 elif mode=='download':
