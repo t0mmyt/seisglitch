@@ -44,25 +44,37 @@ from seisglitch.util import read2, Stream2, marstime, quick_plot, sec2hms
 
 
 ### GLTICH REMOVAL
-def stepFFT(sampling_period, num_samples=10000, decay=False, a=0.1, freq=0.01, abkling=0.01):
+def sourceFFT(num_samples, sampling_period, int_samples=None, gauss=False, abkling=None, amp=None, freq=None):
 
-    # Step
-    step        = np.hstack(( np.zeros(num_samples), 
-                              np.ones(num_samples),
-                             -np.ones(num_samples),
-                              np.zeros(num_samples) ))
-    if decay:
-        t     = np.arange(num_samples)
-        omega = np.pi*2*freq
-        step[:num_samples]              += a * np.exp(-t*sampling_period*abkling) * np.cos(2*np.pi*freq*sampling_period * t)
-        step[num_samples:2*num_samples] += a * np.exp(-t*sampling_period*abkling) * np.cos(2*np.pi*freq*sampling_period * t)
+    # Instantaneous step or finite ramp
+    if int_samples:
+        if int_samples%2 != 0:
+            int_samples += 1
+        if not gauss:
+            interp = np.array( [(i+1)*1/(int_samples+1) for i in range(int_samples)] )
+        else:
+            interp = scipy.signal.gaussian(2*int_samples, std=int_samples/4)[:int_samples]
+        step = np.hstack(( np.zeros(num_samples-int(int_samples/2)),
+                           interp,
+                           np.ones(num_samples-int(int_samples/2)) ))
+        #quick_plot(step)
+
+    else:
+        step = np.hstack(( np.zeros(num_samples), 
+                           np.ones(num_samples) ))
+
+    # Additional osscillation
+    if abkling:
+        x        = np.arange(num_samples)
+        omega    = np.pi*2*freq
+        func     = amp * np.exp(-x*sampling_period*abkling) * np.cos(2*np.pi*freq*sampling_period * x)
+        step[:] += np.hstack(( func, func ))
 
     # FFT
-    step_fft    = np.fft.fft(step)
-    step_freqs  = np.fft.fftfreq(step.size, d=sampling_period)
+    step_freqs  = np.fft.fftfreq(step.size, d=sampling_period)  # independent of actual input, only of its length
+    source_FFT    = np.fft.fft(step)
 
-    # FFT multiplication
-    return step_fft, step_freqs
+    return source_FFT, step_freqs
 def responseFFT(component_response, freqs, step_unit='ACC'):
 
     # FFT depending on 'step_unit'
@@ -73,7 +85,7 @@ def responseFFT(component_response, freqs, step_unit='ACC'):
         # no terminology defined
         resp_fft = component_response.get_evalresp_response_for_frequencies(freqs, output='VEL')
     elif step_unit.upper()=='DIS' or step_unit.upper()=='DISP':
-        # precursor
+        # spike
         resp_fft = component_response.get_evalresp_response_for_frequencies(freqs, output='DISP')
 
     return resp_fft, freqs
@@ -88,47 +100,13 @@ def fft2signal(fft, freqs, tau=0, amp_factor=1, real=True):
         signal = signal.real
 
     return signal
-def _cut_index(component_response=None, offset=None):
-
-    # Cut only away zeroes in front
-    if not component_response:
-
-        peak2peak_signal = np.max(signal)-np.min(signal)
-        first_index      = np.where(signal>peak2peak_signal/1000.)[0][0]  # factor 1000 has influence on how many non-"zero" values are before actual glitch starts. For 2 SPS data these are more than for higher SPS. Thus influences precursor fits somewhat. 1000 is an okay trade-off.
-        if first_index>0:
-            first_index -= 1
-
-    else:
-
-        if offset is not None:
-            pre_cut = 0
-            for FIRstage in component_response.response_stages:
-                
-                if isinstance(FIRstage, obspy.core.inventory.response.FIRResponseStage):                        # inventory from IPGP
-                    len_FIRcoeffs = len(FIRstage.coefficients)
-
-                elif isinstance(FIRstage, obspy.core.inventory.response.CoefficientsTypeResponseStage):         # inventory from IRIS
-                    len_FIRcoeffs = len(FIRstage.numerator)
-
-                else:
-                    continue
-
-                decimation_factor = FIRstage.decimation_factor
-                pre_cut           = (pre_cut+int(len_FIRcoeffs/2))/decimation_factor
-
-            first_index = int(offset-pre_cut)
-        else:
-            print(u'WARNING: Cannot determine cut index without ´offset´. Set to 0.')
-            first_index = 0
-
-    return first_index
 
 def remove(*glitch_detector_files, 
     waveform_files         = [], 
     inventory_file         = 'IRIS', 
-    precursor_fit          = False,
+    spike_fit              = False,
     var_reduction_min      = 80, 
-    show_glitch_fit        = False,
+    show_fit               = False,
     store_glitches         = False,
     plot_removal_statistic = False, 
     **kwargs):
@@ -138,40 +116,60 @@ def remove(*glitch_detector_files,
 
 
 
+    ### FIXED PARAMETERS
+    GLITCH_WINDOW_LEFTRIGHT      = 3       # in s
+    PREPEND_ZEROS                = 1       # in s, this is added additionally to 'GLITCH_WINDOW_LEFTRIGHT' as detected glitch onset is pretty accurate
+    NUM_SAMPLES_GLITCH           = 12000   # must be > max_glitch_length_s * max_sampling period, so larger 10000 (= max_glitch_length_s=100 * max_sampling_period=100)
+    CUT_SOURCE_BEFORE            = 20      # in samples for both glitch and spike, reason: acausal FIR-Filters)
+
+    ACC_STEP                     = 1e-9    # in m/s**2, for glitches
+    TRY_DECAY                    = False   # Source time function maniuplation. Here, osscilating decay after steo simulating some swinging og of interal structure
+    TRY_INTER                    = 150     # Source time function maniuplation. Here, interpolation samples to deviate from instantaneous step to finite ramp. Will be samples every 10 samples. Must be samller than 2*NUM_SAMPLES
+    GAUSS_SOURCE_INTER           = False   # If True and 'TRY_INTER' != 0, the interpolation samples of the source will not be following a straight line but the first half of a Gaussian
+    SUBSAMPLE_FACTOR_GLITCH      = 1
+
+    DIS_STEP                     = 1e-12   # in m, for glitch spikes
+    SPIKE_SHIFT_SAMPLES_PER_SIDE = 7       # maximum of spike shifted left and right w.r.t. determined fitted glitch onset (should be larger than samples modeled glitch signal before real glitch starts)
+    SUBSAMPLE_FACTOR_SPIKE       = 5
+    VAR_REDUCTION_MIN_SPIKE      = 2       # in %
+
+
+
     ### OUTPUT
     print()
     print(u'  ----------------------')
     print(u'  RUNNING GLITCH REMOVER')
     print(u'  ----------------------')
-    print()
 
 
 
-    ### EQUATIONS TO MODEL GLTICHES AND PRECURSORS
-    def glitch_model(x, m, n, o):
+    ### FUNCTIONS TO MODEL GLITCHES AND SPIKES, DEPENDING ON SOME EXPERIMENTAL STUFF
+    def residual_model(x, a,b,c,d,e):
+
+        return a*x**4 + b*x**3 + c*x**2 + d*x + e
+    def syn_glitch(interpolation_samples=0, amp=None, abkling=None, freq=None):
+
+        source_FFT, step_freqs = sourceFFT(NUM_SAMPLES_GLITCH, sampling_period, int_samples=interpolation_samples, gauss=GAUSS_SOURCE_INTER, abkling=abkling, amp=amp, freq=freq)
+        signal                 = fft2signal(source_FFT*ACC_fft, step_freqs, tau=tau, amp_factor=ACC_STEP)
+        signal                 = signal[cut_index:cut_index+len(data_shifted)-prepend]
+        signal                 = np.hstack(( np.zeros(prepend), signal )) 
+
+        return signal
+    def glitch_model_nodecay(x, m, n, o):
         """
         Three fit-variables.
         """
-        return x * m + n + syn_glitch * o
-    def precursor_model(x, m, n, o):
+        return x * m + n + syn_glitch(interpolation_samples=interpolation_samples) * o
+    def glitch_model_decay(x, m, n, o, amp, abkling, freq):
+        """
+        Six fit-variables.
+        """
+        return x * m + n + syn_glitch(abkling=abkling, amp=amp, freq=freq) * o
+    def spike_model(x, m, n, o):
         """
         Three fit-variables.
         """
-        return x * m + n + syn_precur * o
-
-
-
-    ### FIXED PARAMETERS
-    GLITCH_WINDOW_LEFTRIGHT          = 3       # in s
-    PREPEND_ZEROS                    = 0       # in s
-    NUM_SAMPLES_GLITCH               = 15000   # must be > max_glitch_length_s * max_sampling period, so larger max_glitch_length_s=100 * max_sampling_period=100 = 10000
-    CUT_MODEL_BEFORE                 = 20      # in samples
-    ACC_STEP                         = 1e-9    # in m/s**2, for glitches
-    DIS_STEP                         = 1e-12   # in m, for glitch precursors
-    SUBSAMPLE_FACTOR_GLITCH          = 5
-    SUBSAMPLE_FACTOR_PRECUR          = 10
-    PRECURSOR_SHIFT_SAMPLES_PER_SIDE = 5       # maximum of precursor shifted left and right w.r.t. determined fitted glitch onset (should be larger than samples modeled glitch signal before real glitch starts)
-    VAR_REDUCTION_MIN_PRECURSOR      = 2       # in %
+        return x * m + n + syn_spike * o
 
 
 
@@ -186,6 +184,7 @@ def remove(*glitch_detector_files,
 
 
     ### OTHER VARIABLES
+    # for evaluation
     assign      = {'U':5, 'V':6, 'W':6}
     var_red_U   = []
     var_red_V   = []
@@ -205,12 +204,14 @@ def remove(*glitch_detector_files,
         stream.sort(reverse=False)
 
         # small output
+        print()        
         print(u'INFO: Analysing file: %s/%s' % (o+1,len(waveform_files)))
         print(waveform_file)
         for trace in stream:
             print('  %s' % trace)
 
         stream.set_inventory(inventory_file)
+        #stream.filter('highpass', freq=0.001, corners=2, zerophase=True)
 
         # loop traces
         for trace in stream.select(channel='?[LMH]?'):
@@ -218,11 +219,12 @@ def remove(*glitch_detector_files,
             print()
             if store_glitches:
                 trace_copy = trace.copy()
+            trace.data = trace.data.astype(dtype=np.float32, copy=False)   # importat as glitch removal introduces float RAW values
 
             # data prep
-            component = trace.stats.channel[-1]
+            component        = trace.stats.channel[-1]
             sampling_period  = trace.stats.delta
-            prepend          = int(PREPEND_ZEROS/sampling_period)
+            prepend          = int(max(0,PREPEND_ZEROS)/sampling_period)
             glitches         = all_glitches[ (all_glitches[:,1]>=str(trace.stats.starttime)) & (all_glitches[:,2]<=str(trace.stats.endtime)) ]
             glitches         = glitches[np.argsort(glitches[:,0])]
             inv              = stream.inventory.select(network   = trace.stats.network, 
@@ -232,20 +234,15 @@ def remove(*glitch_detector_files,
                                                        starttime = trace.stats.starttime, 
                                                        endtime   = trace.stats.endtime)
             response         = inv[0][0][0].response
-            #cut_index        = _cut_index(component_response=response, offset=NUM_SAMPLES_GLITCH)
-            cut_index        = NUM_SAMPLES_GLITCH - CUT_MODEL_BEFORE      # fixed. '20' samples before modeled step starts, model is taken and fit against data (for both glitch and precursor, reason: acausal FIR-Filters)
+            optimum_interval = int(np.sqrt( (1+prepend+2*GLITCH_WINDOW_LEFTRIGHT/sampling_period)/(2*SUBSAMPLE_FACTOR_GLITCH) ))
 
-            # ouput
+            # output
             print(u'INFO: Handling %s glitches.' % len(glitches))
 
-            # synthetic glitch generation, for each new trace once
-            step_fft, step_freqs = stepFFT(sampling_period, num_samples=NUM_SAMPLES_GLITCH)
-            glit_fft, _          = responseFFT(response, step_freqs, step_unit='ACC')
-            prec_fft, _          = responseFFT(response, step_freqs, step_unit='DIS')
-
-            # synthetic glitch precursor generation, for each new trace once
-            if precursor_fit:
-                prec_fft, _ = responseFFT(response, step_freqs, step_unit='DIS')
+            # synthetic glitch+spike generation, for each new trace once
+            step_source_FFT, source_freqs = sourceFFT(NUM_SAMPLES_GLITCH, sampling_period, int_samples=0)
+            ACC_fft, _                    = responseFFT(response, source_freqs, step_unit='ACC')
+            DIS_fft, _                    = responseFFT(response, source_freqs, step_unit='DIS')
 
             # looping over glitches to be corrected
             for g in range(len( glitches )):
@@ -261,7 +258,7 @@ def remove(*glitch_detector_files,
                     pass
 
                 glitch_len = prepend+int((glitch_end.UTC_time-glitch_start.UTC_time)/sampling_period)
-                #if component!='W':
+                #if not (component=='V' and glitch_number=='000162'):
                 #    continue
 
                 # variables needed
@@ -270,88 +267,153 @@ def remove(*glitch_detector_files,
                 data_len_fit       = len(fit_slice.data)
                 cor_slice          = trace.slice(starttime=glitch_start.UTC_time-GLITCH_WINDOW_LEFTRIGHT-PREPEND_ZEROS)
                 uncor_slice        = cor_slice.copy()
-                residuals          = []
-                residuals2         = []
-                fits               = []
-                fits2              = []
-                popts              = []
-                popts2             = []
-                correction_indices = []
+                int_samples_array  = np.arange(0,TRY_INTER+1,10)
 
-                # looping over each data point for glitch correction
-                for i in range(data_len_fit-glitch_len):
 
-                    # DATA
-                    data_shifted = cor_slice.data[i:i+glitch_len]
 
-                    for j in range(SUBSAMPLE_FACTOR_GLITCH):
+                ### G L I T C H
+                # some lists to be filled
+                residuals          = [[[np.nan  for _ in range(SUBSAMPLE_FACTOR_GLITCH)] for _ in range(data_len_fit-glitch_len)] for _ in range(len(int_samples_array))]
+                fits               = [[[np.nan  for _ in range(SUBSAMPLE_FACTOR_GLITCH)] for _ in range(data_len_fit-glitch_len)] for _ in range(len(int_samples_array))]
+                popts              = [[[np.nan  for _ in range(SUBSAMPLE_FACTOR_GLITCH)] for _ in range(data_len_fit-glitch_len)] for _ in range(len(int_samples_array))]
+                                
+                for k, interpolation_samples in enumerate(int_samples_array):
+                    
+                    # this bit fits the modeled glitch against the data in a coarse search and then determines index of residual minimum (using a polynomial 4th order)
+                    tau              = 0
+                    cut_index        = NUM_SAMPLES_GLITCH - max(CUT_SOURCE_BEFORE, int(interpolation_samples/2))
+                    residuals_fit    = []
+                    indices_fit      = []
 
-                        # More signal prep
-                        tau        = sampling_period * j/SUBSAMPLE_FACTOR_GLITCH
-                        syn_glitch = fft2signal(step_fft*glit_fft, step_freqs, tau=tau, amp_factor=ACC_STEP)
-                        syn_glitch = syn_glitch[cut_index:cut_index+len(data_shifted)-prepend]
-                        syn_glitch = np.hstack(( np.zeros(prepend), syn_glitch ))     
+                    for m in range(0,data_len_fit-glitch_len,optimum_interval):
 
-                        # FIT with variables: m, n, o
-                        # start values and their boundaries can improve fits, but not significantly whilst increasing calculation time significantly                        
-                        p0         = [0,data_shifted[0],1]
-                        bounds     = ([-np.inf, np.min(data_shifted), -np.inf],[np.inf, np.max(data_shifted), np.inf])
-                        popt, _    = scipy.optimize.curve_fit(glitch_model, np.arange(len(data_shifted)), data_shifted, p0=p0, bounds=bounds)
-                        fit        = glitch_model(np.arange(len(data_shifted)), *popt)
-                        residual   = np.linalg.norm(data_shifted - fit)
+                        # DATA
+                        data_shifted = cor_slice.data[m:m+glitch_len]
+                        
+                        # FIT
+                        p0           = [0, data_shifted[0], 1]
+                        bounds       = ([-np.inf, np.min(data_shifted), -np.inf],[np.inf, np.max(data_shifted), np.inf])
+                        popt, _      = scipy.optimize.curve_fit(glitch_model_nodecay, np.arange(len(data_shifted)), data_shifted, p0=p0, bounds=bounds)
+                        fit          = glitch_model_nodecay(np.arange(len(data_shifted)), *popt)
+                        residual     = np.linalg.norm(data_shifted - fit)
+                        residuals_fit.append(residual)
+                        indices_fit.append(m)
 
-                        # storing needed results
-                        residuals.append(residual)
-                        popts.append(popt)
-                        fits.append(fit)
+                    # fit of determined residuals
+                    popt, _   = scipy.optimize.curve_fit(residual_model, np.arange(len(residuals_fit)), residuals_fit)
+                    fit       = residual_model(np.arange(len(residuals_fit)), *popt)
+                    index_min = indices_fit[np.argmin(fit)]
+
+                    # around minimum of fitted residual, fit modeled glitch in finer grids against data to retrieve (including sub-sample shifts now)
+                    for i in range(index_min-optimum_interval,index_min+optimum_interval+1,1):
+
+                        if i < 0:
+                            continue
+
+                        if i >= data_len_fit-glitch_len:
+                            break
+
+                        # DATA
+                        data_shifted = cor_slice.data[i:i+glitch_len]
+
+
+                        for j in range(SUBSAMPLE_FACTOR_GLITCH):
+
+                            # More signal prep
+                            tau = sampling_period * j/SUBSAMPLE_FACTOR_GLITCH
+                            #print(k,i,j)
+
+                            # FITS: start values and their boundaries can improve fits, but not significantly whilst increasing calculation time significantly
+                            if not TRY_DECAY:   # FIT variables: m, n, o ; but with fixed 'interpolation_samples' passed as global variable
+                                p0      = [0, data_shifted[0], 1]
+                                bounds  = ([-np.inf, np.min(data_shifted), -np.inf],[np.inf, np.max(data_shifted), np.inf])
+                                popt, _ = scipy.optimize.curve_fit(glitch_model_nodecay, np.arange(len(data_shifted)), data_shifted, p0=p0, bounds=bounds)
+                                fit     = glitch_model_nodecay(np.arange(len(data_shifted)), *popt)
+                                
+                            else:               # FIT variables: m, n, o, + amp, abkling, freq (for decay)
+                                p0      = [0, data_shifted[0], 1, 0, 0, 4]
+                                bounds  = ([-np.inf, np.min(data_shifted), -np.inf, 0, 0, 0],[np.inf, np.max(data_shifted), np.inf, 20, 0.1, 1/(2*sampling_period)])
+                                popt, _ = scipy.optimize.curve_fit(glitch_model_decay, np.arange(len(data_shifted)), data_shifted, p0=p0, bounds=bounds)
+                                fit     = glitch_model_decay(np.arange(len(data_shifted)), *popt)
+                            
+                            residual           = np.linalg.norm(data_shifted - fit)
+                            residuals[k][i][j] = residual
+                            popts[k][i][j]     = popt
+                            fits[k][i][j]      = fit
 
                 # best fit glitch
-                best_index    = np.array( residuals ).argmin()
-                best_popt     = popts[best_index]
-                best_fit      = fits[best_index]
-                best_shift    = best_index//SUBSAMPLE_FACTOR_GLITCH
-                best_tau      = (best_index%SUBSAMPLE_FACTOR_GLITCH) * sampling_period/SUBSAMPLE_FACTOR_GLITCH
-                #print(best_index,best_shift,best_tau)
+                residuals    = np.array(residuals)
+                fits         = np.array(fits)
+                popts        = np.array(popts)
+                #quick_plot(*(residuals[i,:,0] for i in range(len(residuals)) ), data_labels=['# ramp inter. samples=%s' % i for i in int_samples_array])
+                
+                best_indices = np.where(residuals==np.nanmin(residuals))
+                best_popt    = popts[best_indices][0]
+                best_fit     = fits[best_indices][0]
+                best_inter   = int_samples_array[best_indices[0][0]]           
+                best_shift   = best_indices[1][0]
+                best_tau     = best_indices[2][0] * sampling_period/SUBSAMPLE_FACTOR_GLITCH
 
                 # from data, we do not subtact the fit which is as long as glitch stated in glitch detector file, but subtract a longer glitch of sample length ´NUM_SAMPLES_GLITCH´
                 length_glitch = np.min([NUM_SAMPLES_GLITCH,len(cor_slice.data[best_shift:])])-prepend
-                scaled_glitch = fft2signal(step_fft*glit_fft, step_freqs, tau=best_tau, amp_factor=ACC_STEP*best_popt[2])
+                cut_index     = NUM_SAMPLES_GLITCH - max(CUT_SOURCE_BEFORE, int(best_inter/2))
+                if TRY_INTER:
+                    source_FFT, step_freqs = sourceFFT(NUM_SAMPLES_GLITCH, sampling_period, int_samples=best_inter, gauss=GAUSS_SOURCE_INTER)
+                    print('int_samples=%s' % best_inter)
+                elif TRY_DECAY:
+                    source_FFT, step_freqs = sourceFFT(NUM_SAMPLES_GLITCH, sampling_period, abkling=best_popt[4], amp=best_popt[3], freq=best_popt[5])
+                    print('amp=%s, decay=%s, freq=%s' % (best_popt[3], best_popt[4], best_popt[5]))
+                else:
+                    source_FFT, step_freqs = sourceFFT(NUM_SAMPLES_GLITCH, sampling_period, int_samples=0)
+
+                scaled_glitch = fft2signal(source_FFT*ACC_fft, source_freqs, tau=best_tau, amp_factor=ACC_STEP*best_popt[2])
                 scaled_glitch = scaled_glitch[cut_index:cut_index+length_glitch]   
                 scaled_glitch = np.hstack(( np.zeros(prepend), scaled_glitch ))
 
                 # actual glitch correction!
                 cor_slice.data[best_shift:best_shift+len(scaled_glitch)] = cor_slice.data[best_shift:best_shift+len(scaled_glitch)]-scaled_glitch
 
-                # looping over each data point for glitch precursor correction
-                tag_precursor = False
-                if precursor_fit:
 
-                    for i in range(2*PRECURSOR_SHIFT_SAMPLES_PER_SIDE+1):
+
+                ### S P I K E
+                # some lists to be filled
+                residuals2         = []
+                fits2              = []
+                popts2             = []
+                correction_indices = []   
+
+                # looping over each data point for glitch spike correction
+                tag_spike = False
+                source_FFT, step_freqs = sourceFFT(NUM_SAMPLES_GLITCH, sampling_period)
+                if spike_fit:
+
+                    for i in range(2*SPIKE_SHIFT_SAMPLES_PER_SIDE+1+best_inter):
 
                         # DATA
-                        start_index  = best_shift+prepend-PRECURSOR_SHIFT_SAMPLES_PER_SIDE+i
-                        if start_index<0:                                                       # case: best_shift+prepend+i<PRECURSOR_SHIFT_SAMPLES_PER_SIDE which creates negative index
+                        start_index = i+best_shift+prepend-SPIKE_SHIFT_SAMPLES_PER_SIDE-int(best_inter/2)
+
+                        if start_index<0:                           # case: best_shift+prepend+i<SPIKE_SHIFT_SAMPLES_PER_SIDE which creates negative index
                             start_index = 0
-                            correction_index = abs(start_index)                                 # if that happens, cut accordant samples from model to fit data
+                            correction_index = abs(start_index)     # if that happens, cut accordant samples from model to fit data
                         else:
                             correction_index = 0
                         correction_indices.append(correction_index)
                         end_index    = start_index+glitch_len
                         data_shifted = fit_slice.data[start_index:end_index]
 
-                        for j in range(SUBSAMPLE_FACTOR_PRECUR):
+                        for j in range(SUBSAMPLE_FACTOR_SPIKE):
 
                             # More signal prep
-                            tau        = sampling_period * j/SUBSAMPLE_FACTOR_PRECUR
-                            syn_precur = fft2signal(step_fft*prec_fft, step_freqs, tau=tau, amp_factor=DIS_STEP)
-                            syn_precur = syn_precur[cut_index+correction_index:cut_index+correction_index+len(data_shifted)]
+                            tau        = sampling_period * j/SUBSAMPLE_FACTOR_SPIKE
+                            syn_spike = fft2signal(step_source_FFT*DIS_fft, step_freqs, tau=tau, amp_factor=DIS_STEP)
+                            syn_spike = syn_spike[cut_index+correction_index:cut_index+correction_index+len(data_shifted)]
 
                             # FIT with variables: m, n, o
                             # start values and their boundaries can improve fits, but not significantly whilst increasing calculation time significantly
                             #p0       = [0,data_shifted[0],1]
                             #bounds   = ([-1, np.min(data_shifted), -np.inf],[1, np.max(data_shifted), np.inf])
-                            popt, _  = scipy.optimize.curve_fit(precursor_model, np.arange(len(data_shifted)), data_shifted)
-                            fit      = precursor_model(np.arange(len(data_shifted)), *popt)
+                            popt, _  = scipy.optimize.curve_fit(spike_model, np.arange(len(data_shifted)), data_shifted)
+                            fit      = spike_model(np.arange(len(data_shifted)), *popt)
                             residual = np.linalg.norm(data_shifted - fit)
 
                             # storing needed results
@@ -359,26 +421,24 @@ def remove(*glitch_detector_files,
                             popts2.append(popt)
                             fits2.append(fit)
 
-                    # best fit precursor                   
+                    # best fit spike
                     best_index2   = np.array( residuals2 ).argmin()
                     best_popt2    = popts2[best_index2]
                     best_fit2     = fits2[best_index2]
-                    best_shift2   = best_index2//SUBSAMPLE_FACTOR_PRECUR+best_shift+prepend-PRECURSOR_SHIFT_SAMPLES_PER_SIDE
-                    if best_shift2<0:
-                        best_shift2 = 0
-                    best_cindex2  = correction_indices[best_index2//SUBSAMPLE_FACTOR_PRECUR]
-                    best_tau2     = (best_index2%SUBSAMPLE_FACTOR_PRECUR) * sampling_period/SUBSAMPLE_FACTOR_PRECUR
-                    #print(best_index2,best_shift2,best_tau2)
+                    best_shift2   = max(0, best_index2//SUBSAMPLE_FACTOR_SPIKE+best_shift+prepend-SPIKE_SHIFT_SAMPLES_PER_SIDE-int(best_inter/2))
+                    best_cindex2  = correction_indices[best_index2//SUBSAMPLE_FACTOR_SPIKE]            # cutting  of slightly in case not enough data in beginning
+                    best_tau2     = (best_index2%SUBSAMPLE_FACTOR_SPIKE) * sampling_period/SUBSAMPLE_FACTOR_SPIKE
+                    #print(best_shift,best_index2,best_shift2,best_tau2,data_len_fit,len(best_fit2),best_cindex2)
 
                     # from data, we do not subtact the fit which is as long as glitch stated in glitch detector file, but subtract a longer glitch of sample length ´NUM_SAMPLES_GLITCH´
-                    length_precur = np.min([NUM_SAMPLES_GLITCH,len(cor_slice.data[best_shift2:])])
-                    scaled_precur = fft2signal(step_fft*prec_fft, step_freqs, tau=best_tau2, amp_factor=DIS_STEP*best_popt2[2])
-                    scaled_precur = scaled_precur[cut_index+best_cindex2:cut_index+length_precur]
+                    length_spike = np.min([NUM_SAMPLES_GLITCH,len(cor_slice.data[best_shift2:])])
+                    scaled_spike = fft2signal(source_FFT*DIS_fft, step_freqs, tau=best_tau2, amp_factor=DIS_STEP*best_popt2[2])
+                    scaled_spike = scaled_spike[cut_index+best_cindex2:cut_index+length_spike]
 
-                    # variance reduction between deglitched and deglitched+deprecursored data
+                    # variance reduction between deglitched and deglitched+despikeed data
                     var_data           = np.var(fit_slice)
                     deg_slice          = cor_slice.copy()
-                    cor_slice.data[best_shift2:best_shift2+len(scaled_precur)] = cor_slice.data[best_shift2:best_shift2+len(scaled_precur)]-scaled_precur      # actual precursor correction!           
+                    cor_slice.data[best_shift2:best_shift2+len(scaled_spike)] = cor_slice.data[best_shift2:best_shift2+len(scaled_spike)]-scaled_spike      # actual spike correction!           
                     var_data_corrected = np.var(fit_slice)
                     var_red_pre        = (1 - var_data_corrected/var_data) * 100
 
@@ -387,15 +447,15 @@ def remove(*glitch_detector_files,
                     if var_red_pre<0:
                         var_red_pre = 0
 
-                    # precursor correction
-                    if var_red_pre>=VAR_REDUCTION_MIN_PRECURSOR:
-                        tag_precursor = True
-                        time_diff_GP  = (best_shift - best_shift2) * sampling_period + best_tau - best_tau2 - prepend
+                    # spike correction
+                    if var_red_pre>=VAR_REDUCTION_MIN_SPIKE:
+                        tag_spike = True
+                        time_diff_GP  = (best_shift - best_shift2 + prepend) * sampling_period + best_tau - best_tau2
                     else:
-                        tag_precursor = False
-                        cor_slice.data[:] = deg_slice.data[:]           # undo precursor correction as not good enough
+                        tag_spike = False
+                        cor_slice.data[:] = deg_slice.data[:]           # undo spike correction as not good enough
 
-                # variance reduction between original and deglitched or deglitched+deprecursored data
+                # variance reduction between original and deglitched or deglitched+despikeed data
                 var_data           = np.var(ori_slice)
                 var_data_corrected = np.var(fit_slice)
                 var_red            = (1 - var_data_corrected/var_data) * 100
@@ -407,10 +467,10 @@ def remove(*glitch_detector_files,
                 # glitch correction undone or not
                 if var_red>=var_reduction_min:
                     removed.append(component)
-                    if precursor_fit:
-                        if tag_precursor:
+                    if spike_fit:
+                        if tag_spike:
                             print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%,  tau=%.3f s.  Correction is done.  Acc. step = %6.1f nm/s**2.  Dis. step = %6.1f pm (var_red_pre=%4.1f %%, tau=%.3f s, Tgli-Tpre=%6.3f s)'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_tau, best_popt[2], best_popt2[2], var_red_pre, best_tau2, time_diff_GP))
-                            label = 'glitch+precursor corrected'
+                            label = 'glitch+spike corrected'
                         else:
                             print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%,  tau=%.3f s.  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_tau, best_popt[2]))
                             label = 'glitch corrected'
@@ -423,22 +483,22 @@ def remove(*glitch_detector_files,
                     label = 'not corrected'
 
                 # only to convey information to user
-                if show_glitch_fit:
+                if show_fit:
                     glitch_slice = fit_slice.copy()
-                    glitch       = np.hstack(( np.nan*np.ones(best_shift), best_fit, np.nan*np.ones(data_len_fit-len(best_fit)-best_shift) ))          # glitch
-                    if precursor_fit and tag_precursor:
-                        precursor = np.hstack(( np.nan*np.ones(best_shift2), best_fit2-best_fit2[1], np.nan*np.ones(data_len_fit-len(best_fit2)-best_shift2) ))   # precursor
+                    glitch       = np.hstack(( np.nan*np.ones(best_shift), best_fit, np.nan*np.ones(data_len_fit-len(best_fit)-best_shift) ))                   # glitch
+                    if spike_fit and tag_spike:
+                        spike = np.hstack(( np.nan*np.ones(best_shift2), scaled_spike[:len(best_fit2)], np.nan*np.ones(data_len_fit-len(best_fit2)-best_shift2) ))   # spike
                     else:
-                        precursor = np.nan*np.ones(data_len_fit)
+                        spike = np.nan*np.ones(data_len_fit)
 
                     data_plot = []
                     for i in range(len(glitch)):
-                        if np.isnan(glitch[i]) and np.isnan(precursor[i]):
+                        if np.isnan(glitch[i]) and np.isnan(spike[i]):
                             value = np.nan
-                        elif not np.isnan(glitch[i]) and np.isnan(precursor[i]):
+                        elif not np.isnan(glitch[i]) and np.isnan(spike[i]):
                             value = glitch[i]
                         else:
-                            value = glitch[i] + precursor[i]
+                            value = glitch[i] + spike[i]
                         data_plot.append( value )
 
                     glitch_slice.data  = np.array( data_plot )
@@ -550,7 +610,7 @@ if __name__ == "__main__":
              '/home/scholz/Desktop/data/XB.ELYSE.67.SH?_2019-03-01T00:00:09.731000Z-2019-03-01T12:00:21.214000Z_raw.mseed',
              '/home/scholz/Desktop/data/XB.ELYSE.65.EH?_2019-03-08T03:59:59.314000Z-2019-03-08T04:30:01.944000Z_raw.mseed']
     traces_glitch = []
-    traces_precur = []
+    traces_spike = []
 
     # Data prep
     for file in files:
@@ -565,35 +625,34 @@ if __name__ == "__main__":
                            'location' : stream[0].stats.location, 
                            'channel'  : stream[0].stats.channel}
         #cut_index = _cut_index(component_response=response, offset=15000)
-        cut_index = 15000 - 20          # fixed. '20' samples before modeled glitch starts model is taken and fit against data (for both glitch and precursor)
+        cut_index = 15000 - 20          # fixed. '20' samples before modeled glitch starts model is taken and fit against data (for both glitch and spike)
 
 
-        step_fft, step_freqs = stepFFT(sampling_period, num_samples=15000)
-        glit_fft, _          = responseFFT(response, step_freqs, step_unit='ACC')
-        syn_glitch           = fft2signal(step_fft*glit_fft, step_freqs, tau=0, amp_factor=1e-9)
-        syn_glitch           = syn_glitch[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
-
-        prec_fft, _          = responseFFT(response, step_freqs, step_unit='DIS')
-        syn_precur           = fft2signal(step_fft*prec_fft, step_freqs, tau=0, amp_factor=1e-12)
-        syn_precur           = syn_precur[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
+        source_FFT, step_freqs = sourceFFT(sampling_period, num_samples=15000)
+        ACC_fft, _             = responseFFT(response, step_freqs, step_unit='ACC')
+        syn_glitch             = fft2signal(source_FFT*ACC_fft, step_freqs, tau=0, amp_factor=1e-9)
+        syn_glitch             = syn_glitch[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
+        
+        DIS_fft, _             = responseFFT(response, step_freqs, step_unit='DIS')
+        syn_spike              = fft2signal(source_FFT*DIS_fft, step_freqs, tau=0, amp_factor=1e-12)
+        syn_spike              = syn_spike[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
 
         glitch = Trace(data=syn_glitch, header=header)
-        precur = Trace(data=syn_precur, header=header)
+        precur = Trace(data=syn_spike, header=header)
         traces_glitch.append(glitch)
-        traces_precur.append(precur)
+        traces_spike.append(precur)
 
     stream_glitch = Stream2(traces=traces_glitch)
-    stream_precur = Stream2(traces=traces_precur)
+    stream_spike = Stream2(traces=traces_spike)
     print(stream_glitch)
 
     # Plotting
     fig, axes = plt.subplots(2, figsize=(10,15), sharex=True)
-    title     = 'VBB & SP modeled glitches and their precursors'
+    title     = 'VBB & SP modeled glitches and their spikes'
     fig.suptitle(title, fontsize=13)
     fig.align_ylabels()
     fig.subplots_adjust(hspace=0.2)
     axes[0].xaxis.set_ticks_position('none')
-
 
 
     if not PLOT_TRACES:
@@ -605,7 +664,7 @@ if __name__ == "__main__":
                         data_labels=['VBB 2 SPS', 'VBB 20 SPS', 'VBB 100 SPS', 'SP 2 SPS', 'SP 20 SPS', 'SP 100 SPS'],
                         legend_loc='upper right',
                         show=False)
-        axes[1] = quick_plot(*[trace.data for trace in stream_precur],
+        axes[1] = quick_plot(*[trace.data for trace in stream_spike],
                         axis=axes[1],
                         title='Precursors (step: 1e-12 m)',
                         ylabel='Digital Units',
@@ -621,7 +680,7 @@ if __name__ == "__main__":
                         xlabel=None,
                         legend_loc='upper right',
                         show=False)
-        axes[1] = quick_plot(*stream_precur,
+        axes[1] = quick_plot(*stream_spike,
                         axis=axes[1],
                         title='Precursors (step: 1e-12 m)',
                         ylabel='Digital Units',
