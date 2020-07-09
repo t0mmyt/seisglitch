@@ -79,6 +79,9 @@ config = args['config_file']
 params         = util.read_config(config)
 waveform_files = params['waveform_files']
 inventory_file = params['inventory_file']
+if not inventory_file:
+    inventory_file = 'IPGP'
+
 
 if mode=='detect':
 

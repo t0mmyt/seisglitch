@@ -57,8 +57,9 @@ Access them from your terminal like so:
     seisglitch merge path/to/config.yml
     seisglitch time path/to/config.yml
 
+==
 
-Each of the seven functions mentioned has a dedicated section in the ``config.yml``. 
+Each of these functions has a dedicated section in the ``config.yml``. 
 Typically, each function only accesses the accordant section in the ``config.yml`` file, however,
 there is one small exception; the 'merge' function will look for the waveform_files of the 'detect' function if
 no glitch detector files to merge are specified. :)
