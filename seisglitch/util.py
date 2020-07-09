@@ -416,7 +416,7 @@ class Stream2(Stream):
                                      starttime = trace.stats.starttime, 
                                      endtime   = trace.stats.endtime)
             if verbose:
-                print(u'INFO: Inventory used that was passed.')
+                print(u'INFO: Inventory used that was passed')
 
 
         elif os.path.isfile(source):
@@ -430,7 +430,7 @@ class Stream2(Stream):
                                         starttime = trace.stats.starttime, 
                                         endtime   = trace.stats.endtime)
             if verbose:            
-                print(u"INFO: Inventory read from file '%s'." % source)
+                print(u"INFO: Inventory read from file '%s'" % source)
 
 
         else:
@@ -445,7 +445,7 @@ class Stream2(Stream):
                                            endtime   = trace.stats.endtime,
                                            level     = 'response')                
             if verbose:
-                print(u"INFO: Inventory retrieved online from '%s'." % source)
+                print(u"INFO: Inventory retrieved online from '%s'" % source)
 
         return inv
     def set_inventory(self, source='IPGP', verbose=True):

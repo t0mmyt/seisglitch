@@ -21,8 +21,8 @@ Guide
 
 
 
-Modules
-^^^^^^^
+Functions
+^^^^^^^^^
 
 .. toctree::
     :maxdepth: 1
@@ -30,7 +30,11 @@ Modules
     detector
     plotter
     remover
-    evaluater
+
+    downloader
+    decimater
+    merger
+    timer
 
 
 

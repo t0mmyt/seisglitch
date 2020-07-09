@@ -27,8 +27,7 @@ Setup config.yml
 ^^^^^^^^^^^^^^^^
 
 This file – that you downloaded along with the ``seisglitch`` package – allows you to specify all needed options. 
-Go ahead, open the config file and enter your settings – they should be straightforward. 
-For a detailed parameter discussion, see :ref:`config_file`.
+Go ahead, open the config file and enter your settings – they should be straightforward.
 
 
 
@@ -36,9 +35,9 @@ For a detailed parameter discussion, see :ref:`config_file`.
 Execute seisglitch functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are three main ``seisglitch`` functions that you mostly likely want to use. 
+There are three main ``seisglitch`` functions that you most likely want to use. 
 Before you execute them, remember to activate your environment beforehand (see :ref:`installation`)!
-Then, type one of the following into your terminal:
+Then, type one of the following commands into your terminal:
 ::
 
     seisglitch detect path/to/config.yml
@@ -48,7 +47,7 @@ Then, type one of the following into your terminal:
 You can see right away, you can have multiple ``config.yml`` files for multiple setups. 
 Personally, I had one for the VBB and one for the SP seismometer.
 
-There are furthermore additional ``seisglitch`` functions that shall ease data handling and are there for your convenience.
+There are furthermore additional ``seisglitch`` functions that shall ease data handling for your convenience.
 Access them from your terminal like so:
 ::
 
@@ -57,9 +56,11 @@ Access them from your terminal like so:
     seisglitch merge path/to/config.yml
     seisglitch time path/to/config.yml
 
-==
+  
 
-Each of these functions has a dedicated section in the ``config.yml``. 
+-
+
+Each of these seven functions has a dedicated section in the ``config.yml``. 
 Typically, each function only accesses the accordant section in the ``config.yml`` file, however,
 there is one small exception; the 'merge' function will look for the waveform_files of the 'detect' function if
 no glitch detector files to merge are specified. :)

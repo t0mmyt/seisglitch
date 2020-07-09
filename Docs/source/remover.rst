@@ -1,7 +1,7 @@
 .. _remove:
 
-seisglitch.remove
+seisglitch remove
 =================
 
 
-This is not yet implemented.
+This is not yet documented.

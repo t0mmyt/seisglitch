@@ -1,6 +1,6 @@
-.. _plot:
+.. _time:
 
-seisglitch plot
+seisglitch time
 ===============
 
 

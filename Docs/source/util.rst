@@ -1,5 +1,0 @@
-.. _util:
-
-seisglitch.util
-===============
-

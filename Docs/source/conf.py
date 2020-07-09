@@ -84,7 +84,6 @@ html_theme = 'alabaster'  # pyramid, haiku, alabaster, scrolls, classic, nature
 html_theme_options = {
     'logo'                  : 'glitch.png',
     'logo_name'             : False,
-
     'show_relbars'          : True,
     'fixed_sidebar'         : True,
     'sidebar_width'         : '300px',

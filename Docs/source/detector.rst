@@ -1,6 +1,6 @@
 .. _detect:
 
-seisglitch.detect
+seisglitch detect
 =================
 
 Activate your correct Python :ref:`environment <installation>`, fill the options
