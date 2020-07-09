@@ -152,6 +152,7 @@ def detect(*RAW_UVW,
                 ## DATA assignment
                 stRAW = Stream2(traces=[traceU, traceV, traceW])
                 stRAW.sort(reverse=False)                    # Sorted: U then V then W: if you change this, god may stand by your side
+                stGAI = stRAW.copy()
                 data_start, data_end  = [marstime(time) for time in stRAW.times]
 
 
@@ -205,7 +206,7 @@ def detect(*RAW_UVW,
                     print(u'WARNING: Could not find meta-data for given trace(s). Skipped.')
                     continue
 
-                stGAI = stRAW.copy()
+                stGAI.set_inventory(stRAW.inventory)
                 if stGAI.gain_correction() == -1:                # Could not gain correct although inventory file given for traces. ==> Inv file maybe faulty
                     log_file = os.path.join(os.getcwd(), 'inventory_error.log')
                     with open(log_file, 'a') as fp:
@@ -286,7 +287,7 @@ def detect(*RAW_UVW,
 
                     for p, comp in enumerate(stream_comps):
                         ACC_der = stACC_grad.copy()
-                        RAW     = stWORK.copy()
+                        RAW     = stRAW.copy()
                         RAW.filter('highpass', **{'freq':0.001, 'corners':3, 'zerophase':True})
                         ACC     = stACC.copy()
 

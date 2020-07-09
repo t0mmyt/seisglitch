@@ -3,10 +3,12 @@ Contributions
 
 John-Robert Scholz <john.robert.scholz@gmail.com>
 
-Martin van Driel
+Rudolf Widmer-Schnidrig (detection, removal)
 
-Simon Stähler
+Martin van Driel (data retrievel & time conversions)
 
-Savas Ceylan
+Simon Stähler (data retrievel & time conversions)
 
-Eléonore Stutzmann
+Savas Ceylan (data retrievel & time conversions)
+
+Eléonore Stutzmann (decimation using FIR-coefficients)

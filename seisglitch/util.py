@@ -63,6 +63,7 @@ from obspy.core.inventory import Inventory
 from obspy.signal import rotate
 from obspy.clients.fdsn import Client
 from obspy.clients.fdsn.client import CustomRedirectHandler, NoRedirectionHandler, build_url
+from obspy.signal.filter import envelope
 
 
 ##### seisglitch modules import #####
@@ -465,6 +466,14 @@ class Stream2(Stream):
         st_obs_select.times        = self.times
         st_obs_select.inventory    = self.inventory
         return st_obs_select
+    def envelope_smooth(self, envelope_window_in_sec=10, mode='same'):
+
+        for tr in self:
+
+            tr.data = envelope(tr.data)
+            w       = np.ones(int(envelope_window_in_sec * tr.stats.sampling_rate))
+            w      /= w.sum()
+            tr.data = np.convolve(tr.data, w, mode=mode)
     def plot2(self, store_dir=os.getcwd(), store_name='*', verticals=[], time='normal', method='full', xlim=[], ylim=[], store_plot=False, show=True, **kwargs):
 
 
@@ -567,14 +576,44 @@ class Stream2(Stream):
                     #flags['saved'] = True
                     #plt.savefig(outfile, dpi=200, bbox_inches='tight')
                     #plt.close(fig)
-                elif evt.button == 2:                                                       # middle-click (set ylim for each axis to minimum of all axes and maximum of all axes)
+                elif evt.button == 2:                                                       # middle-click (set ylim for each axis to maximum available ylim of all axes whilst centering data of each axis == equal scale)
+                    xlim  = axis.get_xlim()
                     ylims = []
+
                     for axis in axes:
-                        ylims.append( axis.get_ylim() )
-                    max_y = max( np.array(ylims)[:,0] )
-                    min_y = min( np.array(ylims)[:,1] )
-                    for axis in axes:
-                        axis.set_ylim( [max_y,min_y] )
+
+                        y_mins = []
+                        y_maxs = []     
+
+                        for line in axis.lines:
+                            x = line.get_xdata()
+                            if x[0]==x[-1]:                                                 # exclude vertical lines
+                                continue
+                            y = line.get_ydata()
+                            i = np.where( (x >= xlim[0]) & (x <= xlim[1]) )[0]              # all indexes of y_data according to xlim
+                            if not i.any():
+                                continue                                                    # e.g. data gaps, that is, 2 lines within axes where one does not lie within chose xlims
+
+                            line_min = y[i].min()                                           # get minimum y within all data according to xlim
+                            line_max = y[i].max()                                           # get maximum y within all data according to xlim
+                            y_mins.append(line_min)
+                            y_maxs.append(line_max)
+                        
+                        y_min = min(y_mins)
+                        y_max = max(y_maxs)
+                        ylims.append([y_min, y_max])
+
+                    ylims        = np.array(ylims)
+                    ylims_vals   = [ylim[1]-ylim[0] for ylim in ylims]
+                    ylim_max_ind = np.argmax(ylims_vals)
+
+                    for r, ylim in enumerate(ylims):
+                        if r == ylim_max_ind:
+                            pass
+                        else:
+                            ylim = [ylim[0]-ylims_vals[ylim_max_ind]/2+(ylim[1]-ylim[0])/2, ylim[1]+ylims_vals[ylim_max_ind]/2-(ylim[1]-ylim[0])/2]
+                        ylim_set = [ylim[0]-0.025*np.abs(ylim[1]-ylim[0]), ylim[1]+0.025*np.abs(ylim[1]-ylim[0])] # give 2.5% margin that works both for pos. & neg. values
+                        axes[r].set_ylim( ylim_set ) 
                     fig.canvas.draw()
                 elif evt.button == 3:                                                       # right-click (for each axis individually, set ylim to respective data minimum and maximum + margin)
                     xlim   = axis.get_xlim()
@@ -1461,7 +1500,6 @@ def glitch_statistic(glitches, total_time_s_UTC):
     glitches       = np.array( glitches )
 
     if glitches.size != 0:
-
         t1                = UTCDateTime( datetime.datetime.utcnow() )
         t2                = t1 + float(total_time_s_UTC)
         total_LMST        = marstime(t2).LMST_time - marstime(t1).LMST_time
@@ -1568,11 +1606,13 @@ def merge_glitch_detector_files(glitch_detector_files, outfile, starttime_sort=T
     ### STATISTICS    
     data_split = np.array( [line.split() for line in data] )
     total_UTC = 0
+
     for days, hours, minutes, seconds in lengths:
         #print(days, hours, minutes, seconds)
         if days.rstrip():
             total_UTC += int(days) * 24*3600
         total_UTC += int(hours) * 3600
+        total_UTC += int(minutes) * 60
         total_UTC += int(seconds) 
 
 
@@ -2892,8 +2932,8 @@ def quick_plot(*y,
 
     ### FIXED VARIABLES
     fs_title  = 12
-    fs_label  = 10
-    fs_legend = 8
+    fs_label  = 11
+    fs_legend = 9
 
 
 
@@ -3061,8 +3101,7 @@ def quick_plot(*y,
     else:
         colours = vertsc
     
-    if verts is not None:
-                                                        # make list of lists so fo-loops work
+    if verts is not None: 
 
         for k, vert in enumerate(verts):
             colour_index = k % len(colours)

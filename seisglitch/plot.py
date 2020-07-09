@@ -244,7 +244,7 @@ def select_glitches(glitch_files,
     ### SELECT GLITCHES ON GIVEN `glitch_SNR`
     if glitch_SNR:
         if len(glitch_SNR)==1:
-            keep = [g for g in range(len(keep)) if float(all_glitches[g,21])<=float(glitch_SNR[0])]
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,21])>=float(glitch_SNR[0])]
         elif len(glitch_SNR)==2:
             keep = [g for g in range(len(keep)) if float(all_glitches[g,21])>=float(glitch_SNR[0]) and float(all_glitches[g,21])<=float(glitch_SNR[1])]
 
@@ -253,7 +253,7 @@ def select_glitches(glitch_files,
     ### SELECT GLITCHES ON GIVEN `glitch_polarization`
     if glitch_polarization:
         if len(glitch_polarization)==1:
-            keep = [g for g in range(len(keep)) if float(all_glitches[g,22])<=float(glitch_polarization[0])]
+            keep = [g for g in range(len(keep)) if float(all_glitches[g,22])>=float(glitch_polarization[0])]
         elif len(glitch_polarization)==2:
             keep = [g for g in range(len(keep)) if float(all_glitches[g,22])>=float(glitch_polarization[0]) and float(all_glitches[g,22])<=float(glitch_polarization[1])]
 
