@@ -1,0 +1,25 @@
+Contributions
+=============
+
+If you want to contribute, please consider one or more of the following options:
+
+- fork the repository, commit your changes, make a pull request
+- open an issue: https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch/issues
+- contact the lead author of the code and paper: john.robert.scholz@gmail.com
+- contact any other co-author
+
+
+Contributers:
+-------------
+
+John-Robert Scholz <john.robert.scholz@gmail.com>
+
+Rudolf Widmer-Schnidrig (detection, removal)
+
+Martin van Driel (data retrieval & time conversions)
+
+Simon Stähler (data retrieval & time conversions)
+
+Savas Ceylan (data retrieval & time conversions)
+
+Eléonore Stutzmann (decimation using FIR-coefficients)

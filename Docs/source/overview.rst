@@ -5,9 +5,9 @@ Overview
 
 Once ``seisglitch`` is :ref:`installed <installation>`, all you have to do is:
 
-* prepare your data
-* specify your settings in the ``config.yml`` file, and 
-* execute the intended ``seisglitch`` module.
+* data preparation
+* setup of ``config.yml`` file that came with the download
+* execute the intended ``seisglitch`` function
 
 
 .. _data_prep:
@@ -17,10 +17,8 @@ Data preparation
 
 Your waveform data should all comply with the following conditions:
 
-* all waveform files must contain all three seismic components (i.e., "U", "V", "W" of either VBB or SP)
-* all waveform files must contain no other components
+* all waveform files must contain all three seismic components (i.e., "U", "V", "W" of either the VBB or SP seismometer)
 * all waveform files must be readable as seismological files (e.g. MSEED, SAC, ...)
-* all waveform files must contain no gaps (see: ``seisglitch.util.pierce_stream``)
 
 
 
@@ -35,13 +33,26 @@ For a detailed parameter discussion, see :ref:`config_file`.
 
 
 
-Seisglitch modules
-^^^^^^^^^^^^^^^^^^
+Execute seisglitch functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are four ``seisglitch`` modules:
+There are three main ``seisglitch`` functions that you mostly likely want to use. 
+Before you execute them, remember to activate your environment beforehand (see :ref:`installation`)!
+Then, type one of the following into your terminal:
 ::
 
-    seisglitch.detect
-    seisglitch.plot
-    seisglitch.remove
-    seisglitch.evaulate
+    seisglitch detect path/to/config.yml
+    seisglitch plot path/to/config.yml
+    seisglitch remove path/to/config.yml
+
+You can see right away, you can have multiple ``config.yml`` files for multiple setups. 
+Personally, I had one for the VBB and one for the SP seismometer.
+
+There are furthermore additional ``seisglitch`` functions that shall ease data handling and are there for your convenience.
+Access them from your terminal like so:
+::
+
+    seisglitch download path/to/config.yml
+    seisglitch decimate path/to/config.yml
+    seisglitch merge path/to/config.yml
+    seisglitch time path/to/config.yml

@@ -11,13 +11,14 @@ distribution that allows to quickly configure a specific Python environment (e.g
 1. Install Anaconda_ or Miniconda_.
 2. Create a new environment and activate it (choose an environment name you prefer, here ``seisglitch`` is chosen)::
 
+    cd your/prefered/folder
     conda create -n seisglitch python=3.7 obspy pyyaml -c conda-forge
     conda activate seisglitch
 
 
 3. Go to your prefered folder and download the repository::
 
-    git clone https://gitlab.com/johnrobertscholz/seisglitch.git  
+    git clone pss-gitlab.math.univ-paris-diderot.fr:data-processing-wg/seisglitch.git
     cd seisglitch
 
 
@@ -27,6 +28,7 @@ distribution that allows to quickly configure a specific Python environment (e.g
 
 Good news, everything is installed and ready to use!
 Remember to activate the ``seisglitch`` environment each time you want to use it.
+The package should be available from all paths.
 
 | 
 

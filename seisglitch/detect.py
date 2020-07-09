@@ -92,8 +92,11 @@ def detect(*RAW_UVW,
     
 
         ### READ DATA
-        now           = time.time()        
-        stream        = read2(RAW_UVW[o])
+        now           = time.time()
+        try: 
+            stream = read2(RAW_UVW[o])
+        except TypeError:       # could not read file, skip
+            continue
         stream_select = stream.select(channel='?[LMH]?')
         stream_ids    = sorted(set( stream_select._get_ids() ))
         stream_comps  = sorted(set( stream_select._get_components() ))

@@ -200,7 +200,10 @@ def remove(*glitch_detector_files,
         removed  = []
 
         # read streams
-        stream = read2(waveform_file)
+        try: 
+            stream = read2(waveform_file)
+        except TypeError:       # could not read file, skip
+            continue   
         stream.sort(reverse=False)
 
         # small output
@@ -596,6 +599,7 @@ def remove(*glitch_detector_files,
 
 
     return stream
+
 
 
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  

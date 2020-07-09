@@ -322,7 +322,10 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], starttime=N
     for waveform_file in waveform_files:
 
         # read / select stream
-        st = read2(waveform_file)
+        try: 
+            st = read2(waveform_file)
+        except TypeError:       # could not read file, skip
+            continue        
         st_select = st.select(channel='?[LMH]?')
 
         # sanity check
@@ -870,7 +873,11 @@ def plot_glitch_ppol(glitch_start=None, glitch_length=30, run=True, waveform_fil
     for waveform_file in waveform_files:
         
         # reading stream
-        stream = read(waveform_file, starttime=glitch_start-30, endtime=glitch_end+30, headonly=True)
+        try: 
+            stream = read(waveform_file, starttime=glitch_start-30, endtime=glitch_end+30, headonly=True)
+        except TypeError:       # could not read file, skip
+            continue             
+
         if not stream:
             continue
         else:
@@ -900,6 +907,7 @@ def plot_glitch_ppol(glitch_start=None, glitch_length=30, run=True, waveform_fil
 
     else:
         print(u'Could not find any waveform data corresponding to glitch time.')
+
 
 
 ### _ _ N A M E _ _ = = " _ _ M A I N _ _ "  
