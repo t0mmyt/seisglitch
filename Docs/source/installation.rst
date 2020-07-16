@@ -9,20 +9,20 @@ distribution that allows to quickly configure a specific Python environment (e.g
 
 
 1. Install Anaconda_ or Miniconda_.
-2. Open a terminal (Windows: Anaconda or Windows powershell), create a new environment and activate it (choose an environment name you prefer, here ``seisglitch`` is chosen)::
+2. Open a terminal (Windows: Anaconda powershell), create a new environment and activate it (choose an environment name you prefer, here ``seisglitch`` is chosen)::
 
     conda create -n seisglitch python=3.7 numpy=1.16 obspy pyyaml -c conda-forge
     conda activate seisglitch
 
 
-3. Go to to your prefered folder, download ``seisglitch`` (on Windows, you may need to download "Git" first)::
+3. Go to to your prefered folder, download ``seisglitch`` (on Windows, you may need to download "git" first)::
 
     cd your/prefered/folder
     git clone https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch.git
     cd seisglitch
 
 
-4. Install ``seisglitch``::
+4. Install ``seisglitch`` (on Windows, you may need to download "pip" first)::
 
     pip install .
 
@@ -46,3 +46,19 @@ thus creating symbolic links to the module files, avoiding having to re-compile 
 
 .. _Anaconda: https://docs.anaconda.com/anaconda/install/
 .. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
+
+
+
+
+UPDATE
+======
+
+If you already have ``seisglitch`` installed and just would like to get the newest version, simply do:
+
+
+1. Open a terminal (Windows: Anaconda powershell) and type::
+
+    conda activate seisglitch
+    cd your/seisglitch/folder (see Installation)
+    git pull
+    pip install . (or pip install -e.)
