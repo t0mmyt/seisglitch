@@ -887,9 +887,7 @@ def plot_glitch_ppol(glitch_start=None, glitch_length=30, run=True, waveform_fil
 
         # data pre processing
         stream_select.set_inventory(inventory_file)
-        #stream.write('/home/scholz/Desktop/data/VBB_test_glitch.mseed', starttime=glitch_start, endtime=glitch_end)
         stream_select.gain_correction(verbose=False)
-        #stream.filter('lowpass', freq=1, zerophase=True)
         stream2 = stream_select.copy()
         stream2.rotate('->ZNE', inventory=stream_select.inventory, components=('UVW'))
 
@@ -901,7 +899,7 @@ def plot_glitch_ppol(glitch_start=None, glitch_length=30, run=True, waveform_fil
         print(u'    UTC: %20s - %s' % (marstime(glitch_start).UTC_string,  marstime(glitch_end).UTC_string))
         print(u'   LMST: %20s - %s' % (marstime(glitch_start).LMST_string, marstime(glitch_end).LMST_string))
         print(u'Info: Results may slightly deviate from those of the glitch detector.')
-        ppol_measurement.plot(title=title, show=show, outfile=outfile, verts=[[glitch_start,glitch_end]], vertsc=['k'], original_data=stream2.detrend('demean'))
+        ppol_measurement.plot(title=title, show=show, outfile=outfile, verts=[[glitch_start,glitch_end]], vertsc=['k'], original_data=stream_select.detrend('demean'))
 
         break
 

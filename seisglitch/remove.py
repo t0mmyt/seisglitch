@@ -57,6 +57,10 @@ def sourceFFT(num_samples, sampling_period, int_samples=None, gauss=False, abkli
         step = np.hstack(( np.zeros(num_samples-int(int_samples/2)),
                            interp,
                            np.ones(num_samples-int(int_samples/2)) ))
+        #step = np.hstack(( np.zeros(num_samples-int(int_samples)),
+        #                   interp[::-1],
+        #                   interp,
+        #                   np.zeros(num_samples-int(int_samples)) ))  
         #quick_plot(step)
 
     else:
@@ -72,7 +76,7 @@ def sourceFFT(num_samples, sampling_period, int_samples=None, gauss=False, abkli
 
     # FFT
     step_freqs  = np.fft.fftfreq(step.size, d=sampling_period)  # independent of actual input, only of its length
-    source_FFT    = np.fft.fft(step)
+    source_FFT  = np.fft.fft(step)
 
     return source_FFT, step_freqs
 def responseFFT(component_response, freqs, step_unit='ACC'):
@@ -616,12 +620,11 @@ if __name__ == "__main__":
              '/home/scholz/Desktop/data/XB.ELYSE.67.SH?_2019-03-01T00:00:09.731000Z-2019-03-01T12:00:21.214000Z_raw.mseed',
              '/home/scholz/Desktop/data/XB.ELYSE.65.EH?_2019-03-08T03:59:59.314000Z-2019-03-08T04:30:01.944000Z_raw.mseed']
     traces_glitch = []
-    traces_spike = []
+    traces_spike  = []
 
     # Data prep
     for file in files:
         stream = read2(file, headonly=True)
-        #stream.trim2(0,0.01)
         stream.set_inventory('IRIS')
         response        = stream.inventory[0][0][0].response
         sampling_period = stream[0].stats.delta
@@ -630,27 +633,25 @@ if __name__ == "__main__":
                            'station'  : stream[0].stats.station, 
                            'location' : stream[0].stats.location, 
                            'channel'  : stream[0].stats.channel}
-        #cut_index = _cut_index(component_response=response, offset=15000)
-        cut_index = 15000 - 20          # fixed. '20' samples before modeled glitch starts model is taken and fit against data (for both glitch and spike)
+        cut_index = 15000 - 20    # fixed. '20' samples before modeled glitch starts model is taken and fit against data (for both glitch and spike)
 
 
         source_FFT, step_freqs = sourceFFT(sampling_period, num_samples=15000)
-        ACC_fft, _             = responseFFT(response, step_freqs, step_unit='ACC')
-        syn_glitch             = fft2signal(source_FFT*ACC_fft, step_freqs, tau=0, amp_factor=1e-9)
-        syn_glitch             = syn_glitch[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
+        ACC_fft, _ = responseFFT(response, step_freqs, step_unit='ACC')
+        syn_glitch = fft2signal(source_FFT*ACC_fft, step_freqs, tau=0, amp_factor=1e-9)
+        syn_glitch = syn_glitch[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
         
-        DIS_fft, _             = responseFFT(response, step_freqs, step_unit='DIS')
-        syn_spike              = fft2signal(source_FFT*DIS_fft, step_freqs, tau=0, amp_factor=1e-12)
-        syn_spike              = syn_spike[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
-
-        glitch = Trace(data=syn_glitch, header=header)
-        precur = Trace(data=syn_spike, header=header)
+        DIS_fft, _ = responseFFT(response, step_freqs, step_unit='DIS')
+        syn_spike  = fft2signal(source_FFT*DIS_fft, step_freqs, tau=0, amp_factor=1e-12)
+        syn_spike  = syn_spike[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
+        
+        glitch     = Trace(data=syn_glitch, header=header)
+        precur     = Trace(data=syn_spike, header=header)
         traces_glitch.append(glitch)
         traces_spike.append(precur)
 
     stream_glitch = Stream2(traces=traces_glitch)
-    stream_spike = Stream2(traces=traces_spike)
-    print(stream_glitch)
+    stream_spike  = Stream2(traces=traces_spike)
 
     # Plotting
     fig, axes = plt.subplots(2, figsize=(10,15), sharex=True)

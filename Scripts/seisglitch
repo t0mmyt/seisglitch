@@ -43,15 +43,18 @@ from obspy import read
 
 
 #####  seisglitch modules import  #####
+import seisglitch
 from seisglitch import detect, plot, remove, util
 
+version = seisglitch.__version__ 
 
 
 ### PARSING ARGUEMENTS
 parser = argparse.ArgumentParser(
     description = """
                   SEISglitch Toolbox
-                  """)
+                  """,
+    prog        = 'seisglitch')
 
 parser.add_argument('mode', 
         metavar = 'MODE',
@@ -68,6 +71,7 @@ parser.add_argument('config_file',
         help    = """
                   Choose config file for specific parameters.
                   """)
+parser.add_argument('-v', '--version', action='version', version='%(prog)s %(version)s')
 
 args   = vars( parser.parse_args() )
 mode   = args['mode'].lower()
@@ -91,8 +95,6 @@ if mode=='detect':
 
 elif mode=='plot':
     
-    
-
     glitch_detector_files = params['plot']['glitch_detector_files']
     plot_params           = params['plot']['plotter']
 

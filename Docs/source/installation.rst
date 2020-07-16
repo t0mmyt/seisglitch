@@ -12,7 +12,7 @@ distribution that allows to quickly configure a specific Python environment (e.g
 2. Create a new environment and activate it (choose an environment name you prefer, here ``seisglitch`` is chosen)::
 
     cd your/prefered/folder
-    conda create -n seisglitch python=3.7 obspy pyyaml -c conda-forge
+    conda create -n seisglitch python=3.7 numpy=1.16 obspy pyyaml -c conda-forge
     conda activate seisglitch
 
 
