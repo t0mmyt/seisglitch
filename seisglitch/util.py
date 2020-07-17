@@ -1530,6 +1530,7 @@ def merge_glitch_detector_files(glitch_detector_files, outfile, starttime_sort=T
 
 
     now                   = time.time()
+    print()
 
 
     ### SANITY CHECK
