@@ -2065,7 +2065,7 @@ def download_data(outdir=os.getcwd(),
             print(u'INFO: written %s waveform + rotated data to:   %s' % (remove_response[:3], outfile_rem_rot))
         else:
             st_rem.write(outfile_rem, format=format_DATA)
-            print(u'INFO: written %s waveform data to:             %s' % (remove_response[:3], outfile_rem))            
+            print(u'INFO: written %s waveform data to:             %s' % (remove_response[:3], outfile_rem))
 
 
     print(u'Finished.')

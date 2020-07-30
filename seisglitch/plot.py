@@ -131,7 +131,6 @@ def select_glitches(glitch_files,
             pass
 
 
-
     ### SELECT GLITCHES ON GIVEN `Amplitudes`
     if Amplitudes:
         for comp in Amplitudes.keys():
@@ -154,10 +153,10 @@ def select_glitches(glitch_files,
                 Amplitudes[comp] = [Amplitudes[comp]]
 
             if len(Amplitudes[comp])==1:
-                keep = [g for g in range(len(keep)) if float(all_glitches[g,column])<=float(Amplitudes[comp][0])]
+                keep = [g for g in keep if float(all_glitches[g,column])<=float(Amplitudes[comp][0])]
             elif len(Amplitudes[comp])==2:
-                keep = [g for g in range(len(keep)) if float(all_glitches[g,column])>=float(Amplitudes[comp][0]) and float(all_glitches[g,column])<=float(Amplitudes[comp][1])]
-            
+                keep = [g for g in keep if float(all_glitches[g,column])>=float(Amplitudes[comp][0]) and float(all_glitches[g,column])<=float(Amplitudes[comp][1])]
+
 
 
     ### SELECT GLITCHES ON GIVEN `AZs`
@@ -418,7 +417,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
 
         # print first picked glitches
         glitch_start = all_glitches[indices[0],1]
-        plot_glitch_ppol(glitch_start, waveform_files=waveform_files, glitch_length=marstime(all_glitches[index,1]).UTC-marstime(all_glitches[index,2]).UTC, **kwargs)
+        plot_glitch_ppol(glitch_start, waveform_files=waveform_files, glitch_length=marstime(all_glitches[index,2]).UTC_time-marstime(all_glitches[index,1]).UTC_time, **kwargs)
 
 
 

@@ -106,13 +106,20 @@ def fft2signal(fft, freqs, tau=0, amp_factor=1, real=True):
     return signal
 
 def remove(*glitch_detector_files, 
-    waveform_files         = [], 
-    inventory_file         = 'IRIS', 
-    spike_fit              = False,
-    var_reduction_min      = 80, 
-    show_fit               = False,
-    store_glitches         = False,
-    plot_removal_statistic = False, 
+    waveform_files               = [], 
+    inventory_file               = 'IRIS',
+    glitch_window_leftright      = 2,
+    glitch_prepend_zeros         = 0,
+    glitch_interpolation_samples = 0,
+    glitch_subsample_factor      = 1,
+    spike_fit                    = False,
+    spike_subsample_factor       = 2,
+    spike_fit_samples_leftright  = 7,
+    var_reduction_spike          = 2,
+    var_reduction_total          = 80, 
+    show_fit                     = False,
+    store_glitches               = False,
+    plot_removal_statistic       = False, 
     **kwargs):
 
 
@@ -121,21 +128,21 @@ def remove(*glitch_detector_files,
 
 
     ### FIXED PARAMETERS
-    GLITCH_WINDOW_LEFTRIGHT      = 3       # in s
-    PREPEND_ZEROS                = 1       # in s, this is added additionally to 'GLITCH_WINDOW_LEFTRIGHT' as detected glitch onset is pretty accurate
-    NUM_SAMPLES_GLITCH           = 12000   # must be > max_glitch_length_s * max_sampling period, so larger 10000 (= max_glitch_length_s=100 * max_sampling_period=100)
+    GLITCH_WINDOW_LEFTRIGHT      = float(glitch_window_leftright)  # in s
+    PREPEND_ZEROS                = float(glitch_prepend_zeros)     # in s, this is added additionally to 'GLITCH_WINDOW_LEFTRIGHT' as detected glitch onset is pretty accurate
+    NUM_SAMPLES_GLITCH           = 10000   # must be > max_glitch_length_s * max_sampling period, so larger 10000 (= max_glitch_length_s=100 * max_sampling_period=100)
     CUT_SOURCE_BEFORE            = 20      # in samples for both glitch and spike, reason: acausal FIR-Filters)
 
     ACC_STEP                     = 1e-9    # in m/s**2, for glitches
     TRY_DECAY                    = False   # Source time function maniuplation. Here, osscilating decay after steo simulating some swinging og of interal structure
-    TRY_INTER                    = 150     # Source time function maniuplation. Here, interpolation samples to deviate from instantaneous step to finite ramp. Will be samples every 10 samples. Must be samller than 2*NUM_SAMPLES
-    GAUSS_SOURCE_INTER           = False   # If True and 'TRY_INTER' != 0, the interpolation samples of the source will not be following a straight line but the first half of a Gaussian
-    SUBSAMPLE_FACTOR_GLITCH      = 1
+    TRY_INTER                    = int(glitch_interpolation_samples) # Source time function maniuplation. Here, interpolation samples to deviate from instantaneous step to finite ramp. Will be samples every 10 samples. Must be samller than 2*NUM_SAMPLES
+    GAUSS_SOURCE_INTER           = False   # If True and 'TRY_INTER' != 0, the interpolation samples of the non-zero acc. rise will not be following a straight line but the first half of a Gaussian
+    SUBSAMPLE_FACTOR_GLITCH      = int(glitch_subsample_factor)
 
     DIS_STEP                     = 1e-12   # in m, for glitch spikes
-    SPIKE_SHIFT_SAMPLES_PER_SIDE = 7       # maximum of spike shifted left and right w.r.t. determined fitted glitch onset (should be larger than samples modeled glitch signal before real glitch starts)
-    SUBSAMPLE_FACTOR_SPIKE       = 5
-    VAR_REDUCTION_MIN_SPIKE      = 2       # in %
+    SPIKE_SHIFT_SAMPLES_PER_SIDE = int(spike_fit_samples_leftright) # maximum of spike shifted left and right w.r.t. determined fitted glitch onset (should be larger than samples modeled glitch signal before real glitch starts)
+    SUBSAMPLE_FACTOR_SPIKE       = int(spike_subsample_factor)
+    VAR_REDUCTION_MIN_SPIKE      = float(var_reduction_spike)       # in %
 
 
 
@@ -448,15 +455,15 @@ def remove(*glitch_detector_files,
                     deg_slice          = cor_slice.copy()
                     cor_slice.data[best_shift2:best_shift2+len(scaled_spike)] = cor_slice.data[best_shift2:best_shift2+len(scaled_spike)]-scaled_spike      # actual spike correction!           
                     var_data_corrected = np.var(fit_slice)
-                    var_red_pre        = (1 - var_data_corrected/var_data) * 100
+                    var_red_spi        = (1 - var_data_corrected/var_data) * 100
 
-                    if var_red_pre>100:
-                        var_red_pre = 100
-                    if var_red_pre<0:
-                        var_red_pre = 0
+                    if var_red_spi>100:
+                        var_red_spi = 100
+                    if var_red_spi<0:
+                        var_red_spi = 0
 
                     # spike correction
-                    if var_red_pre>=VAR_REDUCTION_MIN_SPIKE:
+                    if var_red_spi>=VAR_REDUCTION_MIN_SPIKE:
                         tag_spike = True
                         time_diff_GP  = (best_shift - best_shift2 + prepend) * sampling_period + best_tau - best_tau2
                     else:
@@ -473,21 +480,21 @@ def remove(*glitch_detector_files,
                     var_red = 0
 
                 # glitch correction undone or not
-                if var_red>=var_reduction_min:
+                if var_red>=var_reduction_total:
                     removed.append(component)
                     if spike_fit:
                         if tag_spike:
-                            print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%,  tau=%.3f s.  Correction is done.  Acc. step = %6.1f nm/s**2.  Dis. step = %6.1f pm (var_red_pre=%4.1f %%, tau=%.3f s, Tgli-Tpre=%6.3f s)'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_tau, best_popt[2], best_popt2[2], var_red_pre, best_tau2, time_diff_GP))
+                            print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%.  Correction is done.  Acc. step = %6.1f nm/s**2.  Dis. step = %6.1f pm (var_red_spi=%4.1f %%, Tgli-Tspi=%6.3f s)'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2], best_popt2[2], var_red_spi, time_diff_GP))
                             label = 'glitch+spike corrected'
                         else:
-                            print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%,  tau=%.3f s.  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_tau, best_popt[2]))
+                            print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%.  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2]))
                             label = 'glitch corrected'
                     else:
-                        print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%,  tau=%.3f s.  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_tau, best_popt[2]))
+                        print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%.  Correction is done.  Acc. step = %6.1f nm/s**2'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_popt[2]))
                         label = 'glitch corrected'
                 else:
 
-                    print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%,  tau=%.3f s.  No correction done.'  % (glitch_number, glitch_start.UTC_string, component, var_red, best_tau))
+                    print(u'Glitch %6s,  %s,  %s,  var_red=%4.1f %%.  No correction done.'  % (glitch_number, glitch_start.UTC_string, component, var_red))
                     cor_slice.data[:] = uncor_slice.data[:]           # undo glitch correction as not good enough
                     label = 'not corrected'
 
@@ -517,15 +524,15 @@ def remove(*glitch_detector_files,
 
                 # results
                 if component.upper()=='U':
-                    if var_red>=var_reduction_min or glitches[g][5]=='1':
+                    if var_red>=var_reduction_total or glitches[g][5]=='1':
                         var_red_U.append( var_red )
                         acc_steps_U.append( best_popt[2]*ACC_STEP )
                 elif component.upper()=='V':
-                    if var_red>=var_reduction_min or glitches[g][6]=='1':
+                    if var_red>=var_reduction_total or glitches[g][6]=='1':
                         var_red_V.append( var_red )
                         acc_steps_V.append( best_popt[2]*ACC_STEP )
                 elif component.upper()=='W':
-                    if var_red>=var_reduction_min or glitches[g][7]=='1':
+                    if var_red>=var_reduction_total or glitches[g][7]=='1':
                         var_red_W.append( var_red )
                         acc_steps_W.append( best_popt[2]*ACC_STEP )
                 else:
@@ -610,15 +617,10 @@ def remove(*glitch_detector_files,
 if __name__ == "__main__":
 
     # Variables
-    PLOT_TRACES = True
+    PLOT_TRACES = False
     PLOT_LENGTH = 100    # in s
 
-    files = ['/home/scholz/Desktop/data/XB.ELYSE.02.MH?_2019-03-15T06:28:06.779000Z-2019-03-15T08:32:53.279000Z_raw.MSEED',
-             '/home/scholz/Desktop/data/XB.ELYSE.02.BH?_raw_S0325a_QB.mseed',
-             '/home/scholz/Desktop/data/XB.ELYSE.00.HH?_sol423night.mseed',
-             '/home/scholz/Desktop/data/XB.ELYSE.67.MH?_2019-03-08T03:56:39.154000Z-2019-03-08T04:30:59.154000Z_raw.mseed',
-             '/home/scholz/Desktop/data/XB.ELYSE.67.SH?_2019-03-01T00:00:09.731000Z-2019-03-01T12:00:21.214000Z_raw.mseed',
-             '/home/scholz/Desktop/data/XB.ELYSE.65.EH?_2019-03-08T03:59:59.314000Z-2019-03-08T04:30:01.944000Z_raw.mseed']
+    files = ['Example/XB.ELYSE.03.BH?_2019-05-19T21:20:24.619000Z-2019-05-27T01:58:22.782000Z_raw.mseed']
     traces_glitch = []
     traces_spike  = []
 
@@ -636,7 +638,7 @@ if __name__ == "__main__":
         cut_index = 15000 - 20    # fixed. '20' samples before modeled glitch starts model is taken and fit against data (for both glitch and spike)
 
 
-        source_FFT, step_freqs = sourceFFT(sampling_period, num_samples=15000)
+        source_FFT, step_freqs = sourceFFT(15000, sampling_period)
         ACC_fft, _ = responseFFT(response, step_freqs, step_unit='ACC')
         syn_glitch = fft2signal(source_FFT*ACC_fft, step_freqs, tau=0, amp_factor=1e-9)
         syn_glitch = syn_glitch[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
@@ -646,9 +648,9 @@ if __name__ == "__main__":
         syn_spike  = syn_spike[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]
         
         glitch     = Trace(data=syn_glitch, header=header)
-        precur     = Trace(data=syn_spike, header=header)
+        spike      = Trace(data=syn_spike, header=header)
         traces_glitch.append(glitch)
-        traces_spike.append(precur)
+        traces_spike.append(spike)
 
     stream_glitch = Stream2(traces=traces_glitch)
     stream_spike  = Stream2(traces=traces_spike)
@@ -668,7 +670,7 @@ if __name__ == "__main__":
                         title='Glitches (step: 1e-9 m/s**2)',
                         ylabel='Digital Units',
                         xlabel=None,
-                        data_labels=['VBB 2 SPS', 'VBB 20 SPS', 'VBB 100 SPS', 'SP 2 SPS', 'SP 20 SPS', 'SP 100 SPS'],
+                        data_labels=['VBB 10 SPS'],
                         legend_loc='upper right',
                         show=False)
         axes[1] = quick_plot(*[trace.data for trace in stream_spike],
@@ -676,7 +678,7 @@ if __name__ == "__main__":
                         title='Precursors (step: 1e-12 m)',
                         ylabel='Digital Units',
                         xlabel='Data points',
-                        data_labels=['VBB 2 SPS', 'VBB 20 SPS', 'VBB 100 SPS', 'SP 2 SPS', 'SP 20 SPS', 'SP 100 SPS'],
+                        data_labels=['VBB 10 SPS'],
                         legend_loc='upper right',
                         show=False)
     else:
@@ -689,7 +691,7 @@ if __name__ == "__main__":
                         show=False)
         axes[1] = quick_plot(*stream_spike,
                         axis=axes[1],
-                        title='Precursors (step: 1e-12 m)',
+                        title='Spikes (step: 1e-12 m)',
                         ylabel='Digital Units',
                         xlabel='Relative Time (s)',
                         legend_loc='upper right',

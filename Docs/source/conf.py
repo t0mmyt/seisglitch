@@ -75,7 +75,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'scrolls'  # alabaster, pyramid, haiku, scrolls, classic, nature
+html_theme = 'alabaster'  # alabaster, pyramid, haiku, scrolls, classic, nature
 
 
 # Theme options are theme-specific and customize the look and feel of a theme

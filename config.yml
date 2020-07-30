@@ -1,61 +1,12 @@
-### State here waveform files and inventory file to work with. 
-# Inventory file: either path to file, or data service (e.g. 'IPGP', 'IRIS'). If left empty, default is 'IPGP'
+### State here waveform files and inventory file to work with that will be used by the different functions. 
+# Inventory file: path to file or data service: either 'IPGP' or 'IRIS'. If left empty, default is 'IPGP'.
 # Waveform files: must contain 3 seismic traces (components U, V, W) of either VBB or SP.
-# Formats understood: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-format
-# Use 'donwload' module of this toolbox to retrieve data / inventory if desired.
-inventory_file: '/home/scholz/Drive/JOHNS_WORK/programming/python/XB.ELYSE.singleepoch.latest.xml'  
+# Waveform formats understood: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-format
+# Use 'download' module of this toolbox to retrieve data / inventory if desired.
+inventory_file: 'Example/inventory_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z.xml'  
 waveform_files:
-  # VBB 2019
-  #- /home/scholz/Desktop/data/XB.ELYSE.02.BH?_Feb-Mar2019.mseed
-  #- /home/scholz/Desktop/data/XB.ELYSE.02.BH?_Apr-Jun2019.mseed    
-  #- /home/scholz/Desktop/data/XB.ELYSE.02.BH?_Jul-Sep2019.mseed
-  #- /home/scholz/Desktop/data/XB.ELYSE.02.BH?_Oct-Dec2019.mseed
-  #- /home/scholz/Desktop/data/XB.ELYSE.03.BH?_Feb-Mar2019.mseed
-  #- /home/scholz/Desktop/data/XB.ELYSE.03.BH?_Apr-Jun2019.mseed
-  #- /home/scholz/Desktop/data/XB.ELYSE.03.BH?_Jul-Sep2019.mseed
-  
-  # VBB 2020
-  - /home/scholz/Desktop/data/XB.ELYSE.02.BH?_Jan-Feb2020.mseed
-  - /home/scholz/Desktop/data/XB.ELYSE.02.BH?_Mar-Apr2020.mseed
-
-  # Selected VBB data
-  #- /home/scholz/Desktop/data/XB.ELYSE.02.BH?_multiglitch.mseed
-  #- /home/scholz/Desktop/data/XB.ELYSE.02.BH?_raw_S0235b_QA.mseed
-  #- /home/scholz/Desktop/data/XB.ELYSE.02.BH?_raw_S0325a_QB.mseed
-  #- /home/scholz/Desktop/data/XB.ELYSE.02.BH?_raw_S0409b_QB.mseed
-
-  ##- /home/scholz/Desktop/data/AsIs_S0154a_VBB.mseed
-  ##- /home/scholz/Desktop/data/AsIs_S0173a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0154a/AsIs_S0154a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0173a/AsIs_S0173a_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0105a/S0105a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0132a/S0132a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0133a/S0133a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0152a/S0152a_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0154a/S0154a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0167a/S0167a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0167b/S0167b_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0173a/S0173a_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0183a/S0183a_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0185a/S0185a_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0189a/S0189a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0205a/S0205a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0226b/S0226b_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0234c/S0234c_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0235b/S0235b_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0254b/S0254b_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0290b/S0290b_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0320b/S0320b_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0325a/S0325a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0345a/S0345a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0377c/S0377c_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0395a/S0395a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0405c/S0405c_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0407a/S0407a_VBB.mseed
-  #- /home/scholz/Desktop/test_data/S0409d/S0409d_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0421b/S0421b_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0423a/S0423a_VBB.mseed
-  ##- /home/scholz/Desktop/test_data/S0484b/S0484b_VBB.mseed
+  # should be files containing 3 seismic components (UVW). Gaps and overlaps are handeled.
+  - Example/XB.ELYSE.03.BH?_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z_raw.mseed
 
 
 
@@ -63,60 +14,62 @@ waveform_files:
 detect:
 
   detector:
-    taper_length_per_side: 0.0         # in percent, in tapered parts no glitch detection is done
+    taper_length_per_side: 0.0         # in %, in tapered parts no glitch detection is done
     pre_filt: False                    # see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
-    water_level: 60
-    ACCfilter: 
+    water_level: 60                    # if both options given 'pre_filt' and 'water_level', both are applied. Usually, you only want to use one option.
+    ACCfilter:                         # this filter is applied to the accleration data. See ObsPy filters: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.filter.html
       type : 'bandpass'
       options: {'freqmin':0.001, 'freqmax':0.1, 'corners':3, 'zerophase':True}
-      string: '0.001 < f < 0.1'
+      string: '0.001 < f < 0.1'        # name your filter as you like. This will be used for output information only.
     threshold: 0.5e-9                  # triggering threshold of derivative of filtered acceleration data. Unit therefore is m/s**3. More senstitiv setting would be: 0.2
     plot_triggering: False             # if True, trigger plot is shown (one for each component. These glitch candidates are not yet time unified and checked against polarization)
     glitch_min_length: 5               # In seconds. minimum distance in seconds between 2 glitches. Before that, no new glitch can be declared
-    glitch_length: 25                  # In seconds. Only used to declare glitch end time. Choose < 100 s.
-    glitch_min_polarization: 0.91      # applied to calculated polarization of both gain corrected (set=0 if not wished). Less senstitiv setting would be e.g.: 0.95
+    glitch_length: 25                  # In seconds. Only used to declare glitch end time. Choose < 100 s. For VBB 25s is fine, for SP 50 s is fine.
+    glitch_min_polarization: 0.91      # applied to calculated polarization of both gain corrected (set:0 if not wished). Less senstitiv setting would be e.g.: 0.95
 
 
 
 ### REMOVE GLITCH FUNCTION
 remove:
 
-  glitch_detector_files:               # each glitch listed, no matter on which component detected, will be attempted to be removed
-    #- /home/scholz/Desktop/data/glitchesVBB.txt
-    - /home/scholz/Desktop/data/glitchesVBB_LFs.txt
+  glitch_detector_files:               # each detected glitch, no matter on which component detected, will attempted to be removed on each component!
+    # list here the files given by the detector module. These detected glitches will attempted to be removed, depending on the waveform data found to it.
+    - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z_raw.txt
 
-  remover:                             # 'inventory_file' and 'glitch_length' are taken from the detect module. 
-    spike_fit: True                    # If True, attempt to fit glitch AND spike afterwards. Internally, a minimum of 2% variance reduction for spike is needed to apply correction. Takes longer
-    var_reduction_min: 80              # in %. Minimum total variance reduction to be achieved (either only glitch or glitch+spike) if fit shall be removed.
-    show_fit: False                    # Attention, if True, an interactive plot is shown for each attempted fit on each component!
-    store_glitches: True               # If True, instead of corrected data, only the correction that would have been subtracted from the data is stored to file.
-    plot_removal_statistic: False      # If True, two interactive plots are shown summarising overall success of deglitching
+  remover:                                # 'inventory_file' is taken from the detect module. From it the instrument response is extracted. ATTENTION: InSight meta-data use many epochs!
+    glitch_window_leftright      : 2      # in seconds, data window appended left and right to detected glitch, buildung the overall window the glitch fits are perfomed.
+    glitch_prepend_zeros         : 0      # in seconds, length of zeros prepended to glitch model. This can help improving fits. This time is added to to data window corresponding to 'glitch_window_leftright'.
+    glitch_interpolation_samples : 0      # integer, if not 0, data glitches are fitted with accleration steps of non-zero rise times with this amount of samples maximum in beween (attempted in steps of 10 samples). If not 0, algorithm is significantly slower!
+    glitch_subsample_factor      : 1      # integer, determines how many times beween two samples a glitch shall be modeled. For glitches 1 is OK. Default is one.
+    spike_fit                    : True   # If True, attempt to fit spike after glitch fit. If True, removal takes longer.
+    spike_subsample_factor       : 2      # integer, determines how many times beween two samples a glitch spike shall be modeled. For spikes 5 or higher may significantly improve their fits but is slower.
+    spike_fit_samples_leftright  : 7      # samples left and right around fitted glitch onset where it is attempted to fit spike. Larger is slower. Default is 7.
+    var_reduction_spike          : 2      # in %. Minimum spike variance reduction to be achieved if spike fit shall be removed. 2% is default.
+    var_reduction_total          : 80     # in %. Minimum total variance reduction to be achieved if fit (either only glitch or glitch+spike) shall be removed. 80% is default
+    show_fit                     : False  # Attention, if True, an interactive plot is shown for each attempted fit on each component!
+    store_glitches               : False  # If True, instead of corrected data, only the corrections that would have been subtracted from the data is stored to file.
+    plot_removal_statistic       : False  # If True, two interactive plots are shown summarising overall statistics of deglitching
 
 
 
 ### PLOT GLITCH FUNCTION
 plot:
   glitch_detector_files:
-    # VBB
-    - /home/scholz/Desktop/data/glitchesVBB.txt
-    #- /home/scholz/Desktop/data/glitchesVBB_LFs.txt
-
-    # VBB glitches also on SP
-    #- /home/scholz/Desktop/02.BH?_glitches2019.txt
-    #- /home/scholz/Desktop/02.BH?_glitches2019_BAZequal.txt
+    # list here the files given by the detector module. These detected glitches will be plotted.
+    - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z_raw.txt  
 
   plotter:
     show: True                                      # if False, no plots will be shown but stored if 'outfile' is specified for the desired plot (and 'run' is True).
-    components: ''                                  # select glitch to certain components only. Use '1' for glitches on one component only. Use 'U' for U-glitches only. 'UV' etc. works as well.
+    components: 'UVW'                               # select glitches of certain components only. Use '1' for glitches on one component only. Use 'U' for U-glitches only. 'UV' etc. works as well. Empty means 'UVW'.
     sols: []                                        # select glitches to range of sols (InSight frame). Give two integers; first minimum and second maximum Sol desired
-    LMST_range: ['00:00:00', '24:00:00']            # select glitches to certain LMSTimes only. E.g.: ['17:17:15', '1800']
-    Amplitudes: {'U':[inf], 'Z':[0,inf]}            # select glitches to certain gain corrected amplitudes only. Use as dictionary with components as keys. For each, give 1 or 2 values. If one value: err<val, if two values: val1<=POL<=val2
+    LMST_range: ['00:00:00', '24:00:00']            # select glitches to certain LMSTimes only. E.g.: ['17:17:15' to '1800' or '2000' to 030000]
+    Amplitudes: {'U':[1e-8,inf], 'V':[inf]}         # select glitches to certain gain corrected amplitudes only. Use as dictionary with components as keys. For each, give 1 or 2 values. If one value: err<val, if two values: val1<:POL<:val2. Default e.g.: 'V':[inf]
     AZs: [0,360]                                    # select glitches to certain azimuths only: use value pairs to state lower and upper limits. e.g. [320,360, 10,50, 150,180]
-    AZ_Errs: []                                     # select glitches to certain azimuths errors only. Give 1 or 2 values. If one value: err<val, if two values: val1<=err<=val2
-    INCs: [0,180]                                   # select glitches to certain incidence only: use value pairs to state lower and upper limits. e.g. [0,80, 100,180]
-    INC_Errs: []                                    # select glitches to certain incidence errors only. Give 1 or 2 values. If one value: err<val, if two values: val1<=err<=val2
-    glitch_SNR: []                                  # select glitches to certain SNRs only. Give 1 or 2 values. If one value: SNR>=val, if two values: val1<=SNR<=val2
-    glitch_polarization: []                         # select glitches to certain linea polarizations only. Give 1 or 2 values. If one value: POL>=val, if two values: val1<=POL<=val2
+    AZ_Errs: []                                     # select glitches to certain azimuths errors only. Give 1 or 2 values. If one value: err<val, if two values: val1<:err<:val2
+    INCs: []                                        # select glitches to certain incidence only: use value pairs to state lower and upper limits. e.g. [0,80, 100,180]
+    INC_Errs: []                                    # select glitches to certain incidence errors only. Give 1 or 2 values. If one value: err<val, if two values: val1<:err<:val2
+    glitch_SNR: []                                  # select glitches to certain SNRs only. Give 1 or 2 values. If one value: SNR>:val, if two values: val1<:SNR<:val2
+    glitch_polarization: []                         # select glitches to certain linea polarizations only. Give 1 or 2 values. If one value: POL>:val, if two values: val1<:POL<:val2
     inverse_selection: False                        # invert selection made with respect to all above parameters
 
   glitch_detector_plot:                             # plot seismic files (stated in detect module) in 24 h windows plus detected glitches. Give start- and endtime in UTC format to plot specific time
@@ -125,7 +78,7 @@ plot:
     endtime: 
 
   glitch_overview_plot:                             # plot glitch azimuths, incidences and histogram. Click on dots to get information printed into shell.
-    run: False
+    run: True
     outfile:
 
   glitch_SOLoverLMST_plot:                          # plot glitch sols over respective LMST times. Click on dots to get information printed into shell.
@@ -138,28 +91,28 @@ plot:
     outfile: 
 
   glitch_ppol_plot:                                 # plot linear polarization analysis (waveform data, inventory_file & glitch length are taken from detect module).
-    run: True
-    glitch_start: '2020-04-05T03:15:30'             # in principle, you can specify here any time you like (must not actual be detected glitch, but given time should be available in waveform data).
-    glitch_length: 30                               # time in s that glitch (or generally data) is displayed starting from 'glitch_start'
+    run: False
+    glitch_start: '2019-04-05T02:23:16'             # in principle, you can specify here any time you like (must not actual be detected glitch, but given time should be available in waveform data).
+    glitch_length: 25                               # time length in s that polazitation analysis of glitch (or generally data) is performed on, starting from 'glitch_start'
     outfile: 
 
 
 
 ### DOWNLOAD DATA FUNCTION
 download:                           # Potentially can work not only for InSight data.
-    outdir: '/home/scholz/Desktop/data'  # all requested data will be stored into ONE file in this directory. If directory does not exist it will be created. If not given, use current directory.
-    starttime: '2020-03-01T00:00:00'
-    endtime: '2020-05-01T00:00:00'
+    outdir: 'Example/'              # all requested data will be stored into ONE file in this directory. If directory does not exist it will be created. If not given, use current directory.
+    starttime: '2019-05-22T23:19:27'
+    endtime: '2019-05-23T23:59:02'
     network: 'XB'                   # "XB" is the InSight network code
     station: 'ELYSE'                # "ELYSE" is the station name for the scientific data since landing on Mars. See more: https://science.seis-insight.eu/data/access
-    location: '67'                  # typically, the continuous data returned are 02.BH? (20 SPS) or 03.BH? (10 SPS) for VBB, and 02.SH? (20 SPS) or 03.SH? (10 SPS) for SP
-    channel: 'SH?'                  # for details on station, location and channels, see: Lognonné et al. (2019), DOI: 10.1007/s11214-018-0574-6.
+    location: '03'                  # typically, the continuous data returned are 02.BH? (20 SPS) or 03.BH? (10 SPS) for VBB, and 02.SH? (20 SPS) or 03.SH? (10 SPS) for SP
+    channel: 'BH?'                  # for details on station, location and channels, see: Lognonné et al. (2019), DOI: 10.1007/s11214-018-0574-6.
     source: 'IPGP'                  # for InSight data 'IPGP or 'IRIS' (for more none-InSight possiblities, see: https://docs.obspy.org/packages/obspy.clients.fdsn.html)
-    username: 'scholz@mps.mpg.de'   # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
-    password: 'Newyork!1'           # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
+    username: ''                    # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
+    password: ''                    # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
     gain_correction: False          # if True, only removes gain from the raw data.
-    remove_response: False          # Default 'False'. May set to 'DISP', 'VEL, or 'ACC'. Internally uses "water_level=60", see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
-    rotate2zne: False               # to rotate, you must set 'remove_response' or 'gain_correction'
+    remove_response: False          # Default 'False'. May set to 'DISP', 'VEL, or 'ACC'. Internally uses "water_level:60", see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
+    rotate2zne: False               # to rotate, you must set also 'remove_response' or 'gain_correction' to True
     format_DATA: 'mseed'            # waveform format (see: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-formats)
     format_INV: 'STATIONXML'        # inventory format (see: https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html)
 
@@ -168,7 +121,7 @@ download:                           # Potentially can work not only for InSight 
 ### DECIMATE SEISMIC DATA FUNCTION (only for SEIS (VBB & SP) data, using SEIS FIR-coefficients: currently only decimation factors implemented: 2 .. 7! This is just if you wish to decimate data for your archive)
 decimate:
     waveform_files: []              # decimated file will be stored in same directory as respective waveform file
-    decimation_factors: [2]         # processed in entered order (use "decimation_factors=[1]" to only change meta-data of waveform_files)
+    decimation_factors: [2]         # processed in entered order (use "decimation_factors:[1]" to only change meta-data of waveform_files)
     final_network: ''               # if given, this will be applied to all traces in all given waveform_files. Leave blank of no change desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
     final_station: ''               # if given, this will be applied to all traces in all given waveform_files. Leave blank of no change desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
     final_location: ''              # if given, this will be applied to all traces in all given waveform_files. Leave blank of no change desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
@@ -181,15 +134,15 @@ merge:
     glitch_detector_files: []       # if 'glitch_detector_files' is empty, attempt to find 'glitch_detector_files' from detect module following internal file naming
     outfile: '/home/scholz/Desktop/data/glitchesVBB.txt'
     starttime_sort: True
-    multiples_out: 5                # in seconds. If !=0, discard glitches whose starttime is within 'multiples_out' seconds to another glitch starttime. 
+    multiples_out: 5                # in seconds. If !:0, discard glitches whose starttime is within 'multiples_out' seconds to another glitch starttime. 
                                     # Useful if glitch detector files merged for different channels of same time. 
-                                    # If 'starttime_sort'=False, this can take forever! If unsure, use 'glitch_min_length' from detect function. 
+                                    # If 'starttime_sort':False, this can take forever! If unsure, use 'glitch_min_length' from detect function. 
 
 
 
-### TIME CONVERSION FUNCTION (UTC <--> InSight LMST)
-time:                                           # Follow these formats: UTC: XXXX-XX-XXTxx:xx:xx.x ; LMST: XXXMxx:xx:xx.x
-    file: '/home/scholz/Desktop/test.txt'       # path to file with listed times, one time per line to be converted
-                                                # '#' is interpreted as comment, only first column is attempted to be converted, additional columns must be seperated by whitespaces.
-                                                # Conversions added as new column to the end of the input file, which can mess up original notation of numbers (file overwritten)!
-    convert: ''                                 # if this is specified, the 'file' option is omitted and only 'convert' is processed. Result is printed into shell.
+### TIME CONVERSION FUNCTION (UTC <--> InSight's Local Mean Solar Time - LMST)
+time:                               # Follow these formats: UTC: XXXX-XX-XXTxx:xx:xx.x ; LMST: XXXMxx:xx:xx.x
+    file: ''                        # path to file with listed times, one time per line to be converted
+                                    # '#' is interpreted as comment, only first column is attempted to be converted, additional columns must be seperated by whitespaces.
+                                    # Conversions added as new column to the end of the input file, which can mess up original notation of numbers (file overwritten)!
+    convert: ''                     # if this is specified, the 'file' option is omitted and only 'convert' is processed. Result is printed into shell.

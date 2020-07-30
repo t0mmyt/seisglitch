@@ -6,8 +6,8 @@ Installation
 I recommend using ``conda`` to install Python packages. 
 It comes shipped with Anaconda_ (or Miniconda_ for a smaller footprint), a Python 
 distribution that allows to quickly configure a specific Python environment (e.g. specific package versions etc..). 
+If you are interested in the whole Python toolbox, carry out step 1-4.
 If you are aiming for the MATLAB files only, you just need to do step 3. 
-If you are interested in the whole Python toolbox, carry out step 1-4:
 
 
 1. Install Anaconda_ or Miniconda_.
@@ -17,7 +17,8 @@ If you are interested in the whole Python toolbox, carry out step 1-4:
     conda activate seisglitch
 
 
-3. Go to to your prefered folder, download ``seisglitch`` (on Windows, you may need to install "git" first)::
+3. Go to to your prefered parent folder (no need to create an extra package folder, this will be done anyway), 
+download ``seisglitch`` (on Windows, you may need to install "git" first)::
 
     cd your/prefered/folder
     git clone https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch.git
@@ -51,9 +52,14 @@ thus creating symbolic links to the module files, avoiding having to re-compile 
 .. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
 
 
+| 
+
+----
+
+| 
 
 
-UPDATE / UPGRADE
+Update / Upgrade
 ================
 
 If you already have ``seisglitch`` installed and just would like to get the newest version, simply do:
