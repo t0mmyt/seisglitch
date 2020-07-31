@@ -35,23 +35,17 @@ a bit more:
 * ``glitch_length``: Fixed, in seconds. For VBB 25 seconds is fine, for SP 50 seconds is fine.
 * ``glitch_min_polarization``: Glitches have a high, linear polarization (1=linear, 0=circular). Therefore, this condition throws out glitch candidates that have too little linear polarization. A value of 0.9 may be a good start, higher is stricter.
 
+----
 
 There are only two parameters that really affect the sensitivity of the glitch detection, if everything else stays the same):
 ``threshold`` and ``glitch_min_polarization``.
 
-- ``threshold``: the lower you choose it to be, the more often it triggers on the derivative of the filtered acceleration data 
-(remember, glitches are steps in acceleration, meaning their derivative should be like a delta-impuls whilst all other signals should not be delta-like). 
-Obviously, at some stage, these triggerings do not represent glitches anymore but just signal / seismic noise.
-The threshold therefore should be chosen high enough to not start triggering noise, but low enough so you get detect the right amount of glitches (for smaller glitches, there are hundreds per Martian day in the VBB data).
-Keep further in mind that seismic amplitudes vary signifcantly during a Martian day (weather influence, amplitudes may change by a factor of 100 and more) so this complicates things.
-To circumvent both effects and really detect glitches only, each candidate is checked for its linear polarization (should be high for glitches). That is, the following parameter also as influence:
+- ``threshold``: the lower you choose it to be, the more often it triggers on the derivative of the filtered acceleration data (remember, glitches are steps in acceleration, meaning their derivative should be like a delta-impuls whilst all other signals should not be delta-like). Obviously, at some stage, these triggerings do not represent glitches anymore but just signal / seismic noise. The threshold therefore should be chosen high enough to not start triggering noise, but low enough so you get detect the right amount of glitches (for smaller glitches, there are hundreds per Martian day in the VBB data). Keep further in mind that seismic amplitudes vary signifcantly during a Martian day (weather influence, amplitudes may change by a factor of 100 and more) so this complicates things. To circumvent both effects and really detect glitches only, each candidate is checked for its linear polarization (should be high for glitches). That is, the following parameter also as influence:
 
-- ``glitch_min_polarization``: can be between 0 and 1, where 1 means full linear polarization. The lower you choose it to be (e.g., 0.9), the more candidates will pass and be declared a glitch. 
-In combination with the parameter ``threshold`` this should enable to minimize potential false-positives, however, some certainly remain. 
-Note the polarization anaylsis is performed on the gain corrected raw data rotated into the ZNE system.
+- ``glitch_min_polarization``: can be between 0 and 1, where 1 means full linear polarization. The lower you choose it to be (e.g., 0.9), the more candidates will pass and be declared a glitch. In combination with the parameter ``threshold`` this should enable to minimize potential false-positives, however, some certainly remain. Note the polarization anaylsis is performed on the gain corrected raw data rotated into the ZNE-system.
 
-In my experience, for the VBB seismometer (for, ``threshold`` may range from 2e-09 to 0.5e-9 m/s**3, i.e., coarse to strict settings. 
-For SP, this parameter should generally chosen a bit higher than for VBB, e.g. 5e-9 m/s**3.
+In my experience, for the VBB seismometer, ``threshold`` may range from 2e-09 to 0.5e-9 m/s**3, i.e., coarse to strict settings (if my filter is used: acausal, 3rd order, Butterworth 0.001-0.1 Hz). 
+For SP, this parameter should generally be chosen a bit higher than for VBB, e.g. 5e-9 m/s**3.
 Finer settings take longer calculation times as more glitch candidates will be processed (e.g. checked for their polarization).
 However, typically the whole glitch detection may take up only 2 minutes per 24 hours of data. The reason is internally all input data are decimated to 2 (or 2.5) SPS data prior to detection. 
 Only the polarization analysis of glitch candidates is performed on the raw, unfiltered input data as provided! 
