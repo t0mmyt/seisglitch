@@ -43,8 +43,6 @@ The code is based on the following, peer-reviewed paper:
     Scholz, J.-R., Widmer-Schnidrig, R., P. Davis, P. Lognonne, B. Pinot, R. F. Garcia, et al. 
     “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” Earth and Space Science, submitted (2020).
 
-| 
-
 If you find ``SEISglitch`` useful, used the MATLAB alternatives, corrected data as to the considerations outlined in the paper, or 
 used the corrected data provided along with this package, please consider citing. :)
 

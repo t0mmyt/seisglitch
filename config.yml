@@ -5,7 +5,7 @@
 # Use 'download' module of this toolbox to retrieve data / inventory if desired.
 inventory_file: 'Example/inventory_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z.xml'  
 waveform_files:
-  # should be files containing 3 seismic components (UVW). Gaps and overlaps are handeled.
+  # should be files containing 3 seismic components (UVW). Gaps and overlaps are handeled. You can state multiple (many) waveform files.
   - Example/XB.ELYSE.03.BH?_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z_raw.mseed
 
 

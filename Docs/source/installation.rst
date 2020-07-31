@@ -71,3 +71,8 @@ If you already have ``seisglitch`` installed and just would like to get the newe
     cd your/seisglitch/folder (see Installation)
     git pull
     pip install . (or pip install -e .)
+
+If you are aiming only for the potentially updated MATLAB files, you just need to do::
+
+    cd your/seisglitch/folder (see Installation)
+    git pull

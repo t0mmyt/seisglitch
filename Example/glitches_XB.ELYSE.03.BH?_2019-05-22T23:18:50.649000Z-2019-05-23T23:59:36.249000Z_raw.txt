@@ -173,7 +173,7 @@
 #   |   Water level:                60                                                                                        |
 #   |   ACCfilter:                  bandpass                                                                                  |
 #   |                               0.001 < f < 0.1                                                                           |
-#   |   Threshold:                  5e-10 nm/s**3                                                                             |
+#   |   Threshold:                  5e-10 m/s**3                                                                             |
 #   |   Show triggering:            False                                                                                     |
 #   |   Glitches' min dist:         5 s                                                                                       |
 #   |   Glitch length (fix):        25 s                                                                                      |
