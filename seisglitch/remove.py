@@ -212,7 +212,8 @@ def remove(*glitch_detector_files,
 
         # read streams
         try: 
-            stream = read2(waveform_file)
+            stream    = read2(waveform_file)
+            format_in = stream[0].stats._format
         except TypeError:       # could not read file, skip
             continue   
         stream.sort(reverse=False)
@@ -225,14 +226,11 @@ def remove(*glitch_detector_files,
             print('  %s' % trace)
 
         stream.set_inventory(inventory_file)
-        #stream.filter('highpass', freq=0.001, corners=2, zerophase=True)
 
         # loop traces
         for trace in stream.select(channel='?[LMH]?'):
 
             print()
-            if store_glitches:
-                trace_copy = trace.copy()
             trace.data = trace.data.astype(dtype=np.float32, copy=False)   # importat as glitch removal introduces float RAW values
 
             # data prep
@@ -538,22 +536,21 @@ def remove(*glitch_detector_files,
                 else:
                     pass
 
-            # if True, assign trace data to only what was removed
-            if store_glitches:
-                trace.data[:] = trace_copy.data[:] - trace.data[:]
-
 
         ## WRITE DEGLITCHED FILE
+        outfile_degl = '.'.join(waveform_file.split('.')[:-1]) + '_deglitched.' + waveform_file.split('.')[-1]
+        stream.write(outfile_degl, format=format_in)
         if store_glitches:
-            outfile = '.'.join(waveform_file.split('.')[:-1]) + '_glitches.' + waveform_file.split('.')[-1]
-        else:
-            outfile = '.'.join(waveform_file.split('.')[:-1]) + '_deglitched.' + waveform_file.split('.')[-1]
-        stream.write(outfile)
+            stream_orig = read(waveform_file)
+            for tr_orig, tr_degl in zip(stream_orig, stream)
+                tr_orig.data - tr_degl.data
+            outfile_glit = '.'.join(waveform_file.split('.')[:-1]) + '_glitches.' + waveform_file.split('.')[-1]
+            stream_orig.write(outfile_glit, format=format_in)
 
 
         ## OUTPUT
-        string       = ''
-        removed      = np.array(removed)
+        string  = ''
+        removed = np.array(removed)
         for comp in sorted(set(removed)):
             string += '%s:%s, ' % (comp, len(removed[removed==comp]))
         string = '(' + string[:-2] + ')'
@@ -562,11 +559,11 @@ def remove(*glitch_detector_files,
         print(u'Removed a total of %s individual glitches on all traces.' % len(removed))
         print(string)
         print()
+        print(u'DEGLITCHED FILE:')
+        print(outfile_degl)
         if store_glitches:
             print(u'GLITCH FILE:')
-        else:
-            print(u'DEGLITCHED FILE:')
-        print(outfile)
+            print(outfile_glit)
         print()
         print(u'Done in:   %s (h:m:s), %.1f s per glitch per component.' % (sec2hms( time.time()-now ),(time.time()-now)/(len(stream)*len(glitches))))
         print(u'Timestamp: %s'                                           % datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S'))

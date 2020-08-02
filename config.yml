@@ -47,7 +47,7 @@ remove:
     var_reduction_spike          : 2      # in %. Minimum spike variance reduction to be achieved if spike fit shall be removed. 2% is default.
     var_reduction_total          : 80     # in %. Minimum total variance reduction to be achieved if fit (either only glitch or glitch+spike) shall be removed. 80% is default
     show_fit                     : False  # Attention, if True, an interactive plot is shown for each attempted fit on each component!
-    store_glitches               : False  # If True, instead of corrected data, only the corrections that would have been subtracted from the data is stored to file.
+    store_glitches               : False  # If True, also the corrections that were subtracted from the data are saved to a different file (output will have same file format as input file).
     plot_removal_statistic       : False  # If True, two interactive plots are shown summarising overall statistics of deglitching
 
 
