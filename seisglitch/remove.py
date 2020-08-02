@@ -216,7 +216,6 @@ def remove(*glitch_detector_files,
             format_in = stream[0].stats._format
         except TypeError:       # could not read file, skip
             continue   
-        stream.sort(reverse=False)
 
         # small output
         print()        
@@ -542,7 +541,7 @@ def remove(*glitch_detector_files,
         stream.write(outfile_degl, format=format_in)
         if store_glitches:
             stream_orig = read(waveform_file)
-            for tr_orig, tr_degl in zip(stream_orig, stream)
+            for tr_orig, tr_degl in zip(stream_orig, stream):
                 tr_orig.data - tr_degl.data
             outfile_glit = '.'.join(waveform_file.split('.')[:-1]) + '_glitches.' + waveform_file.split('.')[-1]
             stream_orig.write(outfile_glit, format=format_in)
@@ -567,6 +566,7 @@ def remove(*glitch_detector_files,
         print()
         print(u'Done in:   %s (h:m:s), %.1f s per glitch per component.' % (sec2hms( time.time()-now ),(time.time()-now)/(len(stream)*len(glitches))))
         print(u'Timestamp: %s'                                           % datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S'))
+
 
 
     ### FINAL STATISTIC
@@ -604,9 +604,6 @@ def remove(*glitch_detector_files,
         percent_below_threshold_W = len(var_red_W[var_red_W>=85])/len(var_red_W) * 100
         
         quick_plot(var_red_U_sorted, var_red_V_sorted, var_red_W_sorted, win_title='Variance Reduction', data_labels=['U (%4.1f%% above threshold)' % percent_below_threshold_U, 'V (%4.1f%% above threshold)' % percent_below_threshold_V,'W (%4.1f%% above threshold)' % percent_below_threshold_W], xlim=[1,np.max([len(var_red_U_sorted), len(var_red_V_sorted), len(var_red_W_sorted)])], ylim=[0,100], xlabel='Glitch index', ylabel='Variance Reduction (%)', horis=[[85]])
-
-
-    return stream
 
 
 
