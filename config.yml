@@ -63,7 +63,7 @@ plot:
     components: 'UVW'                               # select glitches of certain components only. Use '1' for glitches on one component only. Use 'U' for U-glitches only. 'UV' etc. works as well. Empty means 'UVW'.
     sols: []                                        # select glitches to range of sols (InSight frame). Give two integers; first minimum and second maximum Sol desired
     LMST_range: ['00:00:00', '24:00:00']            # select glitches to certain LMSTimes only. E.g.: ['17:17:15' to '1800' or '2000' to 030000]
-    Amplitudes: {'U':[1e-8,inf], 'V':[inf]}         # select glitches to certain gain corrected amplitudes only. Use as dictionary with components as keys. For each, give 1 or 2 values. If one value: err<val, if two values: val1<:POL<:val2. Default e.g.: 'V':[inf]
+    Amplitudes: {'U':[1e-10,inf], 'V':[inf]}        # select glitches to certain gain corrected amplitudes only. Use as dictionary with components as keys. For each, give 1 or 2 values. If one value: err<val, if two values: val1<:POL<:val2. Default e.g.: 'V':[inf]
     AZs: [0,360]                                    # select glitches to certain azimuths only: use value pairs to state lower and upper limits. e.g. [320,360, 10,50, 150,180]
     AZ_Errs: []                                     # select glitches to certain azimuths errors only. Give 1 or 2 values. If one value: err<val, if two values: val1<:err<:val2
     INCs: []                                        # select glitches to certain incidence only: use value pairs to state lower and upper limits. e.g. [0,80, 100,180]
@@ -72,10 +72,12 @@ plot:
     glitch_polarization: []                         # select glitches to certain linea polarizations only. Give 1 or 2 values. If one value: POL>:val, if two values: val1<:POL<:val2
     inverse_selection: False                        # invert selection made with respect to all above parameters
 
-  glitch_detector_plot:                             # plot seismic files (stated in detect module) in 24 h windows plus detected glitches. Give start- and endtime in UTC format to plot specific time
+  glitch_detector_plot:                             # plot seismic files in `windows` including detected glitches. Give start- and endtime in UTC format to plot specific time of input waveforms
     run: False
+    window:                                         # window length in hours. Windows are slided in 95% steps. If nothing given, default is 25 hours (~1 sol)
     starttime:                                      # use starttime and endtime to truncate glitches to be plotted (waveform data are from detect module).
-    endtime: 
+    endtime:
+    outfile:
 
   glitch_overview_plot:                             # plot glitch azimuths, incidences and histogram. Click on dots to get information printed into shell.
     run: True

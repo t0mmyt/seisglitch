@@ -28,8 +28,8 @@ Functions
     :maxdepth: 1
     
     detector
-    plotter
     remover
+    plotter
 
     downloader
     decimater

@@ -281,7 +281,7 @@ def select_glitches(glitch_files,
 
 
 ### PLOT SCRIPTS
-def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], starttime=None, endtime=None, show=True, outfile='', **kwargs):
+def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], window=None, starttime=None, endtime=None, show=True, outfile='', **kwargs):
     
     """
     Plot glitches, based on glitch file produced by function `glitch_detector()`.t.
@@ -309,6 +309,14 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], starttime=N
     if not waveform_files:
         print(u'ERROR: You need to specify `waveform_files`.')
         sys.exit()
+
+
+
+    ### WINDOW LENGTH
+    if not window:
+        window_length = 25*3600
+    else:
+        window_length = float(window)*3600
 
 
 
@@ -345,7 +353,8 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], starttime=N
 
         # sliding
         j = 0
-        for stream_plot in st_select.slide(26*3600, 25*3600+1800, offset=0, include_partial_windows=True, nearest_sample=True):
+
+        for stream_plot in st_select.slide(window_length, window_length*0.95, offset=0, include_partial_windows=True, nearest_sample=True):
 
             j      += 1
             start   = min([str(tr.stats.starttime) for tr in stream_plot]) 
@@ -359,8 +368,40 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], starttime=N
             # make plot
             win_title = 'Glitch dectector plot (window %s)' % j
             title     = '%s glitches' % len(indices)
+            ids       = sorted( set(stream_plot._get_ids()), key=stream_plot._get_ids().index)
+            lc        = ['C%s' % ids.index(trace.id) for trace in stream_plot]      # give same component same linecolor, no matter how many traces of this component there are
 
-            quick_plot(*stream_plot, title=title, win_title=win_title, verts=[all_glitches[indices][:,1]], xlabel='Time', show=show)
+            def on_xlims_change(event_ax):
+                #axis2 = event_ax.twiny()
+                ax1Xs = axis.get_xticks()
+                ax2Xs = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
+                axis2.set_xticks(ax1Xs)
+                axis2.set_xticklabels(ax2Xs)
+                axis2.set_xlabel(u"Time (LMST)")
+
+            fig = plt.figure(figsize=(14,8))
+            fig.canvas.set_window_title(win_title)
+            axis = fig.add_subplot(111)
+
+            axis  = quick_plot(*stream_plot, title=title, verts=[all_glitches[indices][:,1]], lc=lc, xlabel='Time', axis=axis)
+            axis.callbacks.connect('xlim_changed', on_xlims_change)
+            axis2 = axis.twiny()
+            ax1Xs = axis.get_xticks()
+            ax2Xs = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
+            axis2.set_xticks(ax1Xs)
+            axis2.set_xbound(axis.get_xbound())
+            axis2.set_xticklabels(ax2Xs)
+            axis.set_xlabel(u"Time (UTC)")
+            axis2.set_xlabel(u"Time (LMST)")
+            plt.tight_layout()
+
+            if show:
+                plt.show()
+
+            if outfile:
+                outfile = '.'.join( outfile.split('.')[:-1]) + '%s.' % j + outfile.split('.')[-1]
+                plt.savefig(outfile)
+                print(outfile)                
 def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='', **kwargs):
     
     """
@@ -898,7 +939,7 @@ def plot_glitch_ppol(glitch_start=None, glitch_length=30, run=True, waveform_fil
         print(u'    UTC: %20s - %s' % (marstime(glitch_start).UTC_string,  marstime(glitch_end).UTC_string))
         print(u'   LMST: %20s - %s' % (marstime(glitch_start).LMST_string, marstime(glitch_end).LMST_string))
         print(u'Info: Results may slightly deviate from those of the glitch detector.')
-        ppol_measurement.plot(title=title, show=show, outfile=outfile, verts=[[glitch_start,glitch_end]], vertsc=['k'], original_data=stream_select.detrend('demean'))
+        ppol_measurement.plot(title=title, show=show, outfile=outfile, vertsc=['k'], original_data=stream_select.detrend('demean'))
 
         break
 

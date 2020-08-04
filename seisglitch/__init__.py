@@ -44,8 +44,11 @@ The code is based on the following, peer-reviewed paper:
     “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” Earth and Space Science, submitted (2020).
 
 If you find ``SEISglitch`` useful, used the MATLAB alternatives, corrected data as to the considerations outlined in the paper, or 
-used the corrected data provided along with this package, please consider citing. :)
+used the corrected data provided along with this package, please consider citing this and the following paper:
 
+    Lognonné, P., W. B. Banerdt, W. T. Pike, D. Giardini, U. Christensen, R. F. Garcia, T. Kawamura, et al. “Constraints on the 
+    Shallow Elastic and Anelastic Structure of Mars from InSight Seismic Data.” Nature Geoscience 13, no. 3 (March 2020): 
+    213–20. https://doi.org/10.1038/s41561-020-0536-y.
 
 .. _ObsPy: https://github.com/obspy/obspy/wiki
 """

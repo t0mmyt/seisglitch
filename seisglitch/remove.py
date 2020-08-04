@@ -532,18 +532,16 @@ def remove(*glitch_detector_files,
                     if var_red>=var_reduction_total or glitches[g][7]=='1':
                         var_red_W.append( var_red )
                         acc_steps_W.append( best_popt[2]*ACC_STEP )
-                else:
-                    pass
 
 
         ## WRITE DEGLITCHED FILE
-        outfile_degl = '.'.join(waveform_file.split('.')[:-1]) + '_deglitched.' + waveform_file.split('.')[-1]
+        outfile_degl = '.'.join(waveform_file.split('.')[:-1]) + '_deglitched.' + format_in.lower()
         stream.write(outfile_degl, format=format_in)
         if store_glitches:
             stream_orig = read(waveform_file)
             for tr_orig, tr_degl in zip(stream_orig, stream):
                 tr_orig.data - tr_degl.data
-            outfile_glit = '.'.join(waveform_file.split('.')[:-1]) + '_glitches.' + waveform_file.split('.')[-1]
+            outfile_glit = '.'.join(waveform_file.split('.')[:-1]) + '_glitches.' + format_in.lower()
             stream_orig.write(outfile_glit, format=format_in)
 
 
@@ -629,10 +627,10 @@ if __name__ == "__main__":
                            'station'  : stream[0].stats.station, 
                            'location' : stream[0].stats.location, 
                            'channel'  : stream[0].stats.channel}
-        cut_index = 15000 - 20    # fixed. '20' samples before modeled glitch starts model is taken and fit against data (for both glitch and spike)
+        cut_index = 10000 - 20    # fixed. '20' samples before modeled glitch starts model is taken and fit against data (for both glitch and spike)
 
 
-        source_FFT, step_freqs = sourceFFT(15000, sampling_period)
+        source_FFT, step_freqs = sourceFFT(10000, sampling_period)
         ACC_fft, _ = responseFFT(response, step_freqs, step_unit='ACC')
         syn_glitch = fft2signal(source_FFT*ACC_fft, step_freqs, tau=0, amp_factor=1e-9)
         syn_glitch = syn_glitch[cut_index:cut_index+int(PLOT_LENGTH/sampling_period)]

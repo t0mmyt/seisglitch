@@ -2074,6 +2074,14 @@ def download_data(outdir=os.getcwd(),
 class ppol():
 
     """
+    If stream object is passed, note that ppol does not currently handle gaps/overlaps.
+    In such case, only the first trace of each component is processed. This 
+    is true also if `starttime` and/or `endtime` are passed (only the FIRST
+    trace of each component corresponding to these times is processed).
+
+    So, no merging / interpolation of any kind is implemented.
+
+
     results = PHI_2D,     PHI_err_2D, PHI_3D,     PHI_err_3D, \
               INC_2D,     INC_err_2D, INC_3D,     INC_err_3D, \
               SNR_HOR_2D, SNR_3D,     SNR_RZp_2D, SNR_RZp_3D, \
@@ -2083,32 +2091,46 @@ class ppol():
     """
 
     def __init__(self, comp_N=None, comp_E=None, comp_Z=None, stream=None, starttime=None, endtime=None, demean=True, **kwargs):
-        traces = self._assign_traces(comp_N=comp_N, comp_E=comp_E, comp_Z=comp_Z, stream=stream)
-        self.trace_N = traces[0].copy()
-        self.trace_E = traces[1].copy()
-        self.trace_Z = traces[2].copy()
 
-        self.traces = [self.trace_N.copy(), self.trace_E.copy(), self.trace_Z.copy()]  # have only effect if start- & endtime are given and for plotting, so one can zoom out from the ppol data! ;)
+        """
+        `kwargs` are passed to `calc` method.
+        """
 
-        if starttime:
+        if starttime is not None:
             self.starttime = UTCDateTime(starttime)
+        else:
+            self.starttime = starttime
+        if endtime is not None:
+            self.endtime = UTCDateTime(endtime)
+        else:
+            self.endtime = endtime
+        
+        self.trace_N, self.trace_E, self.trace_Z = self._assign_traces(comp_N=comp_N, comp_E=comp_E, comp_Z=comp_Z, stream=stream)    # returns a copy of the input data
+        self.traces_input = [self.trace_N.copy(), self.trace_E.copy(), self.trace_Z.copy()]  # have effect only for plotting and only if start- & endtime are given, so one can zoom out from the ppol data! ;)
+
+        if self.starttime is not None:
             self.trace_N.trim(starttime=self.starttime)
             self.trace_E.trim(starttime=self.starttime)
             self.trace_Z.trim(starttime=self.starttime)
-        else:
-            self.starttime = starttime
-        if endtime:
-            self.endtime = UTCDateTime(endtime)
+        if self.endtime is not None:
             self.trace_N.trim(endtime=self.endtime)
             self.trace_E.trim(endtime=self.endtime)
             self.trace_Z.trim(endtime=self.endtime)            
-        else:
-            self.endtime = endtime
 
         if demean:
-            self.trace_N.detrend('demean')
-            self.trace_E.detrend('demean')
-            self.trace_Z.detrend('demean')
+            mean_N = np.mean(self.trace_N.data)
+            mean_E = np.mean(self.trace_E.data)
+            mean_Z = np.mean(self.trace_Z.data)                # if Z is empty trace object, mean will be np.nan
+
+            self.trace_N.data = self.trace_N.data - mean_N
+            self.trace_E.data = self.trace_E.data - mean_E
+            self.trace_Z.data = self.trace_Z.data - mean_Z     # if Z is empty trace object, this operation leaves the it still empty
+
+            # for plotting, these data will be demeaned the same way as the data where the ppol calc is run on. What is plotted will hence correspond to mathematical calculation.
+            self.traces_input[0].data = self.traces_input[0].data - mean_N
+            self.traces_input[1].data = self.traces_input[1].data - mean_E
+            self.traces_input[2].data = self.traces_input[2].data - mean_Z     # if Z is empty trace object, this operation leaves the it still empty
+
             self.demeaned = True
         else:
             self.demeaned = False
@@ -2171,13 +2193,65 @@ class ppol():
         """
 
         if stream is not None:
-            stream_N = stream.select(component='N') or stream.select(component='Q') or stream.select(component='U') or stream.select(component='1') or stream.select(component='T')
-            stream_E = stream.select(component='E') or stream.select(component='T') or stream.select(component='V') or stream.select(component='2') or stream.select(component='R')
-            stream_Z = stream.select(component='Z') or stream.select(component='L') or stream.select(component='W') or stream.select(component='3')
+            stream_N = stream.select(component='N') or stream.select(component='T') or stream.select(component='U') or stream.select(component='1') or stream.select(component='T')
+            stream_E = stream.select(component='E') or stream.select(component='L') or stream.select(component='V') or stream.select(component='2') or stream.select(component='R')
+            stream_Z = stream.select(component='Z') or stream.select(component='Q') or stream.select(component='W') or stream.select(component='3')
 
-            if not stream_N and not stream_E:
-                print(u'No idea how to perform polarization analysis on components: %s' % ', '.join( [tr.id for tr in stream] ))
+            if not stream_N or not stream_E:
+                print(u'WARNING: No idea how to perform polarization analysis on components: %s' % ', '.join( [tr.id for tr in stream] ))
                 sys.exit()
+
+            if self.starttime is not None:
+                for trace in stream_N:
+                    if trace.slice(starttime=self.starttime):
+                        trace_N = trace
+                        break
+                else:
+                    print(u'WARNING: No trace found in stream that corresponds to passed starttime %s.' % self.starttime)
+                    sys.exit()
+                for trace in stream_E:
+                    if trace.slice(starttime=self.starttime):
+                        trace_E = trace
+                        break
+                else:
+                    print(u'WARNING: No trace found in stream that corresponds to passed starttime %s.' % self.starttime)
+                    sys.exit()                        
+                if stream_Z is not None:
+                    for trace in stream_Z:
+                        if trace.slice(starttime=self.starttime):
+                            trace_Z = trace
+                            break
+                    else:
+                        print(u'WARNING: No trace found in stream that corresponds to passed starttime %s.' % self.starttime)
+                        sys.exit() 
+                else:
+                    trace_Z = Trace()
+
+            elif self.endtime is not None:
+                for trace in stream_N:
+                    if trace.slice(starttime=self.endtime):
+                        trace_N = trace
+                        break
+                else:
+                    print(u'WARNING: No trace found in stream that corresponds to passed endtime %s.' % self.endtime)
+                    sys.exit()                        
+                for trace in stream_E:
+                    if trace.slice(starttime=self.endtime):
+                        trace_E = trace
+                        break
+                else:
+                    print(u'WARNING: No trace found in stream that corresponds to passed endtime %s.' % self.endtime)
+                    sys.exit()                          
+                if stream_Z is not None:
+                    for trace in stream_Z:
+                        if trace.slice(starttime=self.endtime):
+                            trace_Z = trace
+                            break
+                    else:
+                        print(u'WARNING: No trace found in stream that corresponds to passed endtime %s.' % self.endtime)
+                        sys.exit()                              
+                else:
+                    trace_Z = Trace()
 
             else:
                 trace_N = stream_N[0]
@@ -2215,16 +2289,16 @@ class ppol():
                     print(u'`comp_Z` must be either a ObsPy `Trace` object or a `list`-like object containing your waveform data.')
                     sys.exit()                    
             else:
-                trace_Z = Trace()
+                trace_Z = Trace()           # trace object with empty data array
 
 
         else:
-            print(u'You must either specify an ObsPy `stream` object containing at least two horizontal components')
+            print(u'You must either specify an ObsPy `stream` object containing at least two components')
             print(u'or `comp_N` and `comp_E` (both either as ObsPy `Trace` objects or lists).')
             sys.exit()
 
 
-        return trace_N , trace_E, trace_Z
+        return trace_N.copy() , trace_E.copy(), trace_Z.copy()
     def _sanity_check(self):
 
         
@@ -2236,6 +2310,14 @@ class ppol():
         start_E = self.trace_E.stats.starttime
         start_Z = self.trace_Z.stats.starttime
 
+
+        # N or E have no data
+        if len_E==0 or len_N==0:
+            print(u'ERROR: One or multiple components have no data. Cannot perform ppol analysis.')
+            sys.exit()
+
+
+        # Comps have not same data length
         if len_Z != 0:
             if len_N!=len_E or len_N!=len_Z or len_E!=len_Z:
                 print(u'ERROR: Data lengths of components are not equal. Cannot perform ppol analysis.')
@@ -2247,6 +2329,7 @@ class ppol():
                 sys.exit()
 
 
+        # Comps do not start at same time - Warning only
         if len_Z != 0:
             if start_N!=start_E or start_N!=start_Z or start_E!=start_Z:
                 print(u'WARNING: Data do not start at the same time. Ppol analysis is performed nevertheless.')
@@ -2261,7 +2344,7 @@ class ppol():
                 print('  '+self.trace_E.__str__())
     def calc(self, bias=False, fix_angles='EQ', Xoffset_samples_for_amplitude=0, **kwargs):
 
-        r"""
+        """
         DO INDIVIDUAL PPOL MEASUREMENTS
 
         Take data arrays and perform 2-D and 3-D principle component
@@ -2271,14 +2354,14 @@ class ppol():
 
         Useful for seismology, for example.
 
-        |       ^  
-        |       \| data_1
-        |       \|
-        |       \|
-        |       \|
-        |       x------------> data_2
-        |     data_Z 
-        |  (pointing to you)
+               ^  
+               | data_1
+               |
+               |
+               |
+               o---------> data_2
+             data_Z 
+         (pointing to you, left-hand rule)
 
 
         180° ambiguity:
@@ -2289,7 +2372,6 @@ class ppol():
 
         Note
         ----
-
             An unknown event BAZ is the same as an unknown station orientation
             with a known event BAZ.
 
@@ -2381,13 +2463,6 @@ class ppol():
                 # correct radial and transverse data
                 data_R_2D, data_T_2D = rotate.rotate_ne_rt(data_1, data_2, PHI_2D)
 
-                # 2-D INC
-                INC_2D_OLD = INC_2D
-                if amp_Z>=0:
-                    INC_2D = np.abs(INC_2D) % 180
-                else:
-                    INC_2D = -1*np.abs(INC_2D) % 180
-
 
             else:
                 pass
@@ -2467,7 +2542,7 @@ class ppol():
 
 
             ### AMBIGUITY 180°
-            if self.fix_angles=='EQ':    # However, correct baz must deliver incidence angle>0, therefore can solve ambiguity
+            if self.fix_angles=='EQ':    # Correct baz must deliver incidence angle>0, therefore can solve ambiguity
                 if INC_2D < 0:
                     PHI_2D               = (PHI_2D+180)%360
                     INC_2D               = abs(INC_2D)
@@ -2567,10 +2642,12 @@ class ppol():
         """
         PLOT INDIVIDUAL PPOL MEASUREMENT
 
-
-        Either provide num,py lists or Obspy traces.
+        Either provide numpy lists or Obspy traces.
         Always plots 2-D angle
         Expects that all traces have same start time and same amount of samples!
+
+        `original_data` is plotted as provided. No demeaning or alike is done.
+        `kwargs` are passed to the quick_plot function.
         """
 
 
@@ -2599,6 +2676,11 @@ class ppol():
 
         ### PLOT WAVEFORMS
         # Figure instance
+        if self.starttime is not None:
+            verts += (self.starttime, )
+        if self.endtime is not None:
+            verts += (self.endtime, )
+
         if original_data:
             rows = 3
             fig  = plt.figure(figsize=(9,9))
@@ -2606,14 +2688,14 @@ class ppol():
             ax0  = fig.add_subplot(gs[0, :])
             ax0  = quick_plot(*original_data, verts=verts, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax0, xlim=[self.starttime, self.endtime])
             ax1  = fig.add_subplot(gs[rows-2, :], sharex=ax0)
-            ax1  = quick_plot(*self.traces, verts=verts, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
+            ax1  = quick_plot(*self.traces_input, verts=verts, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
 
         else:
             rows = 2
             fig  = plt.figure(figsize=(9,6))
             gs   = fig.add_gridspec(rows, 3)
             ax1  = fig.add_subplot(gs[rows-2, :])
-            ax1  = quick_plot(*self.traces, verts=verts, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
+            ax1  = quick_plot(*self.traces_input, verts=verts, ylabel='Amplitude', xlabel='Time', legend_loc='upper right', axis=ax1, xlim=[self.starttime, self.endtime], **kwargs)
        
         if title:
             fig.canvas.set_window_title('Ppol plot individual measurement: %s' % title)
@@ -2623,8 +2705,8 @@ class ppol():
 
 
         ### SMALL HACKS to make sure for small amplitudes everything works out (precisely: arrow head of angle indicators)
-        factor      = 1
-        factor_str  = ''
+        factor     = 1
+        factor_str = ''
 
         if data_Z is not None:
             BAZ         = BAZ_3D
@@ -3036,8 +3118,8 @@ def quick_plot(*y,
                 ax.xaxis.set_major_formatter(myFmt)
 
         elif isinstance(data, (Stream)):
-            print(u'Using plot function of %s object and then return.' % type(data))
-            print(u'No further variables passed.')
+            print(u'WARNING: Using plot() method of %s object and then return.' % type(data))
+            plt.close()
             data.plot()     # use Stream, respectively, object's plot function
             return
 
@@ -3159,7 +3241,10 @@ def quick_plot(*y,
 
     ### Saving & showing ..
     if legend_loc is not None:
-        ax.legend(loc=legend_loc, prop={'size': fs_legend})
+        handles, labels = ax.get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        ax.legend(by_label.values(), by_label.keys(), loc=legend_loc, prop={'size': fs_legend})
+
     if axis:
         return ax
 
