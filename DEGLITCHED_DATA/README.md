@@ -10,12 +10,15 @@ On the other hand, version numbers within a group allow you to conclude temporal
 
 
 The four groups and their lead analyists are:
-- MPS (John-Robert Scholz, using the Seisglitch toolbox)
-- ISAE (Baptiste Pinot, MATLAB)
+- MPS (John-Robert Scholz & Rudolf Widmer-Schnidrig, Seisglitch toolbox)
+- ISAE (Baptiste Pinot & Raphaël Garcia, MATLAB)
 - UCLA (Paul Davis, MATLAB)
 - IPGP (Philippe Lognonné, MATLAB)
 
 
 Note further that the provided files may show differences for some seismic events across the different groups.
 This is because some groups may have merged overlaps in the input files prior to processing whilst others did not. 
-These differences are typically not signficant, especially for total data lengths less than 1 day.
+These differences are typically not signficant, especially for total data lengths of less than 1 day.
+
+For more information on the Mars seismic catalogue curated by the Marsquake Service (MQS), see:
+https://www.seis-insight.eu/en/science/seis-products/mqs-catalogs
