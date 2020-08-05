@@ -1256,12 +1256,14 @@ class marstime():
             try:
                 self.LMST_time = UTCDateTime(LMST)
             except:
-                sol            = LMST.split('M')[0]
+                sol            = int(LMST.split('M')[0])
                 hms            = '000000.000000'
                 if len(LMST.split('M'))>1:
-                    hms = LMST.split('M')[1].replace(':','') + hms[len(LMST.split('M')[1]):]
-                self.LMST_time = UTCDateTime('1969-12-31T00:00:00.000000Z')+datetime.timedelta(days=int(LMST.split('M')[0]), hours=int(hms[:2]), minutes=int(hms[2:4]), seconds=float(hms[4:]))
-            self._UTCify(strftime)
+                    passed_hms = LMST.split('M')[1].replace(':','')
+                    hms        = passed_hms + hms[len(passed_hms):]
+                self.LMST_time = UTCDateTime('1969-12-31T00:00:00.000000Z')+datetime.timedelta(days=sol, hours=int(hms[:2]), minutes=int(hms[2:4]), seconds=float(hms[4:]))
+                print(self.LMST_time)
+            self._UTCify(strftime)    
     def __str__(self):
 
         """
@@ -2020,11 +2022,11 @@ def download_data(outdir=os.getcwd(),
     times            = st.times
     request          = '%s.%s.%s.%s' % (network, station, location, channel)
     outfile_inv      = os.path.join(outdir, 'inventory_%s-%s.xml'   % (st.times[0],st.times[1]))
-    outfile_raw      = os.path.join(outdir, '%s_%s-%s_raw.%s'       % (request,st.times[0],st.times[1],format_DATA))
-    outfile_gain     = os.path.join(outdir, '%s_%s-%s_gain.%s'      % (request,st.times[0],st.times[1],format_DATA))
-    outfile_gain_rot = os.path.join(outdir, '%s_%s-%s_gain_rot.%s'  % (request,st.times[0],st.times[1],format_DATA))
-    outfile_rem      = os.path.join(outdir, '%s_%s-%s_%s.%s'        % (request,st.times[0],st.times[1],remove_response,format_DATA))
-    outfile_rem_rot  = os.path.join(outdir, '%s_%s-%s_%s_rot.%s'    % (request,st.times[0],st.times[1],remove_response,format_DATA))
+    outfile_raw      = os.path.join(outdir, '%s_%s_%s_raw.%s'       % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
+    outfile_gain     = os.path.join(outdir, '%s_%s_%s_gain.%s'      % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
+    outfile_gain_rot = os.path.join(outdir, '%s_%s_%s_gain_rot.%s'  % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
+    outfile_rem      = os.path.join(outdir, '%s_%s_%s_%s.%s'        % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),remove_response,format_DATA))
+    outfile_rem_rot  = os.path.join(outdir, '%s_%s_%s_%s_rot.%s'    % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),remove_response,format_DATA))
 
     # Processing
     st.inventory.write(outfile_inv, format=format_INV)
@@ -2069,6 +2071,7 @@ def download_data(outdir=os.getcwd(),
 
 
     print(u'Finished.')
+
 
 # Ppol (P-wave Polarization)
 class ppol():
@@ -3258,6 +3261,88 @@ def quick_plot(*y,
 
     if not keep_open:
         plt.close()
+def on_click(event, fig):
+                axes = fig.axes
+                axis = event.inaxes
+                if axes is None or axis is None:
+                    return                                                                        # case clicked not on axis but frame ..
+
+                if event.dblclick:
+                    if event.button == 1:                                                         # nothing right now
+                        pass
+
+
+                    elif event.button == 2:                                                       # middle-click (set ylim for each axis to maximum available ylim of all axes whilst centering data of each axis == equal scale)
+                        xlim  = axis.get_xlim()
+                        ylims = []
+
+                        for axis in axes:
+
+                            y_mins = []
+                            y_maxs = []     
+
+                            for line in axis.lines:
+                                x = line.get_xdata()
+                                if x[0]==x[-1]:                                                 # exclude vertical lines
+                                    continue
+                                y = line.get_ydata()
+                                i = np.where( (x >= xlim[0]) & (x <= xlim[1]) )[0]              # all indexes of y_data according to xlim
+                                if not i.any():
+                                    continue                                                    # e.g. data gaps, that is, 2 lines within axes where one does not lie within chose xlims
+
+                                line_min = y[i].min()                                           # get minimum y within all data according to xlim
+                                line_max = y[i].max()                                           # get maximum y within all data according to xlim
+                                y_mins.append(line_min)
+                                y_maxs.append(line_max)
+                            
+                            try:        # e.g. empty axis by axis.twinx() or axis.twiny() if no data plotted in that axis ...
+                                y_min = min(y_mins)
+                                y_max = max(y_maxs)
+                                ylims.append([y_min, y_max])
+                            except:
+                                continue
+
+                        ylims        = np.array(ylims)
+                        ylims_vals   = [ylim[1]-ylim[0] for ylim in ylims]
+                        ylim_max_ind = np.argmax(ylims_vals)
+
+                        for r, ylim in enumerate(ylims):
+                            if r == ylim_max_ind:
+                                pass
+                            else:
+                                ylim = [ylim[0]-ylims_vals[ylim_max_ind]/2+(ylim[1]-ylim[0])/2, ylim[1]+ylims_vals[ylim_max_ind]/2-(ylim[1]-ylim[0])/2]
+                            ylim_set = [ylim[0]-0.025*np.abs(ylim[1]-ylim[0]), ylim[1]+0.025*np.abs(ylim[1]-ylim[0])] # give 2.5% margin that works both for pos. & neg. values
+                            axes[r].set_ylim( ylim_set ) 
+                        fig.canvas.draw()
+
+
+                    elif event.button == 3:                                                     # right-click (for each axis individually, set ylim to respective data minimum and maximum + margin)
+                        xlim   = axis.get_xlim()
+
+                        for axis in axes:
+                            y_mins = []
+                            y_maxs = []
+                            for line in axis.lines:
+                                x = line.get_xdata()
+                                if x[0]==x[-1]:                                                 # exclude vertical lines
+                                    continue
+                                y = line.get_ydata()
+                                i = np.where( (x >= xlim[0]) & (x <= xlim[1]) )[0]              # all indexes of y_data according to xlim
+                                if not i.any():
+                                    continue                                                    # e.g. data gaps, that is, 2 lines within axes where one does not lie within chose xlims
+                                line_min = y[i].min()                                           # get minimum y within all data according to xlim
+                                line_max = y[i].max()                                           # get maximum y within all data according to xlim
+                                y_mins.append(line_min)
+                                y_maxs.append(line_max)
+
+                            try:        # e.g. empty axis by axis.twinx() or axis.twiny() if no data plotted in that axis ...
+                                y_min = min(y_mins)
+                                y_max = max(y_maxs)
+                                ylim  = [y_min-0.025*np.abs(y_max-y_min), y_max+0.025*np.abs(y_max-y_min)] # give 2.5% margin that works both for pos. & neg. values 
+                                axis.set_ylim( ylim )
+                            except:
+                                continue
+                        fig.canvas.draw()
 class _Arrow3D(FancyArrowPatch):
     """
     Needed for nice arrow heads in ppol plot.

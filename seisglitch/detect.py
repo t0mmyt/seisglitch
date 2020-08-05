@@ -40,7 +40,7 @@ from obspy import UTCDateTime, read
 
 
 #####  seisglitch modules import  #####
-from seisglitch.math import moving_window, normalise
+from seisglitch.math import normalise
 from seisglitch.util import read2, Stream2, glitch_statistic, pierce_stream, decimate_SEIS, marstime, sec2hms, quick_plot, ppol
 
 

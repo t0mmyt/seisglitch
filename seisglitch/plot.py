@@ -46,7 +46,7 @@ from obspy import read, UTCDateTime
 
 
 #####  seisglitch util import  #####
-from seisglitch.util import read2, marstime, sec2hms, ppol, quick_plot
+from seisglitch.util import read2, marstime, sec2hms, ppol, quick_plot, on_click
 from seisglitch.math import normalise
 
 
@@ -64,6 +64,7 @@ def select_glitches(glitch_files,
     glitch_polarization = [],
     glitch_SNR          = [],
     inverse_selection   = False,
+    verbose             = True,
     **kwargs):
 
 
@@ -268,10 +269,11 @@ def select_glitches(glitch_files,
 
 
     ### PRINTING VARIABLES:
-    print(u'SELECTED %s/%s GLITCHES ON THE FOLLOWING PARAMETERS:' % (len(new_glitches),len(all_glitches)))
-    for key, value in sorted(variables.items(), key=lambda item: len(item[0])):
-        print(u'  %25s = %s' % (key, value))
-    print()
+    if verbose:
+        print(u'SELECTED %s/%s GLITCHES ON THE FOLLOWING PARAMETERS:' % (len(new_glitches),len(all_glitches)))
+        for key, value in sorted(variables.items(), key=lambda item: len(item[0])):
+            print(u'  %25s = %s' % (key, value))
+        print()
 
     if new_glitches.size == 0:
         print(u'WARNING: With given parameters no glitches were selected.')
@@ -281,10 +283,159 @@ def select_glitches(glitch_files,
 
 
 ### PLOT SCRIPTS
+def plot_glitch_remover(*glitch_files, run=True, original_data=None, deglitch_data=None, window=None, starttime=None, endtime=None, show=True, outfile='', **kwargs):
+    
+    """
+    Plot comparison of deglitched data to original data.
+    Plot also detected glitches per component.
+
+    All input traces will be plotted e.g., also if they are not seismic.
+    """
+
+
+    ### RUN OR NOT:
+    if not run:
+        return
+
+    now = time.time()
+
+
+
+    ### OUTPUT
+    print()
+    print(u'  ------------------------------')
+    print(u'  RUNNING GLITCH REMOVER PLOTTER')
+    print(u'  ------------------------------')
+    print()
+
+
+
+    ### CHECK IF WAVEFORM FILES PASSED
+    try:
+        original_wf = read2(original_data)
+        deglitch_wf = read2(deglitch_data)
+        combined_wf = original_wf + deglitch_wf
+    except:
+        print(u'ERROR: Cannot read `original_data` or `deglitch_data` via ObsPy.')
+        sys.exit()
+
+
+
+    ### WINDOW LENGTH
+    if not window:
+        window_length = 25*3600
+    else:
+        window_length = float(window)*3600
+
+
+
+    ### SELECT GLITCHES
+    all_glitches = select_glitches(glitch_files, **kwargs)
+    
+
+
+    ### CUT STREAMS
+    if starttime:
+        original_wf.trim(starttime=UTCDateTime(starttime))
+        deglitch_wf.trim(starttime=UTCDateTime(starttime))
+    if endtime:
+        original_wf.trim(endtime=UTCDateTime(endtime))
+        deglitch_wf.trim(endtime=UTCDateTime(endtime))
+
+
+
+    ### SANITY CHECK
+    if not original_wf or not deglitch_wf:
+        print(u'WARNING: Times %s, and %s not present in %s. No plotting done.' % (starttime, endtime, waveform_file))
+        sys.exit()
+
+
+
+    ### PLOT DATA + GLITCHES
+    j = 0
+    combined_ids = sorted( set( combined_wf._get_ids() ), key=combined_wf._get_ids().index)
+
+    for stream_window in combined_wf.slide(window_length, window_length*0.95, offset=0, include_partial_windows=True, nearest_sample=True):
+
+        j += 1
+        starttime_window = min([tr.stats.starttime for tr in stream_window])
+        endtime_window   = max([tr.stats.endtime   for tr in stream_window])
+        original_window  = original_wf.slice(starttime=starttime_window, endtime=endtime_window)
+        deglitch_window  = deglitch_wf.slice(starttime=starttime_window, endtime=endtime_window)
+
+        # glitches
+        indices = sorted( [i for i in range(len(all_glitches)) if all_glitches[i][1]>=str(starttime_window) and all_glitches[i][1]<=str(endtime_window)] )
+        if indices:
+            for i in indices:
+                print('  '+'   '.join(all_glitches[i,[0,1,5,6,7]]))
+            print()
+
+        # make plot       
+        def on_xlims_change(event_ax):
+            ax1Xs = axes[-1].get_xticks()
+            ax2Xs = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
+            axis_twin.set_xticks(ax1Xs)
+            axis_twin.set_xticklabels(ax2Xs)
+        fig, _    = plt.subplots(len(combined_ids), figsize=(14,8), sharex=True)
+        axes      = fig.axes
+        win_title = 'Glitch remover plot (window %s)' % j
+        title     = '%s glitches' % len(indices)
+        fig.canvas.set_window_title(win_title)
+        fig.canvas.mpl_connect('button_press_event', lambda event: on_click(event, fig))
+
+        for i, id in enumerate(combined_ids):
+
+            orientation_code = stream_window.select(id=id)[0].stats.channel[-1].upper()
+            if orientation_code=='U':
+                glitches_comp = all_glitches[indices][all_glitches[indices][:,5]=='1']
+            elif orientation_code=='V':
+                glitches_comp = all_glitches[indices][all_glitches[indices][:,6]=='1']
+            elif orientation_code=='W':
+                glitches_comp = all_glitches[indices][all_glitches[indices][:,7]=='1']
+            else:
+                glitches_comp = np.array( [] )    
+
+            title   = '%s glitches' % len(glitches_comp)
+            if i==len(combined_ids)-1:
+                xlabel = 'Time (UTC)'
+            else:
+                xlabel = None
+
+            # actual data plot
+            axes[i] = quick_plot(*original_window.select(id=id), 
+                                 *deglitch_window.select(id=id), 
+                                 title      = title, 
+                                 verts      = [glitches_comp[:,1]], 
+                                 lc         = ['C0'] * len(original_window.select(id=id)) + ['C1'] * len(deglitch_window.select(id=id)), 
+                                 xlabel     = xlabel, 
+                                 legend_loc = 'upper right', 
+                                 axis       = axes[i])
+
+        # twiny axis
+        axes[-1].callbacks.connect('xlim_changed', on_xlims_change)
+        axis_twin = axes[-1].twiny()
+        ax1Xs     = axes[-1].get_xticks()
+        ax2Xs     = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
+        axis_twin.set_xticks(ax1Xs)
+        axis_twin.set_xbound(axes[-1].get_xbound())
+        axis_twin.set_xticklabels(ax2Xs)
+        axis_twin.set_xlabel(u"Time (LMST)", fontsize=11)
+        plt.tight_layout()
+
+        if show:
+            plt.show()
+
+        if outfile:
+            outfile = '.'.join( outfile.split('.')[:-1]) + '%s.' % j + outfile.split('.')[-1]
+            plt.savefig(outfile)
+            print(outfile)
 def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], window=None, starttime=None, endtime=None, show=True, outfile='', **kwargs):
     
     """
-    Plot glitches, based on glitch file produced by function `glitch_detector()`.t.
+    Plot original data.
+    Plot also detected glitches per component.
+
+    Only seismic traces will be plotted.
     """
 
 
@@ -353,46 +504,70 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], window=None
 
         # sliding
         j = 0
+        stream_ids = sorted( set( st_select._get_ids() ), key=st_select._get_ids().index)
 
         for stream_plot in st_select.slide(window_length, window_length*0.95, offset=0, include_partial_windows=True, nearest_sample=True):
 
-            j      += 1
-            start   = min([str(tr.stats.starttime) for tr in stream_plot]) 
-            end     = max([str(tr.stats.endtime)   for tr in stream_plot])
-            indices = sorted( [i for i in range(len(all_glitches)) if all_glitches[i][1]>=start and all_glitches[i][1]<=end] )
+            j += 1
+            starttime_window = min([tr.stats.starttime for tr in stream_plot])
+            endtime_window   = max([tr.stats.endtime   for tr in stream_plot])
+
+            # glitches
+            indices = sorted( [i for i in range(len(all_glitches)) if all_glitches[i][1]>=str(starttime_window) and all_glitches[i][1]<=str(endtime_window)] )
             if indices:
                 for i in indices:
                     print('  '+'   '.join(all_glitches[i,[0,1,5,6,7]]))
                 print()
 
-            # make plot
-            win_title = 'Glitch dectector plot (window %s)' % j
-            title     = '%s glitches' % len(indices)
-            ids       = sorted( set(stream_plot._get_ids()), key=stream_plot._get_ids().index)
-            lc        = ['C%s' % ids.index(trace.id) for trace in stream_plot]      # give same component same linecolor, no matter how many traces of this component there are
-
+            # make plot       
             def on_xlims_change(event_ax):
-                #axis2 = event_ax.twiny()
-                ax1Xs = axis.get_xticks()
+                ax1Xs = axes[-1].get_xticks()
                 ax2Xs = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
-                axis2.set_xticks(ax1Xs)
-                axis2.set_xticklabels(ax2Xs)
-                axis2.set_xlabel(u"Time (LMST)")
-
-            fig = plt.figure(figsize=(14,8))
+                axis_twin.set_xticks(ax1Xs)
+                axis_twin.set_xticklabels(ax2Xs)
+            fig, _    = plt.subplots(len(stream_ids), figsize=(14,8), sharex=True)
+            axes      = fig.axes
+            win_title = 'Glitch remover plot (window %s)' % j
+            title     = '%s glitches' % len(indices)
             fig.canvas.set_window_title(win_title)
-            axis = fig.add_subplot(111)
+            fig.canvas.mpl_connect('button_press_event', lambda event: on_click(event, fig))
 
-            axis  = quick_plot(*stream_plot, title=title, verts=[all_glitches[indices][:,1]], lc=lc, xlabel='Time', axis=axis)
-            axis.callbacks.connect('xlim_changed', on_xlims_change)
-            axis2 = axis.twiny()
-            ax1Xs = axis.get_xticks()
-            ax2Xs = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
-            axis2.set_xticks(ax1Xs)
-            axis2.set_xbound(axis.get_xbound())
-            axis2.set_xticklabels(ax2Xs)
-            axis.set_xlabel(u"Time (UTC)")
-            axis2.set_xlabel(u"Time (LMST)")
+            for i, id in enumerate(stream_ids):
+
+                orientation_code = stream_plot.select(id=id)[0].stats.channel[-1].upper()
+                if orientation_code=='U':
+                    glitches_comp = all_glitches[indices][all_glitches[indices][:,5]=='1']
+                elif orientation_code=='V':
+                    glitches_comp = all_glitches[indices][all_glitches[indices][:,6]=='1']
+                elif orientation_code=='W':
+                    glitches_comp = all_glitches[indices][all_glitches[indices][:,7]=='1']
+                else:
+                    glitches_comp = np.array( [] )    
+
+                title   = '%s glitches' % len(glitches_comp)
+                if i==len(stream_ids)-1:
+                    xlabel = 'Time (UTC)'
+                else:
+                    xlabel = None
+
+                # actual data plot
+                axes[i] = quick_plot(*stream_plot.select(id=id), 
+                                     title      = title, 
+                                     verts      = [glitches_comp[:,1]], 
+                                     lc         = ['C%s' % i], 
+                                     xlabel     = xlabel, 
+                                     legend_loc = 'upper right', 
+                                     axis       = axes[i])
+
+            # twiny axis
+            axes[-1].callbacks.connect('xlim_changed', on_xlims_change)
+            axis_twin = axes[-1].twiny()
+            ax1Xs     = axes[-1].get_xticks()
+            ax2Xs     = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
+            axis_twin.set_xticks(ax1Xs)
+            axis_twin.set_xbound(axes[-1].get_xbound())
+            axis_twin.set_xticklabels(ax2Xs)
+            axis_twin.set_xlabel(u"Time (LMST)", fontsize=11)
             plt.tight_layout()
 
             if show:
@@ -401,7 +576,7 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], window=None
             if outfile:
                 outfile = '.'.join( outfile.split('.')[:-1]) + '%s.' % j + outfile.split('.')[-1]
                 plt.savefig(outfile)
-                print(outfile)                
+                print(outfile)               
 def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='', **kwargs):
     
     """
@@ -660,6 +835,9 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
         print(outfile2)
 def glitch_SOLoverLMST_plot(*glitch_files, run=True, mode='AZ', outfile='', **kwargs):
 
+    """
+
+    """
 
 
     ### RUN OR NOT:
@@ -879,6 +1057,7 @@ def plot_glitch_gutenberg(*glitch_files, run=True, outfile='', **kwargs):
 def plot_glitch_ppol(glitch_start=None, glitch_length=30, run=True, waveform_files=[], inventory_file='IRIS', show=True, outfile='', **kwargs):
 
     """
+
     """
 
 

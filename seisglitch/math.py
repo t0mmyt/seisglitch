@@ -114,52 +114,6 @@ def unit_vector(vec):
     """
 
     return vec / np.linalg.norm(vec)
-def split_into_connecting_parts(array, distance=1):
-
-    """
-    """
-
-    i    = 0
-    last = 0
-
-    while True:
-        try:
-            if array[i+1]-array[i] != distance:
-                yield array[last:i+1]
-                last = i+1
-        
-            i += 1
-                
-        except: # last index reached
-            yield array[last:]
-            break
-def moving_window(data, window_length_in_samples=100, step_in_samples=50, equal_end=True):
-
-    """
-    Yield data of moving windows according to given parameters.
-    """
-
-    i = 0
-
-    while True:
-
-        # window indices
-        index_window_start = i * step_in_samples
-        index_window_end   = index_window_start + window_length_in_samples
-
-
-        # latest when start time of window is >= number samples, then no more windows
-        i += 1
-        if index_window_start >= len(data):
-            break
-       
-        # insist last window is of length `window_length_in_samples` 
-        if equal_end:
-           
-            if len(data[index_window_start:index_window_end]) < window_length_in_samples:
-                break
-
-        yield index_window_start, index_window_end, data[index_window_start:index_window_end]
 def rotate_2D(comp_1, comp_2, angle, clockwise=True):
 
     """

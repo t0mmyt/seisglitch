@@ -31,8 +31,13 @@ download ``seisglitch`` (on Windows, you may need to install "git" first)::
 
 Good news, everything is installed and ready to use!
 Remember to activate the ``seisglitch`` environment each time you want to use it (e.g. "conda activate seisglitch").
-The package should be available from all paths in your system.
- 
+The package should be available from all paths in your system. 
+You can check the seisglitch version you have installed via::
+
+    seisglitch -v
+
+The most recent version is 1.0.0.
+
 
 | 
 
@@ -62,10 +67,10 @@ thus creating symbolic links to the module files, avoiding having to re-compile 
 Update / Upgrade
 ================
 
-If you already have ``seisglitch`` installed and just would like to get the newest version, simply do:
+If you already have ``seisglitch`` installed and just would like to get the newest version, simply:
 
 
-1. Open a terminal (Windows: Anaconda powershell) and type::
+Open a terminal (Windows: Anaconda powershell) and type::
 
     conda activate seisglitch
     cd your/seisglitch/folder (see Installation)

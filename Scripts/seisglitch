@@ -71,7 +71,7 @@ parser.add_argument('config_file',
         help    = """
                   Choose config file for specific parameters.
                   """)
-parser.add_argument('-v', '--version', action='version', version='%(prog)s %(version)s')
+parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + version)
 
 args   = vars( parser.parse_args() )
 mode   = args['mode'].lower()
@@ -98,6 +98,7 @@ elif mode=='plot':
     glitch_detector_files = params['plot']['glitch_detector_files']
     plot_params           = params['plot']['plotter']
 
+    plot.plot_glitch_remover(     *glitch_detector_files, **plot_params, **params['plot']['glitch_remove_plot'])
     plot.plot_glitch_detector(    *glitch_detector_files, **plot_params, **params['plot']['glitch_detector_plot'], waveform_files=waveform_files)
     plot.plot_glitch_overview(    *glitch_detector_files, **plot_params, **params['plot']['glitch_overview_plot'], waveform_files=waveform_files)
     plot.glitch_SOLoverLMST_plot( *glitch_detector_files, **plot_params, **params['plot']['glitch_SOLoverLMST_plot'])
@@ -106,7 +107,7 @@ elif mode=='plot':
 
     if plot_params['show']:
       plt.show()
-    plt.close()
+    plt.close('all')
 
 
 elif mode=='remove':

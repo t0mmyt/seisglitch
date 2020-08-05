@@ -3,10 +3,9 @@
 # Waveform files: must contain 3 seismic traces (components U, V, W) of either VBB or SP.
 # Waveform formats understood: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-format
 # Use 'download' module of this toolbox to retrieve data / inventory if desired.
-inventory_file: 'Example/inventory_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z.xml'  
+inventory_file: 'Example/inventory_2019-05-22T23:18_2019-05-23T23:59.xml'  
 waveform_files:
-  # should be files containing 3 seismic components (UVW). Gaps and overlaps are handeled. You can state multiple (many) waveform files.
-  - Example/XB.ELYSE.03.BH?_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z_raw.mseed
+  - Example/XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.mseed
 
 
 
@@ -21,7 +20,7 @@ detect:
       type : 'bandpass'
       options: {'freqmin':0.001, 'freqmax':0.1, 'corners':3, 'zerophase':True}
       string: '0.001 < f < 0.1'        # name your filter as you like. This will be used for output information only.
-    threshold: 0.5e-9                  # triggering threshold of derivative of filtered acceleration data. Unit therefore is m/s**3. More senstitiv setting would be: 0.2
+    threshold: 0.5e-9                  # triggering threshold of derivative of filtered acceleration data. Unit therefore is m/s**3. More senstitiv setting would be e.g.: 0.2e-9
     plot_triggering: False             # if True, trigger plot is shown (one for each component. These glitch candidates are not yet time unified and checked against polarization)
     glitch_min_length: 5               # In seconds. minimum distance in seconds between 2 glitches. Before that, no new glitch can be declared
     glitch_length: 25                  # In seconds. Only used to declare glitch end time. Choose < 100 s. For VBB 25s is fine, for SP 50 s is fine.
@@ -33,8 +32,7 @@ detect:
 remove:
 
   glitch_detector_files:               # each detected glitch, no matter on which component detected, will attempted to be removed on each component!
-    # list here the files given by the detector module. These detected glitches will attempted to be removed, depending on the waveform data found to it.
-    - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z_raw.txt
+    - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
 
   remover:                                # 'inventory_file' is taken from the detect module. From it the instrument response is extracted. ATTENTION: InSight meta-data use many epochs!
     glitch_window_leftright      : 2      # in seconds, data window appended left and right to detected glitch, buildung the overall window the glitch fits are perfomed.
@@ -54,9 +52,8 @@ remove:
 
 ### PLOT GLITCH FUNCTION
 plot:
-  glitch_detector_files:
-    # list here the files given by the detector module. These detected glitches will be plotted.
-    - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18:50.649000Z-2019-05-23T23:59:36.249000Z_raw.txt  
+  glitch_detector_files:                            # list here the files given by the detector module. These detected glitches will be use for plotting.
+    - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
 
   plotter:
     show: True                                      # if False, no plots will be shown but stored if 'outfile' is specified for the desired plot (and 'run' is True).
@@ -72,15 +69,24 @@ plot:
     glitch_polarization: []                         # select glitches to certain linea polarizations only. Give 1 or 2 values. If one value: POL>:val, if two values: val1<:POL<:val2
     inverse_selection: False                        # invert selection made with respect to all above parameters
 
+  glitch_remove_plot:                               # plot comparison of deglitched and original data + detected glitches. Also non-seismic input traces will be shown.
+    run: False                                      # Must be set to `True` if you want this plot (same for all following plots). If you set all to `True` or stored.
+    original_data: Example/XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.mseed
+    deglitch_data: Example/XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw_deglitched.mseed
+    window:                                         # window length in hours. Windows are slided in 95% steps. If not given, default is 25 hours (~1 sol)
+    starttime:                                      # use starttime and endtime to truncate data (including glitches) to be plotted.
+    endtime: 
+    outfile:                                        # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored. Path to file must exist.
+
   glitch_detector_plot:                             # plot seismic files in `windows` including detected glitches. Give start- and endtime in UTC format to plot specific time of input waveforms
-    run: False
-    window:                                         # window length in hours. Windows are slided in 95% steps. If nothing given, default is 25 hours (~1 sol)
-    starttime:                                      # use starttime and endtime to truncate glitches to be plotted (waveform data are from detect module).
+    run: True
+    window:                                         # window length in hours. Windows are slided in 95% steps. If not given, default is 25 hours (~1 sol)
+    starttime:                                      # use starttime and endtime to truncate data (including glitches) to be plotted.
     endtime:
     outfile:
 
   glitch_overview_plot:                             # plot glitch azimuths, incidences and histogram. Click on dots to get information printed into shell.
-    run: True
+    run: False
     outfile:
 
   glitch_SOLoverLMST_plot:                          # plot glitch sols over respective LMST times. Click on dots to get information printed into shell.
@@ -94,7 +100,7 @@ plot:
 
   glitch_ppol_plot:                                 # plot linear polarization analysis (waveform data, inventory_file & glitch length are taken from detect module).
     run: False
-    glitch_start: '2019-04-05T02:23:16'             # in principle, you can specify here any time you like (must not actual be detected glitch, but given time should be available in waveform data).
+    glitch_start: '2019-05-23T02:23:16'             # in principle, you can specify here any time you like (must not actual be detected glitch, but given time should be available in waveform data).
     glitch_length: 25                               # time length in s that polazitation analysis of glitch (or generally data) is performed on, starting from 'glitch_start'
     outfile: 
 
@@ -113,10 +119,10 @@ download:                           # Potentially can work not only for InSight 
     username: ''                    # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
     password: ''                    # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
     gain_correction: False          # if True, only removes gain from the raw data.
-    remove_response: False          # Default 'False'. May set to 'DISP', 'VEL, or 'ACC'. Internally uses "water_level:60", see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
+    remove_response: False          # Default 'False'. May set to 'DISP', 'VEL, or 'ACC'. Internally uses "water_level=60", see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
     rotate2zne: False               # to rotate, you must set also 'remove_response' or 'gain_correction' to True
     format_DATA: 'mseed'            # waveform format (see: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-formats)
-    format_INV: 'STATIONXML'        # inventory format (see: https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html)
+    format_INV: 'STATIONXML'        # inventory format, level=response (see: https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html)
 
 
 
@@ -136,7 +142,7 @@ merge:
     glitch_detector_files: []       # if 'glitch_detector_files' is empty, attempt to find 'glitch_detector_files' from detect module following internal file naming
     outfile: '/home/scholz/Desktop/data/glitchesVBB.txt'
     starttime_sort: True
-    multiples_out: 5                # in seconds. If !:0, discard glitches whose starttime is within 'multiples_out' seconds to another glitch starttime. 
+    multiples_out: 5                # in seconds. If !=0, discard glitches whose starttime is within 'multiples_out' seconds to another glitch starttime. 
                                     # Useful if glitch detector files merged for different channels of same time. 
                                     # If 'starttime_sort':False, this can take forever! If unsure, use 'glitch_min_length' from detect function. 
 
@@ -147,4 +153,4 @@ time:                               # Follow these formats: UTC: XXXX-XX-XXTxx:x
     file: ''                        # path to file with listed times, one time per line to be converted
                                     # '#' is interpreted as comment, only first column is attempted to be converted, additional columns must be seperated by whitespaces.
                                     # Conversions added as new column to the end of the input file, which can mess up original notation of numbers (file overwritten)!
-    convert: ''                     # if this is specified, the 'file' option is omitted and only 'convert' is processed. Result is printed into shell.
+    convert: '2019-05-23T02:23:16'  # if this is specified, the 'file' option is omitted and only 'convert' is processed. Result is printed into shell.
