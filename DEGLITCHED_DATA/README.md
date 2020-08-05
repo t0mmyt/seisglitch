@@ -20,5 +20,5 @@ Note further that the provided files may show differences for some seismic event
 This is because some groups may have merged overlaps in the input files prior to processing whilst others did not. 
 These differences are typically not signficant, especially for total data lengths of less than 1 day.
 
-For more information on the Mars seismic catalogue curated by the Marsquake Service (MQS), see:
+For more information on the Mars seismic catalogue curated by the Marsquake Service (MQS), see:  
 https://www.seis-insight.eu/en/science/seis-products/mqs-catalogs
