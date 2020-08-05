@@ -2,8 +2,8 @@
 # Inventory file: path to file or data service: either 'IPGP' or 'IRIS'. If left empty, default is 'IPGP'.
 # Waveform files: must contain 3 seismic traces (components U, V, W) of either VBB or SP.
 # Waveform formats understood: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-format
-# Use 'download' module of this toolbox to retrieve data / inventory if desired.
-inventory_file: 'Example/inventory_2019-05-22T23:18_2019-05-23T23:59.xml'  
+# Use 'download' module of this toolbox to retrieve data and inventory if desired.
+inventory_file: 'IRIS'  
 waveform_files:
   - Example/XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.mseed
 
@@ -15,7 +15,7 @@ detect:
   detector:
     taper_length_per_side: 0.0         # in %, in tapered parts no glitch detection is done
     pre_filt: False                    # see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
-    water_level: 60                    # if both options given 'pre_filt' and 'water_level', both are applied. Usually, you only want to use one option.
+    water_level: 60                    # if both options 'pre_filt' and 'water_level' are given, both are applied. Usually, you only want to use one option.
     ACCfilter:                         # this filter is applied to the accleration data. See ObsPy filters: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.filter.html
       type : 'bandpass'
       options: {'freqmin':0.001, 'freqmax':0.1, 'corners':3, 'zerophase':True}
@@ -24,7 +24,7 @@ detect:
     plot_triggering: False             # if True, trigger plot is shown (one for each component. These glitch candidates are not yet time unified and checked against polarization)
     glitch_min_length: 5               # In seconds. minimum distance in seconds between 2 glitches. Before that, no new glitch can be declared
     glitch_length: 25                  # In seconds. Only used to declare glitch end time. Choose < 100 s. For VBB 25s is fine, for SP 50 s is fine.
-    glitch_min_polarization: 0.91      # applied to calculated polarization of both gain corrected (set:0 if not wished). Less senstitiv setting would be e.g.: 0.95
+    glitch_min_polarization: 0.91      # applied to calculated polarization of gain corrected raw data rotated into ZN. Set:0 if not wished. Less senstitive setting would be e.g.: 0.95
 
 
 
@@ -78,7 +78,7 @@ plot:
     endtime: 
     outfile:                                        # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored. Path to file must exist.
 
-  glitch_detector_plot:                             # plot seismic files in `windows` including detected glitches. Give start- and endtime in UTC format to plot specific time of input waveforms
+  glitch_detector_plot:                             # plot original data + detected glitches. Only seismic input traces will be shown.
     run: True
     window:                                         # window length in hours. Windows are slided in 95% steps. If not given, default is 25 hours (~1 sol)
     starttime:                                      # use starttime and endtime to truncate data (including glitches) to be plotted.
@@ -115,12 +115,12 @@ download:                           # Potentially can work not only for InSight 
     station: 'ELYSE'                # "ELYSE" is the station name for the scientific data since landing on Mars. See more: https://science.seis-insight.eu/data/access
     location: '03'                  # typically, the continuous data returned are 02.BH? (20 SPS) or 03.BH? (10 SPS) for VBB, and 02.SH? (20 SPS) or 03.SH? (10 SPS) for SP
     channel: 'BH?'                  # for details on station, location and channels, see: Lognonné et al. (2019), DOI: 10.1007/s11214-018-0574-6.
-    source: 'IPGP'                  # for InSight data 'IPGP or 'IRIS' (for more none-InSight possiblities, see: https://docs.obspy.org/packages/obspy.clients.fdsn.html)
+    source: 'IPGP'                  # Waveform data source, for InSight 'IPGP or 'IRIS' (for more none-InSight possiblities, see: https://docs.obspy.org/packages/obspy.clients.fdsn.html)
     username: ''                    # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
     password: ''                    # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
     gain_correction: False          # if True, only removes gain from the raw data.
     remove_response: False          # Default 'False'. May set to 'DISP', 'VEL, or 'ACC'. Internally uses "water_level=60", see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
-    rotate2zne: False               # to rotate, you must set also 'remove_response' or 'gain_correction' to True
+    rotate2zne: False               # to rotate, you must set either 'remove_response' or 'gain_correction' to True
     format_DATA: 'mseed'            # waveform format (see: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-formats)
     format_INV: 'STATIONXML'        # inventory format, level=response (see: https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html)
 
@@ -140,7 +140,7 @@ decimate:
 ### MERGE GLITCH DETECTOR FILES FUNCTION
 merge:
     glitch_detector_files: []       # if 'glitch_detector_files' is empty, attempt to find 'glitch_detector_files' from detect module following internal file naming
-    outfile: '/home/scholz/Desktop/data/glitchesVBB.txt'
+    outfile: ''
     starttime_sort: True
     multiples_out: 5                # in seconds. If !=0, discard glitches whose starttime is within 'multiples_out' seconds to another glitch starttime. 
                                     # Useful if glitch detector files merged for different channels of same time. 
