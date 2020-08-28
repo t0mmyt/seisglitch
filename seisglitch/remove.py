@@ -538,7 +538,7 @@ def remove(*glitch_detector_files,
         outfile_degl = '.'.join(waveform_file.split('.')[:-1]) + '_deglitched.' + format_in.lower()
         stream.write(outfile_degl, format=format_in)
         if store_glitches:
-            stream_orig = read(waveform_file)
+            stream_orig = read2(waveform_file)
             for tr_orig, tr_degl in zip(stream_orig, stream):
                 tr_orig.data - tr_degl.data
             outfile_glit = '.'.join(waveform_file.split('.')[:-1]) + '_glitches.' + format_in.lower()

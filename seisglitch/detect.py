@@ -535,6 +535,8 @@ def detect(*RAW_UVW,
 
 
         ### FILING GLITCHES + OUTPUT
+        sort_indices  = glitches[:,1].argsort()         # glitches will always be sorted according to starttime !
+        glitches_text = np.asarray(glitches_text)[sort_indices]
         np.savetxt(output_txt, glitches_text, fmt='%s', header=header)
         
         with open(output_txt, 'r') as fp_in:

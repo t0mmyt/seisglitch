@@ -1,6 +1,6 @@
 ### State here waveform files and inventory file to work with that will be used by the different functions. 
 # Inventory file: path to file or data service: either 'IPGP' or 'IRIS'. If left empty, default is 'IPGP'.
-# Waveform files: must contain 3 seismic traces (components U, V, W) of either VBB or SP.
+# Waveform files: must contain 3 seismic components U, V, W (arbitrary amount of traces) of either VBB or SP. Use raw data!
 # Waveform formats understood: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-format
 # Use 'download' module of this toolbox to retrieve data and inventory if desired.
 inventory_file: 'IRIS'  
@@ -12,7 +12,7 @@ waveform_files:
 ### DETECT GLITCH FUNCTION
 detect:
 
-  detector:
+  detector:                            # produces glitch list for U V and W with. Other measures, e.g. polarization, glitch azimuth etc. are also listed. Resulting glitch list will be sorted w.r.t. glitch start times!
     taper_length_per_side: 0.0         # in %, in tapered parts no glitch detection is done
     pre_filt: False                    # see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
     water_level: 60                    # if both options 'pre_filt' and 'water_level' are given, both are applied. Usually, you only want to use one option.
@@ -20,7 +20,7 @@ detect:
       type : 'bandpass'
       options: {'freqmin':0.001, 'freqmax':0.1, 'corners':3, 'zerophase':True}
       string: '0.001 < f < 0.1'        # name your filter as you like. This will be used for output information only.
-    threshold: 0.5e-9                  # triggering threshold of derivative of filtered acceleration data. Unit therefore is m/s**3. More senstitiv setting would be e.g.: 0.2e-9
+    threshold: 0.5e-9                  # triggering threshold of derivative of filtered acceleration data. Unit therefore is m/s**3. More sensitive setting would be e.g.: 0.2e-9
     plot_triggering: False             # if True, trigger plot is shown (one for each component. These glitch candidates are not yet time unified and checked against polarization)
     glitch_min_length: 5               # In seconds. minimum distance in seconds between 2 glitches. Before that, no new glitch can be declared
     glitch_length: 25                  # In seconds. Only used to declare glitch end time. Choose < 100 s. For VBB 25s is fine, for SP 50 s is fine.

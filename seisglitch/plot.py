@@ -363,7 +363,7 @@ def plot_glitch_remover(*glitch_files, run=True, original_data=None, deglitch_da
         original_window  = original_wf.slice(starttime=starttime_window, endtime=endtime_window)
         deglitch_window  = deglitch_wf.slice(starttime=starttime_window, endtime=endtime_window)
 
-        # glitches
+        # glitches in shown window
         indices = sorted( [i for i in range(len(all_glitches)) if all_glitches[i][1]>=str(starttime_window) and all_glitches[i][1]<=str(endtime_window)] )
         if indices:
             for i in indices:
@@ -393,7 +393,7 @@ def plot_glitch_remover(*glitch_files, run=True, original_data=None, deglitch_da
             elif orientation_code=='W':
                 glitches_comp = all_glitches[indices][all_glitches[indices][:,7]=='1']
             else:
-                glitches_comp = np.array( [] )    
+                glitches_comp = all_glitches[indices]
 
             title   = '%s glitches' % len(glitches_comp)
             if i==len(combined_ids)-1:
