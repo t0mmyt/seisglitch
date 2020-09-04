@@ -208,7 +208,9 @@ def remove(*glitch_detector_files,
 
     ### READ WAVEFORM FILES
     for o, waveform_file in enumerate(waveform_files):
-        removed  = []
+        removed              = []
+        total_data_time_UTC  = 0
+        total_data_time_LMST = 0
 
         # read streams
         try: 
@@ -231,6 +233,8 @@ def remove(*glitch_detector_files,
 
             print()
             trace.data = trace.data.astype(dtype=np.float32, copy=False)   # importat as glitch removal introduces float RAW values
+            total_data_time_UTC  += marstime(trace.stats.endtime).UTC_time  - marstime(trace.stats.starttime).UTC_time
+            total_data_time_LMST += marstime(trace.stats.endtime).LMST_time - marstime(trace.stats.starttime).LMST_time
 
             # data prep
             component        = trace.stats.channel[-1]
@@ -537,12 +541,14 @@ def remove(*glitch_detector_files,
         ## WRITE DEGLITCHED FILE
         outfile_degl = '.'.join(waveform_file.split('.')[:-1]) + '_deglitched.' + format_in.lower()
         stream.write(outfile_degl, format=format_in)
-        if store_glitches:
+        if store_glitches:                              # write out only fitted glitches as time series
             stream_orig = read2(waveform_file)
             for tr_orig, tr_degl in zip(stream_orig, stream):
-                tr_orig.data - tr_degl.data
+                tr_orig.data = tr_orig.data - tr_degl.data
             outfile_glit = '.'.join(waveform_file.split('.')[:-1]) + '_glitches.' + format_in.lower()
             stream_orig.write(outfile_glit, format=format_in)
+
+
 
 
         ## OUTPUT
@@ -552,19 +558,71 @@ def remove(*glitch_detector_files,
             string += '%s:%s, ' % (comp, len(removed[removed==comp]))
         string = '(' + string[:-2] + ')'
 
+        output    = [u'GLITCH DECTECTOR FILE(S):',
+                     u'',      
+                     u'DATA:',
+                     u'  path:                         %s'           % waveform_file,
+                     u'  IDs:                          %s'           % ', '.join( sorted(set(stream._get_ids())) ),
+                     u'  UTC start:                    %s'           % marstime(stream.times[0]).UTC_string,
+                     u'  UTC end:                      %s'           % marstime(stream.times[1]).UTC_string,
+                     u'  UTC length (without gaps):    %s (h:m:s)'   % sec2hms( total_data_time_UTC ),
+                     u'  LMST start:                   %s'           % marstime(stream.times[0]).LMST_string,
+                     u'  LMST end:                     %s'           % marstime(stream.times[1]).LMST_string,
+                     u'  LMST length (without gaps):   %s (h:m:s)'   % sec2hms( total_data_time_LMST ).replace('days', 'sols').replace('day','sol'),
+                     u'',      
+                     u'PARAMETERS:',      
+                     u'  Glitch window left/right:     %s s'         % glitch_window_leftright,
+                     u'  Glitch prepend zeros:         %s s'         % glitch_prepend_zeros,
+                     u'  Glitch interpolation samples: %s'           % glitch_interpolation_samples,
+                     u'  Glitch subsample factor:      %s'           % glitch_subsample_factor,
+                     u'  Spike fit                     %s'           % spike_fit,
+                     u'  Spike subsample factor:       %s m/s**3'    % spike_subsample_factor,
+                     u"  Spike_samples left/right:     %s"           % spike_fit_samples_leftright,
+                     u"  Variance reduction spike:     %s %%"        % var_reduction_spike,
+                     u"  Variance reduction total:     %s %%"        % var_reduction_total,
+                     u'  Show fit:                     %s'           % show_fit,
+                     u"  Store glitches:               %s"           % store_glitches,
+                     u'  Plot removal statistic:       %s'           % plot_removal_statistic,
+                     u'',      
+                     u'RESULTS:',      
+                     u'    Removed a total of %s individual glitches on all traces.' % removed.size,
+                     u'    %s' % string,
+                     u'']
+
+        # create good-looking output for later
+        for f, file in enumerate(glitch_detector_files):
+            output.insert(1+f, u'  %s' % file)
+        if removed.size:                                # at least one glitch removed 
+            output.insert(len(output), u'Done in:   %s (h:m:s), %.1f s per glitch' % (sec2hms( time.time()-now ), (time.time()-now)/removed.size ))
+        else:
+            output.insert(len(output), u'Done in:   %s (h:m:s)'                    %  sec2hms( time.time()-now ))
+        output.insert(len(output), u'Timestamp: %s'   % datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S'))
+
+        len_max_line  = max( [len(line) for line in output] )
+        formatter_str = "\n#   | %-" + str(len_max_line) + 's |'
+
+        output = [formatter_str % line for line in output]
+        output.insert(0,           '\n\n#   +-' +  '-' * len_max_line + '-+'   )
+        output.insert(len(output),   '\n#   +-' +  '-' * len_max_line + '-+\n' )
+
+
+        ### FINAL OUTPUT TO SHELL
         print()
-        print(u'Removed a total of %s individual glitches on all traces.' % len(removed))
-        print(string)
+        print(u'OUTPUT GLITCH REMOVER:')
+        for line in output:
+            print(line.strip('\n'))
+        print()
+
+        print(u'INPUT FILE:')
+        print(waveform_file)
         print()
         print(u'DEGLITCHED FILE:')
         print(outfile_degl)
+        print()
+
         if store_glitches:
             print(u'GLITCH FILE:')
             print(outfile_glit)
-        print()
-        print(u'Done in:   %s (h:m:s), %.1f s per glitch per component.' % (sec2hms( time.time()-now ),(time.time()-now)/(len(stream)*len(glitches))))
-        print(u'Timestamp: %s'                                           % datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S'))
-
 
 
     ### FINAL STATISTIC

@@ -175,10 +175,9 @@ elif mode=='merge':
         glitch_detector_files = [os.path.join( os.path.dirname(file), 'glitches_' + '.'.join(os.path.basename(file).split('.')[:-1]) + '.txt' ) for file in waveform_files]
 
     outfile               = params['merge']['outfile']
-    starttime_sort        = params['merge']['starttime_sort']
     multiples_out         = params['merge']['multiples_out']
 
-    util.merge_glitch_detector_files(glitch_detector_files, outfile, starttime_sort=starttime_sort, multiples_out=multiples_out)
+    util.merge_glitch_detector_files(glitch_detector_files, outfile, starttime_sort=True, multiples_out=multiples_out)
 
 
 elif mode=='time':

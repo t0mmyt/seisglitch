@@ -114,10 +114,12 @@ def detect(*RAW_UVW,
 
         ### SANITY CHECK
         if len(stream_ids) != 3:
+            print()
             print(u'ERROR: Found %s instead of 3 seismic trace ids in file: %s' % (len(stream_ids), ', '.join(stream_ids)))
             print(u'       Cannot perform analysis.')
             continue
         if 'U' not in stream_comps or 'V' not in stream_comps or 'W' not in stream_comps:
+            print()
             print(u'ERROR: Found components %s instead of `U`, `V`, and `W`.' % ', '.join(stream_ids))
             print(u'       Cannot perform analysis.')
             continue
@@ -198,6 +200,7 @@ def detect(*RAW_UVW,
                 ## SANITY CHECK 2
                 stRAW_sampling_rates  = sorted(set( stRAW._get_sampling_rates() ))
                 if len(stRAW_sampling_rates) != 1:
+                    print()
                     print(u'ERROR: Found %s different sampling rates after decimation: %s Hz. They all need to be equal.' % (len(stRAW_sampling_rates), ', Hz'.join(len(stRAW_sampling_rates))))
                     print(u'       Cannot perform analysis.')
                     continue                
@@ -486,6 +489,10 @@ def detect(*RAW_UVW,
 
         ### STATISTICS
         statistic = glitch_statistic(glitches, total_data_time_UTC)
+        try:
+            cum_time_sols = 1/(total_data_time_LMST/(3600*24.))
+        except ZeroDivisionError:
+            cum_time_sols = np.nan
 
 
         ### SUMMARY TEXT
@@ -522,7 +529,7 @@ def detect(*RAW_UVW,
                      u'       only on W:             %s'           % statistic[7],
                      u'    indi./ all %%:             %.1f'        % statistic[8],
                      u'',
-                     u'Done in:   %s (h:m:s), %s / sol.'           % (sec2hms( time.time()-now ), sec2hms( (time.time()-now)/(total_data_time_LMST/(3600*24.)) )),
+                     u'Done in:   %s (h:m:s), %s / sol.'           % (sec2hms( time.time()-now ), sec2hms( (time.time()-now)/cum_time_sols )),
                      u'Timestamp: %s'                              % datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')]
 
         # create good-looking output for later
@@ -535,8 +542,11 @@ def detect(*RAW_UVW,
 
 
         ### FILING GLITCHES + OUTPUT
-        sort_indices  = glitches[:,1].argsort()         # glitches will always be sorted according to starttime !
-        glitches_text = np.asarray(glitches_text)[sort_indices]
+        try:
+            sort_indices  = np.array( glitches )[:,1].argsort()         # glitches will always be sorted according to starttime !
+            glitches_text = np.asarray(glitches_text)[sort_indices]
+        except IndexError:                                              # case e.g., if there are no glitches detected.
+            pass
         np.savetxt(output_txt, glitches_text, fmt='%s', header=header)
         
         with open(output_txt, 'r') as fp_in:

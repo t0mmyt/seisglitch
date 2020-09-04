@@ -1404,7 +1404,7 @@ def UVW2ZNE(stream, minimum_sample_length=2):
     A new stream object is returned.
     """
     
-    stRET = Stream()
+    stRET = Stream2()
     pierced_streams = pierce_stream(stream, minimum_sample_length=minimum_sample_length)
 
     for trU, trV, trW in zip(*pierced_streams):
@@ -1905,6 +1905,9 @@ def sec2hms(seconds, digits=0):
 
     Returns string.
     """
+
+    if np.isnan(seconds):
+        return np.nan
 
 
     string = str( datetime.timedelta(seconds=seconds) )

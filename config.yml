@@ -39,7 +39,7 @@ remove:
     glitch_prepend_zeros         : 0      # in seconds, length of zeros prepended to glitch model. This can help improving fits. This time is added to to data window corresponding to 'glitch_window_leftright'.
     glitch_interpolation_samples : 0      # integer, if not 0, data glitches are fitted with accleration steps of non-zero rise times with this amount of samples maximum in beween (attempted in steps of 10 samples). If not 0, algorithm is significantly slower!
     glitch_subsample_factor      : 1      # integer, determines how many times beween two samples a glitch shall be modeled. For glitches 1 is OK. Default is one.
-    spike_fit                    : True   # If True, attempt to fit spike after glitch fit. If True, removal takes longer.
+    spike_fit                    : True   # If True, attempt to fit spike after glitch fit. If True, removal takes longer. If False, all other spike options are omitted.
     spike_subsample_factor       : 2      # integer, determines how many times beween two samples a glitch spike shall be modeled. For spikes 5 or higher may significantly improve their fits but is slower.
     spike_fit_samples_leftright  : 7      # samples left and right around fitted glitch onset where it is attempted to fit spike. Larger is slower. Default is 7.
     var_reduction_spike          : 2      # in %. Minimum spike variance reduction to be achieved if spike fit shall be removed. 2% is default.
@@ -130,10 +130,10 @@ download:                           # Potentially can work not only for InSight 
 decimate:
     waveform_files: []              # decimated file will be stored in same directory as respective waveform file
     decimation_factors: [2]         # processed in entered order (use "decimation_factors:[1]" to only change meta-data of waveform_files)
-    final_network: ''               # if given, this will be applied to all traces in all given waveform_files. Leave blank of no change desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
-    final_station: ''               # if given, this will be applied to all traces in all given waveform_files. Leave blank of no change desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
-    final_location: ''              # if given, this will be applied to all traces in all given waveform_files. Leave blank of no change desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
-    final_bandcode: ''              # if given, this will be applied to all traces in all given waveform_files. Leave blank of no change desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
+    final_network: ''               # if given, this will be applied to all traces in all given waveform_files. Leave blank if no change is desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
+    final_station: ''               # if given, this will be applied to all traces in all given waveform_files. Leave blank if no change is desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
+    final_location: ''              # if given, this will be applied to all traces in all given waveform_files. Leave blank if no change is desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
+    final_bandcode: ''              # if given, this will be applied to all traces in all given waveform_files. Leave blank if no change is desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
 
 
 

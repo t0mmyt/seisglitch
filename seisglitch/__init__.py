@@ -29,9 +29,11 @@
 """
 **SEISglitch** is a Python package based on ObsPy_.
 Its purpose is to detect "glitches" (also referred to as "long-period disurbances") in the raw seismic data of the VBB (very broadband) 
-and SP (short period) seismometers, both part of the SEIS instrument of NASA's discovery mission InSight to planet Mars. 
+and SP (short period) seismometers, both part of the SEIS instrument of NASA's Discovery mission "InSight" to planet Mars. 
 The package allows to detect glitches, plot them in different ways, and remove them from the seismic raw data. 
-There are further some useful features implemented to ease data handling (e.g. download, decimation, time conversion).
+**SEISglitch** corresponds to the MPS method detailed in Scholz et al. (2020, see below), all other methods
+(ISAE, UCLA, IPGP) were implemented in MATLAB and their essential scripts are also delivered with this software.
+**SEISglitch** comes further shipped with some useful features to ease data handling (e.g. download, decimation, time conversion).
 
 | 
 | Find the actual Python code at:
