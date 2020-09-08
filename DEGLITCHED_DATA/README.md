@@ -9,8 +9,8 @@ implication, meaning version 4 of one group compared to version 1 of another gro
 On the other hand, version numbers within a group allow you to conclude temporality, i.e., higher version numbers are more recent.
 
 
-The four groups and their lead analyists are:
-- MPS (John-Robert Scholz & Rudolf Widmer-Schnidrig, Seisglitch toolbox)
+The four groups and their lead analysts are:
+- MPS (John-Robert Scholz & Rudolf Widmer-Schnidrig, SEISglitch toolbox)
 - ISAE (Baptiste Pinot & Raphaël Garcia, MATLAB)
 - UCLA (Paul Davis, MATLAB)
 - IPGP (Philippe Lognonné, MATLAB)

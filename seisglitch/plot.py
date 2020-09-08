@@ -313,12 +313,17 @@ def plot_glitch_remover(*glitch_files, run=True, original_data=None, deglitch_da
     ### CHECK IF WAVEFORM FILES PASSED
     try:
         original_wf = read2(original_data)
-        deglitch_wf = read2(deglitch_data)
-        combined_wf = original_wf + deglitch_wf
     except:
-        print(u'ERROR: Cannot read `original_data` or `deglitch_data` via ObsPy.')
+        print(u'ERROR: Cannot read `original_data` via ObsPy.')
         sys.exit()
 
+    try:
+        deglitch_wf = read2(deglitch_data)
+    except:
+        print(u'ERROR: Cannot read `deglitch_data` via ObsPy.')
+        sys.exit()
+
+    combined_wf = original_wf + deglitch_wf
 
 
     ### WINDOW LENGTH
@@ -404,12 +409,13 @@ def plot_glitch_remover(*glitch_files, run=True, original_data=None, deglitch_da
             # actual data plot
             axes[i] = quick_plot(*original_window.select(id=id), 
                                  *deglitch_window.select(id=id), 
-                                 title      = title, 
-                                 verts      = [glitches_comp[:,1]], 
-                                 lc         = ['C0'] * len(original_window.select(id=id)) + ['C1'] * len(deglitch_window.select(id=id)), 
-                                 xlabel     = xlabel, 
-                                 legend_loc = 'upper right', 
-                                 axis       = axes[i])
+                                 title       = title, 
+                                 verts       = [glitches_comp[:,1]], 
+                                 lc          = ['C0'] * len(original_window.select(id=id)) + ['C1'] * len(deglitch_window.select(id=id)), 
+                                 xlabel      = xlabel, 
+                                 data_labels = ['original: %s' % id] * len(original_window.select(id=id)) + ['deglitch: %s' % id] * len(deglitch_window.select(id=id)), 
+                                 legend_loc  = 'upper right', 
+                                 axis        = axes[i])
 
         # twiny axis
         axes[-1].callbacks.connect('xlim_changed', on_xlims_change)
