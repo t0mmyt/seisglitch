@@ -14,8 +14,8 @@ Contributers:
 
 John-Robert Scholz  
   
-Rudolf Widmer-Schnidrig (removal),   
-Martin van Driel (data retrieval & time conversions),  
-Simon C. Stähler (data retrieval & time conversions),  
-Savas Ceylan (data retrieval & time conversions),  
-Eléonore Stutzmann (decimation via FIR-coefficients)
+| Rudolf Widmer-Schnidrig (removal),   
+| Martin van Driel (data retrieval & time conversions),  
+| Simon C. Stähler (data retrieval & time conversions),  
+| Savas Ceylan (data retrieval & time conversions),  
+| Eléonore Stutzmann (decimation via FIR-coefficients)

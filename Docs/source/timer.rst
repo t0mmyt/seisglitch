@@ -8,8 +8,8 @@ The time function allows you to convert times both ways between UTC (earth time)
 Note that InSight landed on Mars on November 26, 2018 (Sol 0, a sol is a Martian day with around 24h 40m).
 
 The time formats should follow:
-| UTC: 2019-05-23T02:23:16
-| LMST: 173M02:58:53 (where 173 is Sol 173 with respect to the InSight landing)
+ | UTC: 2019-05-23T02:23:16
+ | LMST: 173M02:58:53 (where 173 is Sol 173 with respect to the InSight landing)
 
 In the ``config.yml`` you have two options; if you want to convert many times you can pass a text file, or if you just want to convert one time 
 you can simply pass one with the result immediately printed. You can also access the time conversion tool from within the Python interpreter:
