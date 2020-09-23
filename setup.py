@@ -19,7 +19,7 @@ setup(
     keywords         = ["glitches", "seismology", "planet mars"],
     description      = """
                        Toolbox to detect, plot, and remove glitches on SEIS' seismometers VBB and SP.
-                       This code has been developed in the context of NASA's discovery mission 'InSight'.
+                       This code has been developed in the context of NASA's Discovery mission 'InSight'.
                        """,
     author           = 'John-Robert Scholz',
     maintainer       = 'John-Robert Scholz',

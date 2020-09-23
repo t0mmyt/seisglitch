@@ -114,49 +114,6 @@ def unit_vector(vec):
     """
 
     return vec / np.linalg.norm(vec)
-def rotate_2D(comp_1, comp_2, angle, clockwise=True):
-
-    """
-    This function rotates 2 data traces (i.e. numpy arrays, e.g., seismological data) 
-    into the desired coordinate system using 'angle' (clockwise direction by default).
-
-    The given algorithm works for 'comp_2' being oriented 90° clockwise to 'comp_1'.
-
-    ^  
-    | comp_1
-    |
-    |
-    |
-    o------> comp_2
-
-
-    :type comp_1:  np.array
-    :param comp_1: List with floats representing data.
-                   Note 'comp_1' is oriented 90° counter-clockwise to 'comp_2'.
-
-    :type comp_2:  np.array
-    :param comp_2: List with floats representing data.
-                   Note 'comp_2' is oriented 90° clockwise to 'comp_1'.
-
-    :type angle:  float
-    :param angle: Angle about which both data traces are rotated. Can be negative.
-
-    :type clockwise:  bool
-    :param clockwise: if True  :         clockwise rotation of both data traces 
-                      if False : counter-clockwise rotation of both data traces 
-
-    :type return:  np.array, np.array
-    :param return: rotated data lists
-    """
-
-    if not clockwise:
-        angle = 360-angle               # convert angle to as it would be clockwise rotation
-
-
-    comp_1_new =  comp_1*np.cos(angle*np.pi/180) + comp_2*np.sin(angle*np.pi/180)
-    comp_2_new = -comp_1*np.sin(angle*np.pi/180) + comp_2*np.cos(angle*np.pi/180)
-
-    return comp_1_new, comp_2_new
 def normalise(data, scale_to_between=[]):
 
     """
