@@ -29,7 +29,7 @@ detect:
 
 
 ### REMOVE GLITCH FUNCTION
-remove:
+remove:                                   # waveform files are those defined in top of this config file
 
   glitch_detector_files:               # each detected glitch, no matter on which component detected, will attempted to be removed on each component!
     - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
@@ -51,7 +51,7 @@ remove:
 
 
 ### PLOT GLITCH FUNCTION
-plot:
+plot:                                               # any waveform files maybe used are those defined in top of this config file
   glitch_detector_files:                            # list here the files given by the detector module. These detected glitches will be use for plotting.
     - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
 
@@ -118,22 +118,23 @@ download:                           # Potentially can work not only for InSight 
     source: 'IPGP'                  # Waveform data source, for InSight 'IPGP or 'IRIS' (for more none-InSight possiblities, see: https://docs.obspy.org/packages/obspy.clients.fdsn.html)
     username: ''                    # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
     password: ''                    # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
-    gain_correction: False          # if True, only removes gain from the raw data.
-    remove_response: False          # Default 'False'. May set to 'DISP', 'VEL, or 'ACC'. Internally uses "water_level=60", see: https://docs.obspy.org/packages/autogen/obspy.core.trace.Trace.remove_response.html
-    rotate2zne: False               # to rotate, you must set either 'remove_response' or 'gain_correction' to True
     format_DATA: 'mseed'            # waveform format (see: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-formats)
     format_INV: 'STATIONXML'        # inventory format, level=response (see: https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html)
+    
 
 
-
-### DECIMATE SEISMIC DATA FUNCTION (only for SEIS (VBB & SP) data, using SEIS FIR-coefficients: currently only decimation factors implemented: 2 .. 7! This is just if you wish to decimate data for your archive)
-decimate:
-    waveform_files: []              # decimated file will be stored in same directory as respective waveform file
-    decimation_factors: [2]         # processed in entered order (use "decimation_factors:[1]" to only change meta-data of waveform_files)
-    final_network: ''               # if given, this will be applied to all traces in all given waveform_files. Leave blank if no change is desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
-    final_station: ''               # if given, this will be applied to all traces in all given waveform_files. Leave blank if no change is desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
-    final_location: ''              # if given, this will be applied to all traces in all given waveform_files. Leave blank if no change is desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
-    final_bandcode: ''              # if given, this will be applied to all traces in all given waveform_files. Leave blank if no change is desired. Think about the correct naming for correct response retrieval/removal (02.MH? <--Y 02.BH? etc..)
+### PROCESS DATA FUNCTION
+process:                            # waveform files are those defined in top of this config file
+    gain_correction: False          # if True, only removes gain from the seismic raw data. If True, `remove_response` options are not considered.
+    remove_response:                # https://docs.obspy.org/packages/autogen/obspy.core.inventory.response.Response.get_evalresp_response.html#obspy.core.inventory.response.Response.get_evalresp_response
+      unit: 'VEL'                   # May set to 'None' (no response removed), 'DISP', 'VEL, or 'ACC'.
+      pre_filt: False               # Set to False or (f0, f1, f2, f3) cosine filter
+      water_level: 60               # if both options 'pre_filt' and 'water_level' are given, both are applied.
+    rotate2zne: True                # to rotate, you must set either 'gain_correction' or 'unit'
+    decimate:                       # decimate seismic data function (only for SEIS' VBB & SP data), using SAC FIR-coefficients: currently only decimation factors implemented: 2 .. 7!
+      decimation_factors: []        # processed in entered order (use "decimation_factors:[1]" to only change location or bandcode of waveform_files)
+      final_location: ''            # will be assigned to all traces of all waveform_files. Leave blank if no change is desired.
+      final_bandcode: ''            # will be assigned to all traces of all waveform_files. Leave blank if no change is desired. For bandcode, see: http://www.fdsn.org/pdf/SEEDManual_V2.4.pdfm, Appendix A
 
 
 

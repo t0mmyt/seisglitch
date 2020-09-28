@@ -335,6 +335,33 @@ class Stream2(Stream):
 
         self.current_filter_num = filter_num
         self.current_filter_str = filt['string']
+    def splitwrite(self, num=2, folder=None, file_format='mseed'):
+
+        """
+        When having a long file, this method can help.
+        It splits the stream object in `num` streams that have no overlapping times
+        and writes out each new stream out. The new start and end times are
+        aquidistant, however, actual data contained may be distributed unevenly due
+        to gaps / overlaps.
+        """
+
+        print(u'Written file(s):')
+
+        for i in range(num):
+
+            st=self.copy()
+            st.trim2(i/num, (1+i)/num)
+
+            if not folder: 
+                if self.origin:
+                    folder = os.path.dirname( self.origin )
+                else:
+                    folder = os.getcwd()
+            name = '%s_%s_raw.%s' % (st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),file_format)
+            outfile = os.path.join(folder, name)
+
+            st.write(outfile)
+            print(outfile)
     def _get_filter_str(self):
         # return filter of stream object (use only first trace to check)
         try:
@@ -1226,7 +1253,7 @@ class Stream2(Stream):
         if show:
             plt.show()
             plt.close()
-
+# FANCY DETRENDING ?
 
 # InSight related
 class marstime():
@@ -1394,7 +1421,7 @@ def marstime_list(sols_range=[10], hms='120000', hms_in_UTC=False):
             time_mars     = marstime( LMST='%03dM%s' % (sol,hms))
 
         print('%s    %s' % (time_mars.UTC_string, time_mars.LMST_string))
-def UVW2ZNE(stream, minimum_sample_length=2):
+def UVW2ZNE(stream, minimum_sample_length=2, inventory_file=None):
 
     """
     Rotate any UVW stream with arbitrary amount of traces per component 
@@ -1404,17 +1431,25 @@ def UVW2ZNE(stream, minimum_sample_length=2):
     A new stream object is returned.
     """
     
-    stRET = Stream2()
+    if stream.inventory:
+        inv = stream.inventory
+    else:
+        if inventory_file:
+            stream.set_inventory(verbose=False, source=inventory_file)
+        else:
+            stream.set_inventory(verbose=False)
+        inv = stream.inventory
+
     pierced_streams = pierce_stream(stream, minimum_sample_length=minimum_sample_length)
 
+    stRET = Stream2()
     for trU, trV, trW in zip(*pierced_streams):
 
         stWORK = Stream2(traces=[trU, trV, trW])
-        stWORK.set_inventory(verbose=False)
-        stWORK.rotate('->ZNE', inventory=stWORK.inventory, components=('UVW')) 
-
+        stWORK.rotate('->ZNE', inventory=inv, components=('UVW')) 
         stRET += stWORK
 
+    stRET.set_inventory(source=inv, verbose=False)
     stRET.sort()
     return stRET
 def decimate_SEIS(trace, decimation_factor, verbose=True):
@@ -1578,6 +1613,45 @@ def SEIS_FIR_coefficients(decimation_factor):
 
 
 # Other
+def read_config(config_file):
+
+    """
+    Read yaml config file via `full_load`. See details in:
+    https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
+
+    Included is also a hack to read numbers like `1e-7` as floats and not
+    as strings. Shouldn't be like this, but is: See details in:
+    https://stackoverflow.com/questions/30458977/yaml-loads-5e-6-as-string-and-not-a-number
+    """
+
+    print()
+    print(u'Reading config file:')
+    print(os.path.abspath(config_file))
+
+
+    try:
+        with open(config_file, 'r') as yamlfile:
+
+            loader = yaml.FullLoader
+            loader.add_implicit_resolver(
+                u'tag:yaml.org,2002:float',
+                re.compile(u'''^(?:
+                 [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+                |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+                |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+                |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+                |[-+]?\\.(?:inf|Inf|INF)
+                |\\.(?:nan|NaN|NAN))$''', re.X),
+                list(u'-+0123456789.'))
+
+            params = yaml.load(yamlfile, Loader=loader)
+
+    except FileNotFoundError:
+        print()
+        print(u'ERROR: read_config: config file not found.')
+        sys.exit()
+
+    return params
 def pierce_stream(stream, merge_before=False, ids=None, minimum_sample_length=2, sort_starttime=True, outfile=None):
 
     """
@@ -1858,45 +1932,6 @@ def merge_glitch_detector_files(glitch_detector_files, outfile, starttime_sort=T
     print()
     print(u'Merged glitch file:')
     print(outfile)
-def read_config(config_file):
-
-    """
-    Read yaml config file via `full_load`. See details in:
-    https://github.com/yaml/pyyaml/wiki/PyYAML-yaml.load(input)-Deprecation
-
-    Included is also a hack to read numbers like `1e-7` as floats and not
-    as strings. Shouldn't be like this, but is: See details in:
-    https://stackoverflow.com/questions/30458977/yaml-loads-5e-6-as-string-and-not-a-number
-    """
-
-    print()
-    print(u'Reading config file:')
-    print(os.path.abspath(config_file))
-
-
-    try:
-        with open(config_file, 'r') as yamlfile:
-
-            loader = yaml.FullLoader
-            loader.add_implicit_resolver(
-                u'tag:yaml.org,2002:float',
-                re.compile(u'''^(?:
-                 [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
-                |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
-                |\\.[0-9_]+(?:[eE][-+][0-9]+)?
-                |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
-                |[-+]?\\.(?:inf|Inf|INF)
-                |\\.(?:nan|NaN|NAN))$''', re.X),
-                list(u'-+0123456789.'))
-
-            params = yaml.load(yamlfile, Loader=loader)
-
-    except FileNotFoundError:
-        print()
-        print(u'ERROR: read_config: config file not found.')
-        sys.exit()
-
-    return params
 def sec2hms(seconds, digits=0):
 
     """
@@ -1925,39 +1960,6 @@ def sec2hms(seconds, digits=0):
     string = string.rstrip('.')
 
     return string
-def normalise(data, scale_to_between=[]):
-
-    """
-    Normalise passed data (array-like).
-    `scale_to_between` is list with 2 elements.
-
-    Returns data as was if length of data is one or two.
-    """
-
-    data = np.asarray( data )
-    
-    if len(data)==0 or len(data)==1:
-        return data
-
-    if isinstance(scale_to_between, (int, float)):
-        scale_to_between = [scale_to_between]
-
-    if scale_to_between:
-        if len(scale_to_between) == 1:
-            scale_to_between = [0, scale_to_between[0]]
-        scale_to_between.sort()
-
-        scale  = abs(scale_to_between[-1]-scale_to_between[0]) / 2.
-        drange = max(data)-min(data)
-        data   = data * 2 / drange
-        data   = data - max(data)+1             # data have y values between [-1,1]
-        data  *= scale                          # data have y values between [-1/scale,1/scale] 
-        data  += scale_to_between[-1]-scale     # eacht trace has y values filling range `scale_to_between`
-    
-    else:
-        data /= max(abs(data))
-
-    return data
 def download_data(outdir=os.getcwd(), 
     starttime='2019-04-10T00:00:00', 
     endtime='2019-04-11T00:00:00', 
@@ -1968,9 +1970,6 @@ def download_data(outdir=os.getcwd(),
     source='IRIS',
     username='', 
     password='', 
-    gain_correction=False, 
-    remove_response=False, 
-    rotate2zne=False, 
     format_DATA='MSEED', 
     format_INV='STATIONXML'):
 
@@ -2023,6 +2022,7 @@ def download_data(outdir=os.getcwd(),
     if not outdir:
         outdir = os.getcwd()
     os.makedirs(outdir, exist_ok=True)
+
     starttime       = UTCDateTime(starttime)
     endtime         = UTCDateTime(endtime)
     network         = str(network)
@@ -2030,9 +2030,6 @@ def download_data(outdir=os.getcwd(),
     location        = str(location)
     channel         = str(channel)
     source          = str(source)
-    if remove_response:
-        remove_response = str(remove_response).upper()
-        remove_response = remove_response[:3]
 
     # Client
     if username and password:
@@ -2057,58 +2054,87 @@ def download_data(outdir=os.getcwd(),
     # Paths
     times            = st.times
     request          = '%s.%s.%s.%s' % (network, station, location, channel)
-    outfile_inv      = os.path.join(outdir, 'inventory_%s-%s.xml'   % (st.times[0],st.times[1]))
-    outfile_raw      = os.path.join(outdir, '%s_%s_%s_raw.%s'       % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
-    outfile_gain     = os.path.join(outdir, '%s_%s_%s_gain.%s'      % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
-    outfile_gain_rot = os.path.join(outdir, '%s_%s_%s_gain_rot.%s'  % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
-    outfile_rem      = os.path.join(outdir, '%s_%s_%s_%s.%s'        % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),remove_response,format_DATA))
-    outfile_rem_rot  = os.path.join(outdir, '%s_%s_%s_%s_rot.%s'    % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),remove_response,format_DATA))
+    outfile_inv      = os.path.join(outdir, 'inventory_%s-%s.xml' % (st.times[0],st.times[1]))
+    outfile_raw      = os.path.join(outdir, '%s_%s_%s_raw.%s'     % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
 
     # Processing
     st.inventory.write(outfile_inv, format=format_INV)
-    print(u'INFO: written inventory file to:                %s' % outfile_inv)
+    print(u'INFO: written inventory file to:    %s' % outfile_inv)
 
     st.write(outfile_raw, format=format_DATA)
-    print(u'INFO: written raw waveform data to:             %s' % outfile_raw)
+    print(u'INFO: written raw waveform data to: %s' % outfile_raw)
+    print(u'Finished.')
+def process_data(*waveform_files,
+    inventory_file='IPGP',
+    gain_correction=False, 
+    remove_response={'unit':None, 'pre_filt':None, 'water_level':60},
+    rotate2zne=False,
+    decimate={'decimation_factors':[], 'final_location':'', 'final_bandcode':''}):
 
 
-    if gain_correction:
-        st_gain = st.copy()
-        st_gain.gain_correction(channel='?[LMH]?')
-    
-        if rotate:
-            st_gain = UVW2ZNE(st_gain, minimum_sample_length=2)
-            st_gain.write(outfile_gain_rot, format=format_DATA)
-            print(u'INFO: written gain corrected + rotated data to: %s' % outfile_gain_rot)
-        else:
-            st_gain.write(outfile_gain, format=format_DATA)
-            print(u'INFO: written gain corrected data to:           %s' % outfile_gain)
+    ### Variables
+    unit        = remove_response['unit']
+    pre_filt    = remove_response['pre_filt']
+    water_level = remove_response['water_level']
 
 
-    if remove_response:
-        st_rem = st.copy()
-        st_rem.detrend(type='demean')
-        st_rem.taper(0.1)
-        st_rem.detrend()
-        for tr in st_rem:
-            try:
-                tr.remove_response(st_rem.inventory, output=remove_response, pre_filt=None, water_level=60)
-            except ValueError:
-                print(u'WARNING: Could not remove response to %s for channel: %s' % (remove_response, tr))
+    ### Processing
+    for file in waveform_files:
 
-        if rotate:
-            try:
-                st_rem = UVW2ZNE(st_rem, minimum_sample_length=2)
-                st_rem.write(outfile_rem_rot, format=format_DATA)
-                print(u'INFO: written %s waveform + rotated data to:   %s' % (remove_response, outfile_rem_rot))
-            except Exception as err:
-                print(u'ERROR: Could not rotate channel: %s.' % tr)
-                print(u'       %s' % err)
+        stream    = read2(file)
+        format_in = stream[0].stats._format
+        stream.set_inventory(inventory_file, verbose=False)
+        print()
+        print(u'File: %s' % file)
+        print(u'Found %s traces. Handling ..' % len(stream))
 
-        else:
-            st_rem.write(outfile_rem, format=format_DATA)
-            print(u'INFO: written %s waveform data to:             %s' % (remove_response, outfile_rem))
 
+        # gain correction
+        if gain_correction:
+            stream.gain_correction(channel='?[LMH]?')
+            print(u'INFO: gain corrected data')
+        
+            if rotate:
+                stream = UVW2ZNE(stream, minimum_sample_length=2)
+                print(u'INFO: rotated gain corrected data')
+
+
+        # Removal instrument response
+        elif remove_response['unit'] and remove_response['unit'].lower()!='none':
+            stream.detrend(type='demean')
+            stream.taper(0.1)
+            stream.detrend(type='simple')
+            for tr in stream:
+                try:
+                    tr.remove_response(stream.inventory, output=unit, pre_filt=pre_filt, water_level=water_level)
+                except ValueError:
+                    print(u'WARNING: Could not remove response to %s for channel: %s' % (remove_response, tr))
+            print(u'INFO: instrument corrected data')
+
+            if rotate:
+                stream = UVW2ZNE(stream, minimum_sample_length=2)
+                print(u'INFO: rotated instrument corrected data')
+
+
+        # Decimation
+        for trace in stream.select(channel='?[LMH]?'):
+            for decimation_factor in decimate['decimation_factors']:
+                decimate_SEIS(trace, decimation_factor, verbose=False)
+                print(u'INFO: decimated data by factor %s' % decimation_factor)
+
+            if decimate['final_location']:
+                trace.stats.location = decimate['final_location']
+
+            if decimate['final_bandcode']:
+                trace.stats.channel = decimate['final_bandcode'] + trace.stats.channel[1:]
+
+
+        # Output
+        outfile = '.'.join(file.split('.')[:-1]) + '_processed.' + format_in.lower()
+        stream.write(outfile)
+
+        print(u'File out: %s' % outfile)
+        print()
 
     print(u'Finished.')
 
@@ -2136,7 +2162,7 @@ class ppol():
     def __init__(self, comp_N=None, comp_E=None, comp_Z=None, stream=None, starttime=None, endtime=None, demean=True, **kwargs):
 
         """
-        `kwargs` are passed to `calc` method.
+        `kwargs` are passed to `calc` and `plot `methods.
         """
 
         if starttime is not None:
@@ -2310,7 +2336,7 @@ class ppol():
             if isinstance(comp_N, Trace):
                 trace_N = comp_N
             elif isinstance(comp_N, (list, tuple, np.ndarray)):
-                trace_N = Trace(data=np.asarray(comp_N), header={'channel':'N'})
+                trace_N = Trace(data=np.asarray(comp_N), header={'channel':'N'})        # sampling rate of 1 Hz by default
             else:
                 print(u'`comp_N` must be either a ObsPy `Trace` object or a `list`-like object containing your waveform data.')
                 sys.exit()
@@ -2318,7 +2344,7 @@ class ppol():
             if isinstance(comp_E, Trace):
                 trace_E = comp_E
             elif isinstance(comp_E, (list, tuple, np.ndarray)):
-                trace_E = Trace(data=np.asarray(comp_E), header={'channel':'E'})
+                trace_E = Trace(data=np.asarray(comp_E), header={'channel':'E'})        # sampling rate of 1 Hz by default
             else:
                 print(u'`comp_E` must be either a ObsPy `Trace` object or a `list`-like object containing your waveform data.')
                 sys.exit()
@@ -2327,7 +2353,7 @@ class ppol():
                 if isinstance(comp_Z, Trace):
                     trace_Z = comp_Z
                 elif isinstance(comp_Z, (list, tuple, np.ndarray)):
-                    trace_Z = Trace(data=np.asarray(comp_Z), header={'channel':'Z'})
+                    trace_Z = Trace(data=np.asarray(comp_Z), header={'channel':'Z'})    # sampling rate of 1 Hz by default
                 else:
                     print(u'`comp_Z` must be either a ObsPy `Trace` object or a `list`-like object containing your waveform data.')
                     sys.exit()                    

@@ -232,7 +232,7 @@ def remove(*glitch_detector_files,
         for trace in stream.select(channel='?[LMH]?'):
 
             print()
-            trace.data = trace.data.astype(dtype=np.float32, copy=False)   # importat as glitch removal introduces float RAW values
+            trace.data = trace.data.astype(dtype=np.float32, copy=False)        # important as glitch removal introduces float RAW values
             total_data_time_UTC  += marstime(trace.stats.endtime).UTC_time  - marstime(trace.stats.starttime).UTC_time
             total_data_time_LMST += marstime(trace.stats.endtime).LMST_time - marstime(trace.stats.starttime).LMST_time
 
@@ -547,8 +547,6 @@ def remove(*glitch_detector_files,
                 tr_orig.data = tr_orig.data - tr_degl.data
             outfile_glit = '.'.join(waveform_file.split('.')[:-1]) + '_glitches.' + format_in.lower()
             stream_orig.write(outfile_glit, format=format_in)
-
-
 
 
         ## OUTPUT

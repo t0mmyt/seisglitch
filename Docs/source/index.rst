@@ -32,7 +32,7 @@ Functions
     plotter
 
     downloader
-    decimater
+    processer
     merger
     timer
 

@@ -35,10 +35,8 @@ The package allows to detect glitches, plot them in different ways, and remove t
 (ISAE, UCLA, IPGP) were implemented in MATLAB and their essential scripts are also delivered with this software.
 **SEISglitch** comes further shipped with some useful features to ease data handling (e.g. download, decimation, time conversion).
 
-| 
 | Find the actual Python code at:
 | https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch
-| 
 
 The code is based on the following, peer-reviewed paper: 
 

@@ -61,9 +61,9 @@ parser.add_argument('mode',
         type    = str,
         help    = """
                   Choose which SEISglitch mode to run. 
-                  Choices: 'detect', 'plot', 'remove', 'download', 'decimate', 'merge', or 'time'.
+                  Choices: 'detect', 'plot', 'remove', 'download', 'process', 'merge', or 'time'.
                   """,
-        choices = ['detect', 'plot', 'remove', 'download', 'decimate', 'merge', 'time'])
+        choices = ['detect', 'plot', 'remove', 'download', 'process', 'merge', 'time'])
 
 parser.add_argument('config_file', 
         metavar = 'CONFIG_FILE',
@@ -83,14 +83,26 @@ config = args['config_file']
 params         = util.read_config(config)
 waveform_files = params['waveform_files']
 inventory_file = params['inventory_file']
+
 if not inventory_file:
     inventory_file = 'IPGP'
+
 
 
 if mode=='detect':
 
     detect_params = params['detect']['detector']
     detect.detect( *waveform_files, inventory_file=inventory_file, **detect_params )
+
+
+
+elif mode=='remove':
+
+    glitch_detector_files = params['remove']['glitch_detector_files']
+    remove_params         = params['remove']['remover']
+
+    remove.remove( *glitch_detector_files, waveform_files=waveform_files, inventory_file=inventory_file, **remove_params )
+
 
 
 elif mode=='plot':
@@ -110,13 +122,6 @@ elif mode=='plot':
     plt.close('all')
 
 
-elif mode=='remove':
-
-    glitch_detector_files = params['remove']['glitch_detector_files']
-    remove_params         = params['remove']['remover']
-
-    remove.remove( *glitch_detector_files, waveform_files=waveform_files, inventory_file=inventory_file, **remove_params )
-
 
 elif mode=='download':
 
@@ -124,47 +129,12 @@ elif mode=='download':
     util.download_data(**kwargs)
 
 
-elif mode=='decimate':
 
-    waveform_files        = params['decimate']['waveform_files']
-    decimation_factors    = params['decimate']['decimation_factors']
-    final_network         = params['decimate']['final_network']
-    final_station         = params['decimate']['final_station']
-    final_location        = params['decimate']['final_location']
-    final_bandcode        = params['decimate']['final_bandcode']
+elif mode=='process':
 
-    for file in waveform_files:
+    process_params = params['process']
+    util.process_data( *waveform_files, inventory_file=inventory_file, **process_params )
 
-        stream = read(file)
-        print()
-        print(u'File: %s' % file)
-        print(u'Found %s trace. Handling ..' % len(stream))
-
-        for trace in stream.select(channel='?[LMH]?'):
-            for decimation_factor in decimation_factors:
-                util.decimate_SEIS(trace, decimation_factor, verbose=False)
-
-            if final_network:
-                trace.stats.network = final_network
-
-            if final_station:
-                trace.stats.station = final_station
-
-            if final_location:
-                trace.stats.location = final_location
-
-            if final_bandcode:
-                trace.stats.channel = final_bandcode + trace.stats.channel[1:]
-
-        file_path  = os.path.dirname(file)
-        file_name  = os.path.basename(file)
-        outfile    = os.path.join( file_path, 'decimated_' + file_name)
-        stream.write(outfile)
-
-        print(u'File out: %s' % outfile)
-        print()
-
-    print(u'Finished.')
 
 
 elif mode=='merge':
@@ -174,10 +144,11 @@ elif mode=='merge':
         waveform_files        = params['waveform_files']        
         glitch_detector_files = [os.path.join( os.path.dirname(file), 'glitches_' + '.'.join(os.path.basename(file).split('.')[:-1]) + '.txt' ) for file in waveform_files]
 
-    outfile               = params['merge']['outfile']
-    multiples_out         = params['merge']['multiples_out']
+    outfile       = params['merge']['outfile']
+    multiples_out = params['merge']['multiples_out']
 
     util.merge_glitch_detector_files(glitch_detector_files, outfile, starttime_sort=True, multiples_out=multiples_out)
+
 
 
 elif mode=='time':

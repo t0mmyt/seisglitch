@@ -18,6 +18,8 @@ The general working principle of the glitch removal is described in our paper, S
 In the following, the glitch detector's parameters (that you find in the ``config.yml``) are explained 
 a bit more:
 
+Cleaned data can take up more staorage, as fitting required to set important as glitch removal introduces float RAW values
+
 
 * ``glitch_window_leftright``: in seconds, data window appended left and right to window of detected glitch (i.e., start and end time of glitches from the glitch detector files), buildung the overall window glitch fits are attempted. Whilst the glitch detection mostly delivers accurate glitch starts, meaning this parameter can be chosen smaller, for some glitches it can help increasing this parameter as the glitch onsets may not have been detected cleanly. 
 * ``glitch_prepend_zeros``: in seconds, length of zeros prepended to glitch model. This can help improving fits. This time is added to the data window of 'glitch_window_leftright'. A good first try is 1 second.

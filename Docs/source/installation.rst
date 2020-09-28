@@ -39,11 +39,9 @@ You can check the seisglitch version you have installed via::
 The most recent version is 1.0.0.
 
 
-| 
 
 ----
 
-| 
 
 If you'd like to introduce your own changes to the code, you may want to replace step 4 by:
 
@@ -57,11 +55,6 @@ thus creating symbolic links to the module files, avoiding having to re-compile 
 .. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
 
 
-| 
-
-----
-
-| 
 
 
 Update / Upgrade

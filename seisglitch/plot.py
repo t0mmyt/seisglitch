@@ -1115,9 +1115,14 @@ def plot_glitch_ppol(glitch_start=None, glitch_length=30, run=True, waveform_fil
         stream_select.gain_correction(verbose=False)
         stream2 = stream_select.copy()
         stream2.rotate('->ZNE', inventory=stream_select.inventory, components=('UVW'))
+        #stream2.detrend('linear')
+        #stream2.detrend('demean')
+        #stream2.taper(0.05)
+        #stream2.filter('highpass', freq=0.1, corners=2, zerophase=True)
+        #stream2.filter('lowpass', freq=2, corners=2, zerophase=True)
 
         # ppol measurement + plot
-        ppol_measurement = ppol(stream=stream2, demean=True, fix_angles='AMP', starttime=glitch_start, endtime=glitch_end, Xoffset_samples_for_amplitude=1*stream2[0].stats.sampling_rate)
+        ppol_measurement = ppol(stream=stream2, demean=True, fix_angles='EQ', starttime=glitch_start, endtime=glitch_end, Xoffset_samples_for_amplitude=1*stream2[0].stats.sampling_rate)
         ppol_measurement.display(tag=title)
         print()
         print(u'Glitch times:')
