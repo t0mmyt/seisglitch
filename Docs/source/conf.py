@@ -87,14 +87,8 @@ html_theme = 'sphinx_rtd_theme'  # alabaster, pyramid, haiku, scrolls, classic, 
 # documentation.
 html_theme_options = {
     'html_logo'             : 'glitch.png',
-    'logo_name'             : False,
-    'show_relbars'          : True,
-    'fixed_sidebar'         : True,
-    'sidebar_width'         : '300px',
-    'page_width'            : '1200px',
-    'sidebar_includehidden' : True,
+    'logo_only'             : False,
     'canonical_url'         : 'https://seisglitch.readthedocs.io/en/latest/index.html',
-    'analytics_id'          : 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
     'logo_only'             : False,
     'display_version'       : True,
     'prev_next_buttons_location': 'bottom',

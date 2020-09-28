@@ -52,7 +52,7 @@ Access them from your terminal like so:
 ::
 
     seisglitch download path/to/config.yml
-    seisglitch decimate path/to/config.yml
+    seisglitch process path/to/config.yml
     seisglitch merge path/to/config.yml
     seisglitch time path/to/config.yml
 
