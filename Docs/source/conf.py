@@ -86,10 +86,9 @@ html_theme = 'sphinx_rtd_theme'  # alabaster, pyramid, haiku, scrolls, classic, 
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'html_logo'             : 'glitch.png',
+    'logo_name'             : 'glitch.png',
     'logo_only'             : False,
     'canonical_url'         : 'https://seisglitch.readthedocs.io/en/latest/index.html',
-    'logo_only'             : False,
     'display_version'       : True,
     'prev_next_buttons_location': 'bottom',
     'style_external_links'      :  False,
