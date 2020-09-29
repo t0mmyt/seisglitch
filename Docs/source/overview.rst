@@ -56,5 +56,4 @@ Access them from your terminal like so:
     seisglitch merge path/to/config.yml
     seisglitch time path/to/config.yml
 
-Each of these seven functions has a dedicated section in the ``config.yml``. 
-Each function only accesses the accordant section of the ``config.yml`` file.
+Each of these seven functions has a dedicated section in the ``config.yml``.
