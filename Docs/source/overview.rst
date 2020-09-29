@@ -17,7 +17,7 @@ Data preparation
 
 Your waveform data should all comply with the following conditions:
 
-* each waveform file must contain all three seismic components (i.e., "U", "V", "W" of either the VBB or SP seismometer). That is, if you have individual files for each component you must merge them before into file. For data retrieval, see e.g. :ref:`download`.
+* each waveform file must contain all three seismic components (i.e., "U", "V", "W" of either the VBB or SP seismometer). That is, if you have individual files for each component you must merge them into **one** file before. For data retrieval, see e.g. :ref:`download`.
 * each waveform file must be readable as seismological file (e.g. MSEED, SAC, ...)
 
 
@@ -27,7 +27,7 @@ Setup config.yml
 ^^^^^^^^^^^^^^^^
 
 This file – that you downloaded along with the ``seisglitch`` package – allows you to specify all needed options. 
-Go ahead, open the config file and enter your settings – they should be straightforward.
+Go ahead, open the ``config.yml`` and enter your settings. They should be straightforward.
 
 
 

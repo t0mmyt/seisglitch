@@ -10,7 +10,7 @@ you can merge the results all into one file using this function.
 This can be handy especially for the :ref:`plot function <plot>`.
 
 After having entered the `merge` options in the ``config.yml``,
-run from the merge function from terminal like so:
+run the merge function from terminal like so:
 ::
 
     seisglitch merge path/to/config.yml

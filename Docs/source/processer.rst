@@ -4,7 +4,7 @@ seisglitch process
 ==================
 
 
-The process function allows to apply some automated, basic processing to the specified waveforms.
+The process function allows to apply some automated, basic processing to the targeted waveforms.
 Currently implemented is:
 
 * removing gain from seismic traces
@@ -13,7 +13,7 @@ Currently implemented is:
 * decimate data with FIR-coefficients
 
 After having entered the `process` options in the ``config.yml``,
-run from the process function from terminal like so:
+run the process function from terminal like so:
 ::
 
     seisglitch process path/to/config.yml

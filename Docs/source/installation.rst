@@ -12,7 +12,7 @@ provided along with this package for a selection of seismic events, you just nee
 
 
 1. Install Anaconda_ or Miniconda_.
-2. Open a terminal (Windows: Anaconda powershell), create a new environment and activate it (choose an environment name you prefer, here ``seisglitch`` is chosen)::
+2. Open a terminal (Windows: Anaconda powershell), create a new environment and activate it (choose an environment name you prefer, here `seisglitch` is chosen)::
 
     conda create -n seisglitch python=3.7 numpy=1.16 obspy pyyaml -c conda-forge
     conda activate seisglitch
@@ -31,13 +31,13 @@ download ``seisglitch`` (on Windows, you may need to install "git" first)::
     pip install .
 
 Good news, everything is installed and ready to use!
-Remember to activate the ``seisglitch`` environment each time you want to use it (e.g. "conda activate seisglitch").
+Remember to activate the seisglitch environment each time you want to use it (e.g. "conda activate seisglitch").
 The package should be available from all paths in your system. 
 You can check the seisglitch version you have installed via::
 
     seisglitch -v
 
-The most recent version is 1.0.0.
+**The most recent version is 1.0.0.**
 
 ----
 
@@ -69,7 +69,7 @@ Open a terminal (Windows: Anaconda powershell) and type::
     git pull
     pip install . (or pip install -e .)
 
-If you are aiming only for the potentially updated MATLAB files, you just need to do::
+If you are aiming only for the potentially updated MATLAB files or updated deglitched data, you just need to do::
 
     cd your/seisglitch/folder  # see Installation
     git pull

@@ -19,7 +19,7 @@ In the ``config.yml`` you have two options:
 
 For specifics regarding each option see the config.yml. 
 After having entered the `time` options in the ``config.yml``,
-run from the time function from terminal like so:
+run the time function from terminal like so:
 ::
 
     seisglitch time path/to/config.yml

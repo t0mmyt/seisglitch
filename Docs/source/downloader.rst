@@ -6,10 +6,11 @@ seisglitch download
 
 The download function allows to download data depending on the channel IDs. 
 The options in the ``config.yml`` are straightforward. This function should
-also work to retrieve other seismic data, not only those related to the InSight mission.
-More informatione are given config.yml file.
+also work to retrieve seismic data not related to the InSight mission.
+More information are given in the config.yml file.
 
-Run from the download function from terminal like so:
+After having entered the `download` options in the ``config.yml``,
+run the download function from terminal like so:
 ::
 
     seisglitch download path/to/config.yml

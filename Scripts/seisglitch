@@ -26,7 +26,10 @@
 
 
 """
-..
+Seisglitch script. This file is called when typing `seisglitch function path/to/config.yml`
+into the terminal after installation of the package.
+
+Handed arguments are parsed and the desired function is executed.
 """
 
 
@@ -46,7 +49,8 @@ from obspy import read
 import seisglitch
 from seisglitch import detect, plot, remove, util
 
-version = seisglitch.__version__ 
+version = seisglitch.__version__
+author  = seisglitch.__author__
 
 
 ### PARSING ARGUEMENTS
@@ -118,7 +122,7 @@ elif mode=='plot':
     plot.plot_glitch_ppol(                                **plot_params, **params['plot']['glitch_ppol_plot'],     waveform_files=waveform_files, inventory_file=inventory_file)
 
     if plot_params['show']:
-      plt.show()
+        plt.show()
     plt.close('all')
 
 

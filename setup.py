@@ -3,19 +3,34 @@ import re
 from numpy.distutils.core import setup
 
 
-def find_version(*paths):
+### Small helper function
+def find_version_author(*paths):
     fname = os.path.join(os.path.dirname(__file__), *paths)
     with open(fname, encoding='utf-8') as fp:
         code = fp.read()
-    match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", code, re.M)
-    if match:
-        return match.group(1)
-    raise RuntimeError("Unable to find version string.")
 
+    match1 = re.search(r"^__version__\s*=\s*['\"]([^'\"]*)['\"]", code, re.M)
+    if match1:
+        version = match1.group(1)
+    else:
+        version = ''
+
+    match2 = re.search(r"^__author__\s*=\s*['\"]([^'\"]*)['\"]", code, re.M)
+    if match2:
+        author = match2.group(1)
+    else:
+        author = ''
+
+    return (version, author)
+
+
+
+### Setup
+version, author = find_version_author('seisglitch', '__init__.py')
 
 setup(
     name             = 'seisglitch',
-    version          = find_version('seisglitch', '__init__.py'),
+    version          = version,
     keywords         = ["glitches", "data disturbances", "seismology", "planet Mars", "InSight mission", "VBB seismometer", "SP seismometer"],
     description      = """
                        Toolbox to detect, remove, and plot glitches on SEIS' seismometers VBB and SP.
@@ -33,3 +48,13 @@ setup(
     scripts          = [os.path.join('Scripts',file) for file in os.listdir('Scripts/')],
     url              = 'https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch'
     )
+
+
+### Only displayed anyway if `pip install .` is run with "-v" option
+if version:
+    print(u"Successfully installed seisglitch %s." % version)
+else:
+    print(u"Successfully installed seisglitch (no version specified).")
+
+if author:
+    print(u"Author: %s" % author)
