@@ -12,11 +12,13 @@ The time formats should follow:
  | UTC: 2019-05-23T02:23:16
  | LMST: 173M02:58:53 (where 173 is Sol 173 with respect to the InSight landing)
 
-In the ``config.yml`` you have two options. If you want to convert many times you can pass a text file, 
-or if you want to convert just one time you can pass it with the result immediately printed. 
-For details regarding each way see the comments in the config.yml.
+In the ``config.yml`` you have two options:
 
-On the other hand it is also possible to access the time conversion tool from within the Python interpreter (correct environment):
+  1. file - if you want to convert many times you can pass a text file with your times to be converted listed in a column, or 
+  2. convert - if you just want to convert one time you can pass it with the result immediately printed. 
+
+For specifics regarding each option see the config.yml. On the other hand, it is also 
+possible to access the time conversion tool from within the Python interpreter (correct :ref:`environment <installation>`)):
 
 .. code:: python
 
