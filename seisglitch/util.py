@@ -1421,29 +1421,31 @@ def marstime_list(sols_range=[10], hms='120000', hms_in_UTC=False):
             time_mars     = marstime( LMST='%03dM%s' % (sol,hms))
 
         print('%s    %s' % (time_mars.UTC_string, time_mars.LMST_string))
-def time_convert(time):
+def time_funnel(time):
 
     """
     Small wrapper to convert times and catch errors.
+    If no error occurs due to bad input, returns marstime object 
+    within correct UTC / LMST times accesible via its attributes.
     """
 
-    time         = str(time)
-    time_convert = np.nan
+    time     = str(time)
+    time_new = None
 
     try:
-        time_convert = marstime(UTC=time).LMST_string
+        time_new = marstime(UTC=time)
 
     except ValueError:          # e.g. something like 25 hours etc ..
         pass
 
     except:                     # UTC conversion didn't work, so let's try if input was fiven as LMST
         try:
-            time_convert = marstime(LMST=time).UTC_string
+            time_new = marstime(LMST=time)
 
         except:                 # also didn't work, no matter why
             pass
 
-    return time_convert
+    return time_new
 def UVW2ZNE(stream, minimum_sample_length=2, inventory_file=None):
 
     """
@@ -1633,6 +1635,7 @@ def SEIS_FIR_coefficients(decimation_factor):
     delay  = len(coeffs)-1
     coeffs = coeffs[-1:0:-1] + coeffs
     return coeffs, delay
+
 
 # Other
 def read_config(config_file):
@@ -2045,8 +2048,8 @@ def download_data(outdir=os.getcwd(),
         outdir = os.getcwd()
     os.makedirs(outdir, exist_ok=True)
 
-    starttime       = UTCDateTime(starttime)
-    endtime         = UTCDateTime(endtime)
+    starttime       = time_funnel(starttime).UTC_time
+    endtime         = time_funnel(endtime).UTC_time
     network         = str(network)
     station         = str(station)
     location        = str(location)
@@ -2076,7 +2079,7 @@ def download_data(outdir=os.getcwd(),
     # Paths
     times            = st.times
     request          = '%s.%s.%s.%s' % (network, station, location, channel)
-    outfile_inv      = os.path.join(outdir, 'inventory_%s-%s.xml' % (st.times[0],st.times[1]))
+    outfile_inv      = os.path.join(outdir, 'inventory_%s-%s.xml' % (st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M')))
     outfile_raw      = os.path.join(outdir, '%s_%s_%s_raw.%s'     % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
 
     # Processing

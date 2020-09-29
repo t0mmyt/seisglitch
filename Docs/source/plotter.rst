@@ -4,4 +4,8 @@ seisglitch plot
 ===============
 
 
-This is not yet documented.
+After having entered the `plot` options in the ``config.yml``,
+run from the plot function from terminal like so:
+::
+
+    seisglitch plot path/to/config.yml

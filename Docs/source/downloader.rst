@@ -7,8 +7,15 @@ seisglitch download
 The download function allows to download data depending on the channel IDs. 
 The options in the ``config.yml`` are straightforward. This function should
 also work to retrieve other seismic data, not only those related to the InSight mission.
+More informatione are given config.yml file.
 
-Nevertheless, as for the InSight, all details on channel names and the SEIS instrument itself can be found in:
+Run from the download function from terminal like so:
+::
+
+    seisglitch download path/to/config.yml
+
+
+Note: All details on channel names and the SEIS instrument itself can be found in:
 ::
 
     Lognonné, P., W. B. Banerdt, D. Giardini, W. T. Pike, U. Christensen, P. Laudet, 

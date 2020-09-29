@@ -18,6 +18,11 @@ In the ``config.yml`` you have two options:
 2. convert - if you just want to convert one time you can pass it with the result immediately printed. 
 
 For specifics regarding each option see the config.yml. 
+After having entered the `time` options in the ``config.yml``,
+run from the time function from terminal like so:
+::
+
+    seisglitch time path/to/config.yml
 
 ----
 
@@ -29,7 +34,7 @@ the Python interpreter (correct :ref:`environment <installation>`):
     from seisglitch.util import marstime
 
     time_instance = marstime(UTC='2019-05-23T02:23:16') # pass a string or time object
-    LMST_string   = time_instance.LMST_string           # returns string
+    LMST_string   = time_instance.LMST_string           # returns InSight LMST as string
     print(LMST_string)
 
 or similarly to convert LMST to UTC:
@@ -50,4 +55,4 @@ If you would like to plot the current time, you could simply do:
     from seisglitch.util import marstime
 
     time_instance = marstime()       # if no time passed, take time of now
-    print(time_instance)             # prints UTC and LMST times
+    print(time_instance)             # prints UTC and InSight LMST times

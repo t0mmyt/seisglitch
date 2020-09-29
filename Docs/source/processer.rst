@@ -12,4 +12,8 @@ Currently implemented is:
 * rotate non-orthogonal UVW components into ZNE-system
 * decimate data with FIR-coefficients
 
-The options in the ``config.yml`` are straightforward. More informatione are given there.
+After having entered the `process` options in the ``config.yml``,
+run from the process function from terminal like so:
+::
+
+    seisglitch process path/to/config.yml

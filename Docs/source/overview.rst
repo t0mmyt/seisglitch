@@ -41,8 +41,8 @@ Then, type one of the following commands into your terminal, depending on what y
 ::
 
     seisglitch detect path/to/config.yml
-    seisglitch plot path/to/config.yml
     seisglitch remove path/to/config.yml
+    seisglitch plot path/to/config.yml
 
 You can see right away, you can have multiple ``config.yml`` files accounting for multiple setups. 
 Personally, I had one for the VBB and one for the SP seismometer.

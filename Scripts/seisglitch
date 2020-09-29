@@ -160,8 +160,8 @@ elif mode=='time':
     if convert:
         print(u"Processing 'convert' option:")        
 
-        time_converted = util.time_convert(convert)
-        if type(time_converted)!=str and np.isnan(time_converted):
+        time_converted = util.time_funnel(convert)
+        if time_converted is None:
             print(u'Could not convert time: Please follow the following formats (h:m:s must not be fully stated):')
             print(u"For UTC:  'XXXX-XX-XXTxx:xx:xx.x'")
             print(u"For LMST: 'XXXMxx:xx:xx.x'")
@@ -179,8 +179,8 @@ elif mode=='time':
         times_converted = []
 
         for t, time in enumerate(times):
-            time_converted = util.time_convert(time)
-            if type(time_converted)!=str and np.isnan(time_converted):
+            time_converted = util.time_funnel(time)
+            if time_converted is None:
                 print(u"Time '%s' in input line %d is no valid. Skipped." % (time, t+1))
             times_converted.append( time_converted )
 

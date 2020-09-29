@@ -46,7 +46,7 @@ from obspy import read, UTCDateTime
 
 
 #####  seisglitch util import  #####
-from seisglitch.util import read2, marstime, sec2hms, ppol, quick_plot, on_click
+from seisglitch.util import read2, marstime, time_funnel, sec2hms, ppol, quick_plot, on_click
 from seisglitch.math import normalise
 
 
@@ -341,11 +341,13 @@ def plot_glitch_remover(*glitch_files, run=True, original_data=None, deglitch_da
 
     ### CUT STREAMS
     if starttime:
-        original_wf.trim(starttime=UTCDateTime(starttime))
-        deglitch_wf.trim(starttime=UTCDateTime(starttime))
+        starttime = time_funnel(starttime).UTC_time
+        original_wf.trim(starttime=starttime)
+        deglitch_wf.trim(starttime=starttime)
     if endtime:
-        original_wf.trim(endtime=UTCDateTime(endtime))
-        deglitch_wf.trim(endtime=UTCDateTime(endtime))
+        endtime = time_funnel(endtime).UTC_time
+        original_wf.trim(endtime=endtime)
+        deglitch_wf.trim(endtime=endtime)
 
 
 
@@ -498,8 +500,12 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], window=None
             continue
 
         # if times specified
-        if starttime or endtime:
-            st_select.trim2(starttime=starttime, endtime=endtime)
+        if starttime:
+            starttime = time_funnel(starttime).UTC_time
+            st_select.trim(starttime=starttime)
+        if endtime:
+            endtime = time_funnel(endtime).UTC_time
+            st_select.trim(endtime=endtime)
         
         # another sanity check
         if not st_select:
