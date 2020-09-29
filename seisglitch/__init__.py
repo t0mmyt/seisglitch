@@ -27,30 +27,32 @@
 
 
 """
-``SEISglitch`` is a seismological Python package based on ObsPy_ library.
+``SEISglitch`` is a seismological Python package based on the ObsPy_ library.
 Its purpose is to detect "glitches" (also referred to as "long-period disurbances") in the raw seismic data of the VBB (very broadband) 
-and SP (short period) seismometers, both part of the SEIS instrument of NASA's "InSight" Discovery mission to planet Mars. 
+and SP (short period) seismometers, both part of the **SEIS** instrument of NASA's "InSight" Discovery mission to planet Mars. 
 The package allows to detect glitches, plot them in different ways, and remove them from the seismic raw data. 
-SEISglitch corresponds to the MPS method detailed in Scholz et al. (2020, see below), all other methods
+SEISglitch corresponds to the MPS method detailed in Scholz et al. (2020, see below). All other methods
 (ISAE, UCLA, IPGP) were implemented in MATLAB and their essential scripts are also delivered with this software.
-SEISglitch comes further shipped with some useful features to ease data handling (e.g. download, decimation, time conversion).
+SEISglitch comes further shipped with some useful features to ease data handling (e.g. download, processing, time conversion).
 
-| Find the actual Python code at:
+| Find the Python source code at:
 | https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch
 
-The code is based on the following, peer-reviewed paper: 
+The package is based on the following, peer-reviewed paper: 
 ::
 
     Scholz, J.-R., Widmer-Schnidrig, R., P. Davis, P. Lognonne, B. Pinot, R. F. Garcia, et al. 
-    “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” Earth and Space Science, submitted (2020).
+    “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” 
+    Earth and Space Science, in press (2020).
 
 If you find ``SEISglitch`` useful, used the MATLAB alternatives, corrected data as to the considerations outlined in the paper, or 
 used the corrected data provided along with this package, please consider citing this and the following paper:
 ::
 
-    Lognonné, P., W. B. Banerdt, W. T. Pike, D. Giardini, U. Christensen, R. F. Garcia, T. Kawamura, et al. “Constraints on the 
-    Shallow Elastic and Anelastic Structure of Mars from InSight Seismic Data.” Nature Geoscience 13, no. 3 (March 2020): 
-    213–20. https://doi.org/10.1038/s41561-020-0536-y.
+    Lognonné, P., W. B. Banerdt, W. T. Pike, D. Giardini, U. Christensen, R. F. Garcia, 
+    T. Kawamura, et al. “Constraints on the Shallow Elastic and Anelastic Structure of
+    Mars from InSight Seismic Data.” Nature Geoscience 13, no. 3 (March 2020), 213–20. 
+    https://doi.org/10.1038/s41561-020-0536-y.
 
 .. _ObsPy: https://github.com/obspy/obspy/wiki
 """

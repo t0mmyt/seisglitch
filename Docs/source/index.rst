@@ -8,15 +8,22 @@ SEISglitch
 
 ----
 
-
-Functions
-^^^^^^^^^
+Guide
+^^^^^
 
 .. toctree::
     :maxdepth: 2
 
     installation
     overview
+
+
+
+Functions
+^^^^^^^^^
+
+.. toctree::
+    :maxdepth: 1
 
     detector
     remover

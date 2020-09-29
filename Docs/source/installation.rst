@@ -42,7 +42,7 @@ The most recent version is 1.0.0.
 
 If you'd like to introduce your own changes to the code, you may want to replace step 4 by:
 
-4. Install ``seisglitch``::
+4. Install seisglitch::
 
 	pip install -e .
 
@@ -62,11 +62,11 @@ If you already have ``seisglitch`` installed and just would like to get the newe
 Open a terminal (Windows: Anaconda powershell) and type::
 
     conda activate seisglitch
-    cd your/seisglitch/folder (see Installation)
+    cd your/seisglitch/folder  # see Installation
     git pull
     pip install . (or pip install -e .)
 
 If you are aiming only for the potentially updated MATLAB files, you just need to do::
 
-    cd your/seisglitch/folder (see Installation)
+    cd your/seisglitch/folder  # see Installation
     git pull
