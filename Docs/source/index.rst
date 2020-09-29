@@ -9,18 +9,6 @@ SEISglitch
 ----
 
 
-
-Guide
-^^^^^
-
-.. toctree::
-    :maxdepth: 2
-
-    installation
-    overview
-
-
-
 Functions
 ^^^^^^^^^
 
@@ -29,7 +17,7 @@ Functions
 
     installation
     overview
-    
+
     detector
     remover
     plotter
