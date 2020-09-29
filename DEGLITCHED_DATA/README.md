@@ -16,9 +16,24 @@ The four groups and their lead analysts are:
 - IPGP (Philippe Lognonné, MATLAB)
 
 
-Note further that the provided files may show differences for some seismic events across the different groups.
-This is because some groups may have merged overlaps in the input files prior to processing whilst others did not. 
-These differences are typically not signficant, especially for total data lengths of less than 1 day.
+Note further that the timing of the files (start & end times) may slightly differ across the different groups.
+This is because some groups may have cut files differently and/or merged overlaps prior to processing whilst others did not. 
+These differences are typically not signficant, especially for total data lengths of less than 1 day (about 1 sol).
+
+Please remember; if you used the corrected data provided here, please consider citing:
+::
+
+    Scholz, J.-R., Widmer-Schnidrig, R., P. Davis, P. Lognonne, B. Pinot, R. F. Garcia, et al. 
+    “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” 
+    Earth and Space Science, in press (2020).
+
+and:
+::
+
+    Lognonné, P., W. B. Banerdt, W. T. Pike, D. Giardini, U. Christensen, R. F. Garcia, 
+    T. Kawamura, et al. “Constraints on the Shallow Elastic and Anelastic Structure of
+    Mars from InSight Seismic Data.” Nature Geoscience 13, no. 3 (March 2020), 213–20. 
+    https://doi.org/10.1038/s41561-020-0536-y.
 
 For more information on the Mars seismic catalogue curated by the Marsquake Service (MQS), see:  
 https://www.seis-insight.eu/en/science/seis-products/mqs-catalogs

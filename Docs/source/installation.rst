@@ -7,7 +7,8 @@ I recommend using ``conda`` to install Python packages.
 It comes shipped with Anaconda_ (or Miniconda_ for a smaller footprint), a Python 
 distribution that allows to quickly configure a specific Python environment (e.g. specific package versions etc..). 
 If you are interested in the whole Python toolbox (corresponding to method 'MPS', see `Scholz et al`_., 2020_), carry out step 1-4.
-If you are aiming for the MATLAB files only (corresponding to methods 'ISAE', 'UCLA', or 'IPGP'), you just need to do step 3. 
+If you are aiming for the MATLAB files only (corresponding to methods 'ISAE', 'UCLA', or 'IPGP') or the deglitched data
+provided along with this package for a selection of seismic events, you just need to do step 3. 
 
 
 1. Install Anaconda_ or Miniconda_.
