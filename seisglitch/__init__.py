@@ -28,7 +28,7 @@
 
 """
 ``SEISglitch`` is a seismological Python package based on the ObsPy_ library.
-Its purpose is to detect "glitches" (also referred to as "long-period disurbances") in the raw seismic data of the VBB (very broadband) 
+Its purpose is to detect "glitches" (also referred to as "long-period disturbances") in the raw seismic data of the VBB (very broadband) 
 and SP (short period) seismometers, both part of the **SEIS** instrument of NASA's "InSight" Discovery mission to planet Mars. 
 The package allows to detect glitches, plot them in different ways, and remove them from the seismic raw data. 
 SEISglitch corresponds to the MPS method detailed in Scholz et al. (2020, see below). All other methods
@@ -41,7 +41,7 @@ SEISglitch comes further shipped with some useful features to ease data handling
 The package is based on the following, peer-reviewed paper: 
 ::
 
-    Scholz, J.-R., Widmer-Schnidrig, R., P. Davis, P. Lognonne, B. Pinot, R. F. Garcia, et al. 
+    Scholz, J.-R., Widmer-Schnidrig, R., P. Davis, P. Lognonné, B. Pinot, R. F. Garcia, et al. 
     “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” 
     Earth and Space Science, in press (2020).
 
@@ -54,9 +54,9 @@ used the corrected data provided along with this package, please consider citing
     Mars from InSight Seismic Data.” Nature Geoscience 13, no. 3 (March 2020), 213–20. 
     https://doi.org/10.1038/s41561-020-0536-y.
 
-NOTE: Along with this packege also come deglitched data for a selection of seismic events. 
-These corrected will automatically be on your machine if you follow the :ref:`installation`.
-If you just want to manually download the deglitched data, you can skip all of this and go here_.
+NOTE: Along with this package also come deglitched data for a selection of seismic events. 
+These corrected raw data will automatically be on your machine if you follow the :ref:`installation`.
+If you just want to quickly download the deglitched data, go here_.
 
 .. _ObsPy: https://github.com/obspy/obspy/wiki
 .. _here: https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch/tree/master/DEGLITCHED_DATA

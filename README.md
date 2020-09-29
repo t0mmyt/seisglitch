@@ -9,5 +9,5 @@ remove them if possible.
 Full installation guide and documentation can be found at:  
 https://seisglitch.readthedocs.io/en/latest/
 
-If you are aiming for the deglitched data only, you can just go here:
+If you are aiming for the deglitched data only, you can just go here:  
 https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch/tree/master/DEGLITCHED_DATA
