@@ -9,16 +9,20 @@ Note that InSight landed on Mars on November 26, 2018 (Sol 0, a sol is a Martian
 
 The time formats should follow:
 
- | UTC: 2019-05-23T02:23:16
- | LMST: 173M02:58:53 (where 173 is Sol 173 with respect to the InSight landing)
+* UTC: 2019-05-23T02:23:16
+* LMST: 173M02:58:53 (where 173 is Sol 173 with respect to the InSight landing)
 
 In the ``config.yml`` you have two options:
 
-  1. file - if you want to convert many times you can pass a text file with your times to be converted listed in a column, or 
-  2. convert - if you just want to convert one time you can pass it with the result immediately printed. 
+1. file - if you want to convert many times you can pass a text file with your times to be converted listed in a column, or 
+2. convert - if you just want to convert one time you can pass it with the result immediately printed. 
 
-For specifics regarding each option see the config.yml. On the other hand, it is also 
-possible to access the time conversion tool from within the Python interpreter (correct :ref:`environment <installation>`)):
+For specifics regarding each option see the config.yml. 
+
+----
+
+On the other hand, it is also possible to access the time conversion tool from within 
+the Python interpreter (correct :ref:`environment <installation>`):
 
 .. code:: python
 
