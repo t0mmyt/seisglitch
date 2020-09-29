@@ -20,15 +20,13 @@ Note further that the timing of the files (start & end times) may slightly diffe
 This is because some groups may have cut files differently and/or merged overlaps prior to processing whilst others did not. 
 These differences are typically not signficant, especially for total data lengths of less than 1 day (about 1 sol).
 
-Please remember; if you used the corrected data provided here, please consider citing:
-::
+Please remember; if you used the corrected data provided here, please cite:
 
     Scholz, J.-R., Widmer-Schnidrig, R., P. Davis, P. Lognonne, B. Pinot, R. F. Garcia, et al. 
     “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” 
     Earth and Space Science, in press (2020).
 
 and:
-::
 
     Lognonné, P., W. B. Banerdt, W. T. Pike, D. Giardini, U. Christensen, R. F. Garcia, 
     T. Kawamura, et al. “Constraints on the Shallow Elastic and Anelastic Structure of

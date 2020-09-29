@@ -59,7 +59,7 @@ These corrected will automatically be on your machine if you follow the :ref:`in
 If you just want to manually download the deglitched data, you can skip all of this and go here_.
 
 .. _ObsPy: https://github.com/obspy/obspy/wiki
-.._ here: https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch/tree/master/DEGLITCHED_DATA
+.. _here: https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch/tree/master/DEGLITCHED_DATA
 """
 
 
