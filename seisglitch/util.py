@@ -1421,6 +1421,29 @@ def marstime_list(sols_range=[10], hms='120000', hms_in_UTC=False):
             time_mars     = marstime( LMST='%03dM%s' % (sol,hms))
 
         print('%s    %s' % (time_mars.UTC_string, time_mars.LMST_string))
+def time_convert(time):
+
+    """
+    Small wrapper to convert times and catch errors.
+    """
+
+    time         = str(time)
+    time_convert = np.nan
+
+    try:
+        time_convert = marstime(UTC=time).LMST_string
+
+    except ValueError:          # e.g. something like 25 hours etc ..
+        pass
+
+    except:                     # UTC conversion didn't work, so let's try if input was fiven as LMST
+        try:
+            time_convert = marstime(LMST=time).UTC_string
+
+        except:                 # also didn't work, no matter why
+            pass
+
+    return time_convert
 def UVW2ZNE(stream, minimum_sample_length=2, inventory_file=None):
 
     """
@@ -1610,7 +1633,6 @@ def SEIS_FIR_coefficients(decimation_factor):
     delay  = len(coeffs)-1
     coeffs = coeffs[-1:0:-1] + coeffs
     return coeffs, delay
-
 
 # Other
 def read_config(config_file):

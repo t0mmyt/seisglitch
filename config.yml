@@ -108,7 +108,7 @@ plot:                                               # any waveform files maybe u
 
 ### DOWNLOAD DATA FUNCTION
 download:                           # Potentially can work not only for InSight data.
-    outdir: 'Example/'              # all requested data will be stored into ONE file in this directory. If directory does not exist it will be created. If not given, use current directory.
+    outdir: 'Example/'              # all requested data will be stored into ONE file in this directory. If directory does not exist it will be created. If not given, current directory is used.
     starttime: '2019-05-22T23:19:27'
     endtime: '2019-05-23T23:59:02'
     network: 'XB'                   # "XB" is the InSight network code
@@ -126,14 +126,14 @@ download:                           # Potentially can work not only for InSight 
 ### PROCESS DATA FUNCTION
 process:                            # waveform files are those defined in top of this config file
     gain_correction: False          # if True, only removes gain from the seismic raw data. If True, `remove_response` options are not considered.
-    remove_response:                # https://docs.obspy.org/packages/autogen/obspy.core.inventory.response.Response.get_evalresp_response.html#obspy.core.inventory.response.Response.get_evalresp_response
+    remove_response:                # https://docs.obspy.org/packages/autogen/obspy.core.inventory.response.Response.get_evalresp_response.html
       unit: 'VEL'                   # May set to 'None' (no response removed), 'DISP', 'VEL, or 'ACC'.
-      pre_filt: False               # Set to False or (f0, f1, f2, f3) cosine filter
-      water_level: 60               # if both options 'pre_filt' and 'water_level' are given, both are applied.
-    rotate2zne: True                # to rotate, you must set either 'gain_correction' or 'unit'
-    decimate:                       # decimate seismic data function (only for SEIS' VBB & SP data), using SAC FIR-coefficients: currently only decimation factors implemented: 2 .. 7!
-      decimation_factors: []        # processed in entered order (use "decimation_factors:[1]" to only change location or bandcode of waveform_files)
-      final_location: ''            # will be assigned to all traces of all waveform_files. Leave blank if no change is desired.
+      pre_filt: False               # Set to False or: (f0, f1, f2, f3), whcih applies a cosine filter
+      water_level: 60               # in db. If both options 'pre_filt' and 'water_level' are given, both are applied.
+    rotate2zne: True                # to rotate, you must set either `gain_correction`=True or `unit`!='None'
+    decimate:                       # decimate seismic data (only for SEIS' VBB & SP data), using SAC FIR-coefficients: current decimation factors implemented: 2 .. 7!
+      decimation_factors: []        # processed in entered order (use "decimation_factors:[1]" to only change location or bandcode of waveform_files). Nothing done if list is empty.
+      final_location: ''            # will be assigned to all traces of all waveform_files. Leave blank if no change is desired. For SEIS channel names: see Lognonne et al. 2019 (10.1007/s11214-018-0574-6)
       final_bandcode: ''            # will be assigned to all traces of all waveform_files. Leave blank if no change is desired. For bandcode, see: http://www.fdsn.org/pdf/SEEDManual_V2.4.pdfm, Appendix A
 
 

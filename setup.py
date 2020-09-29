@@ -16,9 +16,9 @@ def find_version(*paths):
 setup(
     name             = 'seisglitch',
     version          = find_version('seisglitch', '__init__.py'),
-    keywords         = ["glitches", "seismology", "planet mars"],
+    keywords         = ["glitches", "data disturbances", "seismology", "planet Mars", "InSight mission", "VBB seismometer", "SP seismometer"],
     description      = """
-                       Toolbox to detect, plot, and remove glitches on SEIS' seismometers VBB and SP.
+                       Toolbox to detect, remove, and plot glitches on SEIS' seismometers VBB and SP.
                        This code has been developed in the context of NASA's Discovery mission 'InSight'.
                        """,
     author           = 'John-Robert Scholz',

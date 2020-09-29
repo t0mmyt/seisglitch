@@ -158,43 +158,34 @@ elif mode=='time':
     print()
 
     if convert:
-        time = None
+        print(u"Processing 'convert' option:")        
 
-        try:                # attempt to read as UTC
-            time = util.marstime(UTC=str(convert))
-        except:
-            pass
-
-        if time is None:    # UTC didn't work, attempt as LMST
-            try:
-                time = util.marstime(LMST=str(convert))
-            except:
-                print(u'Could not convert time: Please follow the following formats (h:m:s must not be fully stated):')
-                print(u"For UTC:  'XXXX-XX-XXTxx:xx:xx.x'")
-                print(u"For LMST: 'XXXMxx:xx:xx.x'")
-                sys.exit()
-        print(time)
+        time_converted = util.time_convert(convert)
+        if type(time_converted)!=str and np.isnan(time_converted):
+            print(u'Could not convert time: Please follow the following formats (h:m:s must not be fully stated):')
+            print(u"For UTC:  'XXXX-XX-XXTxx:xx:xx.x'")
+            print(u"For LMST: 'XXXMxx:xx:xx.x'")
+            sys.exit()
+        print(time_converted)
 
     elif file:
-        file_read = np.loadtxt(file, dtype=str)
+        print(u"Processing 'file' option:")        
 
+        file_read = np.loadtxt(file, dtype=str)
         try:
             times = file_read[:,0]
         except IndexError:
             times = file_read
         times_converted = []
 
-        for time in times:
-            try:
-                times_converted.append( util.marstime(UTC=str(time)).LMST_string )
-            except:
-                try:
-                    times_converted.append( util.marstime(LMST=str(time)).UTC_string )
-                except:
-                    times_converted.append(np.nan)
+        for t, time in enumerate(times):
+            time_converted = util.time_convert(time)
+            if type(time_converted)!=str and np.isnan(time_converted):
+                print(u"Time '%s' in input line %d is no valid. Skipped." % (time, t+1))
+            times_converted.append( time_converted )
 
         file_read = np.c_[ file_read, times_converted ]
-        np.savetxt(file, file_read, fmt='%-20s')
+        np.savetxt(file, file_read, fmt='%25s')
         print(u'Finished. Conversions written to new column %s.' % len(file_read[1]))
 
     else:
