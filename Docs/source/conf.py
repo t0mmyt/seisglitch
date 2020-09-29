@@ -35,16 +35,15 @@ copyright = '2020, John-Robert Scholz'
 author    = 'John-Robert Scholz'
 
 # The short X.Y version.
-release = version = ''  # Is set by calling `setup.py docs`
+#release = version = ''  # Is set by calling `setup.py docs`
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
 try:
     from seisglitch import __version__ as version
+    release = version
 except ImportError:
     pass
-else:
-    release = version
 
 
 
