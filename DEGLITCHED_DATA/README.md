@@ -20,7 +20,10 @@ Note further that the timing of the files (start & end times) may slightly diffe
 This is because some groups may have cut files differently and/or merged overlaps prior to processing whilst others did not. 
 These differences are typically not significant, especially for total data lengths of less than 1 day (about 1 sol).
 
-Please remember; if you used the corrected data provided here, please cite:
+For more information on the Mars seismic catalogue curated by the Marsquake Service (MQS), see:  
+https://www.seis-insight.eu/en/science/seis-products/mqs-catalogs
+
+Please remember if you used the corrected data provided here, consider citing:
 
     Scholz, J.-R., Widmer-Schnidrig, R., P. Davis, P. Lognonné, B. Pinot, R. F. Garcia, et al. 
     “Detection, Analysis and Removal of Glitches from InSight’s Seismic Data from Mars.” 
@@ -33,5 +36,4 @@ and:
     Mars from InSight Seismic Data.” Nature Geoscience 13, no. 3 (March 2020), 213–20. 
     https://doi.org/10.1038/s41561-020-0536-y.
 
-For more information on the Mars seismic catalogue curated by the Marsquake Service (MQS), see:  
-https://www.seis-insight.eu/en/science/seis-products/mqs-catalogs
+You can also help the Obspy developers by [citing](https://github.com/obspy/obspy/wiki#acknowledging) their work that this packages heavily relies on.
