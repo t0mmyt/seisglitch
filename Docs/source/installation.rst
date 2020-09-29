@@ -51,6 +51,7 @@ thus creating symbolic links to the module files, avoiding having to re-compile 
 .. _Anaconda: https://docs.anaconda.com/anaconda/install/
 .. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
 
+----
 
 Update / Upgrade
 ================
