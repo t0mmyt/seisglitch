@@ -6,8 +6,8 @@ Installation
 I recommend using ``conda`` to install Python packages. 
 It comes shipped with Anaconda_ (or Miniconda_ for a smaller footprint), a Python 
 distribution that allows to quickly configure a specific Python environment (e.g. specific package versions etc..). 
-If you are interested in the whole Python toolbox, carry out step 1-4.
-If you are aiming for the MATLAB files only, you just need to do step 3. 
+If you are interested in the whole Python toolbox (corresponding to method 'MPS', see `Scholz et al`_., 2020_), carry out step 1-4.
+If you are aiming for the MATLAB files only (corresponding to methods 'ISAE', 'UCLA', or 'IPGP'), you just need to do step 3. 
 
 
 1. Install Anaconda_ or Miniconda_.
@@ -50,6 +50,8 @@ thus creating symbolic links to the module files, avoiding having to re-compile 
 
 .. _Anaconda: https://docs.anaconda.com/anaconda/install/
 .. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
+.. _Scholz et al: https://www.essoar.org/doi/10.1002/essoar.10503314.2
+.. _2020: https://www.essoar.org/doi/10.1002/essoar.10503314.2
 
 ----
 
