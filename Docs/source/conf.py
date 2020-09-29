@@ -80,7 +80,7 @@ exclude_patterns = []
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'  # alabaster, pyramid, haiku, scrolls, classic, nature, sphinx_rtd_theme
-html_logo  =  'glitch.png',
+html_logo  = 'glitch.png',
 
 
 # Theme options are theme-specific and customize the look and feel of a theme
