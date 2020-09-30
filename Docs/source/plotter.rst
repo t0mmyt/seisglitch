@@ -22,8 +22,8 @@ The following plots show an example with 2019 list of glitches detected on the V
 The plots were produced by running the ``glitch_overview_plot`` option.
 
 
-.. image:: overview1.png
+.. image:: _static/overview1.png
     :alt: glitch azimuth and incidence angles
 
-.. image:: overview2.png
+.. image:: _static/overview2.png
     :alt: glitch sphre and histogram
