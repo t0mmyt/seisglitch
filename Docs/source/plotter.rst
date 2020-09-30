@@ -20,7 +20,7 @@ run the plot function from terminal like so:
 
 The following plots show an example with list of glitches on the VBB seismometer detected for 2019
 (this list is not distributed as part of the package, however, a similar list is published as Supplementarty Information 1).
-The following two plots were produced by running the ``glitch_overview_plot`` option.
+The following two plots were produced by running ``glitch_overview_plot``.
 
 
 .. image:: _static/overview1.png

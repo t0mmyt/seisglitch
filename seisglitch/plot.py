@@ -740,7 +740,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
 
     ax.set_theta_direction(-1)
     ax.set_theta_zero_location('N')
-    ax.set_thetagrids([0,15,37,70,90,105,114,135,157,180,251,255,270,277,345.5], labels=['','LSA/VBBV\n(15°)','LVL1\n(37°)', r'HP$^{3}$'+'\n(70°)','','SP2\n(105°)','WTS E\n(114°)',r'VBBU'+'\n(135°)','LVL2\n(157°)','','WTS W (251°)','VBBW\n(255°)','','LVL3\n(277°)','SP3/WTS N\n(345°)'], size=10)
+    ax.set_thetagrids([0,15,37,70,90,105,114,135,157,180,251,255,270,277,345.5], labels=['','LSA/VBBV\n(15°)','LVL1\n(37°)', r'HP$^{3}$'+'\n(70°)','','SP2\n(105°)','WTS E\n(114°)',r'VBBU'+'\n(135°)','LVL2\n(157°)','','\nWTS W\n(251°)','VBBW\n(255°)','','LVL3\n(277°)','SP3/WTS N\n(345°)'], size=10)
 
     #ax.set_rgrids([0.1,0.4,0.7,1], labels=['Hmin','','','Hmax'], size=6)
     ax.set_ylim( [min(sols_range)-0.1*(max(sols_range)-min(sols_range)), max(sols_range)+0.1*(max(sols_range)-min(sols_range))] )

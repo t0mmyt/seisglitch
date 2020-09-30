@@ -133,7 +133,7 @@ process:                             # waveform files are those defined in top o
       pre_filt: False                # Set to False or: (f0, f1, f2, f3), whcih applies a cosine filter
       water_level: 60                # in db. If both options 'pre_filt' and 'water_level' are given, both are applied.
     rotate2zne: True                 # to rotate, you must set either `gain_correction`=True or `unit`!='None'
-    decimate:                        # decimate seismic data (only for SEIS' VBB & SP data), using SAC FIR-coefficients: current decimation factors implemented: 2 .. 7!
+    decimate:                        # decimate seismic data, works only for SEIS' VBB & SP data as SAC FIR-coefficients are used, i.e. no phase delay is introduced: implemented decimation factors: 2 .. 7!
       decimation_factors: []         # processed in entered order (use "decimation_factors:[1]" to only change location or bandcode of waveform_files). Nothing done if list is empty.
       final_location: ''             # will be assigned to all traces of all waveform_files. Leave blank if no change is desired. For SEIS channel names, see: Lognonné et al. (2019), DOI: 10.1007/s11214-018-0574-6.
       final_bandcode: ''             # will be assigned to all traces of all waveform_files. Leave blank if no change is desired. For bandcode, see: http://www.fdsn.org/pdf/SEEDManual_V2.4.pdfm, Appendix A
