@@ -4,7 +4,7 @@ seisglitch detect
 =================
 
 The detect function allows detect the glitches in the VBB and SP waveform files. 
-This is a necessary step if you want remove glitches (and spikes), as the removal function
+This is a necessary step if you want remove glitches (and spikes), as the :ref:`removal function <remove>` 
 takes the output of the glitch detection as input. 
 The glitch detector is also responsible for the calculation of the glitch azimuths and incidence angles 
 needed for certain plots in the :ref:`plot function <plot>`.
@@ -42,7 +42,7 @@ There are only two parameters that really affect the sensitivity of the glitch d
 * ``glitch_min_polarization``: can be between 0 and 1, where 1 is full linear polarization and 0 circular polarization. Glitches - given they represent acceleration steps seen by the sensors - have a high, linear polarization. The lower you choose this parameter (e.g., 0.9), the more glitch candidates will pass and indeed be declared as glitch. In combination with ``threshold`` this should minimize potential false-positives, however, some certainly remain. Note the polarization analysis is performed on the original, gain corrected raw data rotated into the ZNE-system, i.e., no downsampling of the input data is done for this analysis. Table 1 summarizes sensible ranges for two parameters ``threshold`` and ``glitch_min_polarization``.
 
 
-.. list-table:: Table 1: Sensible ranges for the two most important parameters influencing the performance of glitch detection; 'strict' results in less detections, 'lax' results in more detections. Stricter settings typically result in slightly faster run times as e.g. polarization calculations are performed for less glitch candidates etc..
+.. list-table:: Table 1: Sensible ranges for the two most important parameters influencing the performance of glitch detection; 'strict' results in less detections, 'lax' results in more detections. Stricter settings result in slightly faster run times as e.g. polarizations are calculated for less glitch candidates.
    :widths: 25 25 50 50
    :header-rows: 1
 
@@ -56,7 +56,7 @@ There are only two parameters that really affect the sensitivity of the glitch d
      - 0.98
    * - 
      - lax
-     - 0.5 x 10:sup:`-9` ms:sup:`-3`
+     - 0.5 x 10: sup:`-9` ms: sup:`-3`
      - 0.85
    * - **SP**
      - strict
