@@ -3,7 +3,7 @@
 Installation
 ============
 
-I recommend using ``conda`` to install Python packages. 
+We recommend using ``conda`` to install Python packages. 
 It comes shipped with Anaconda_ (or Miniconda_ for a smaller footprint), a Python 
 distribution that allows to quickly configure a specific Python environment (e.g. specific package versions etc..). 
 If you are interested in the whole Python toolbox (corresponding to method 'MPS', see `Scholz et al`_., 2020_), carry out step 1-4.

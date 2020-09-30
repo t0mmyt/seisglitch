@@ -14,8 +14,8 @@ The time formats should follow:
 
 In the ``config.yml`` you have two options:
 
-1. file - if you want to convert many times you can pass a text file with your times to be converted listed in a column, or 
-2. convert - if you just want to convert one time you can pass it with the result immediately printed. 
+1. `file` - if you want to convert many times you can pass a text file with your times to be converted listed in the first column, or 
+2. `convert` - if you just want to convert one time you can pass it with the result immediately printed. 
 
 For specifics regarding each option see the config.yml. 
 After having entered the `time` options in the ``config.yml``,
