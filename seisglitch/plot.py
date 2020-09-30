@@ -694,7 +694,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
 
 
     ### FIGURE 1
-    fig1 = plt.figure(figsize=(14,7))
+    fig1 = plt.figure(figsize=(15,7))
     fig1.canvas.set_window_title('Glitch overview plot 1')
     fig1.suptitle('Overview plotter: Sols=%s..%s, %s glitches' % (sols_range[0], sols_range[-1], len(all_glitches)), fontsize=12, y=0.99)
     fig1.subplots_adjust(wspace=0.4, hspace=0.4)
@@ -783,7 +783,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
 
 
     ### FIGURE 2
-    fig2 = plt.figure(figsize=(14,7))
+    fig2 = plt.figure(figsize=(15,7))
     fig2.canvas.set_window_title('Glitch overview plot 2')
     fig2.suptitle('Overview plotter: Sols=%s..%s, %s glitches' % (sols_range[0], sols_range[-1], len(all_glitches)), fontsize=12, y=0.99)
     fig2.subplots_adjust(wspace=0.4, hspace=0.4)

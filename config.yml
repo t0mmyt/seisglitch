@@ -53,7 +53,6 @@ remove:                                   # all waveform files defined in top of
 ### PLOT GLITCH FUNCTION
 plot:                                          # any waveform files maybe used are those defined in top of this config file
   glitch_detector_files:                       # list here the files given by the detector module. These detected glitches will be use for plotting. You can specify multiple files.
-    #- Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
     - /home/scholz/Desktop/data/glitchesVBB_2019.txt
 
   plotter:                                     # general options that are used for all plot types specified further below.
