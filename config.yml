@@ -29,7 +29,7 @@ detect:
 
 
 ### REMOVE GLITCH FUNCTION
-remove:                                   # waveform files are those defined in top of this config file
+remove:                                   # all waveform files defined in top of this config file are attempted to be cleaned in given order
 
   glitch_detector_files:                  # each detected glitch, no matter on which component detected, will attempted to be removed on each component!
     - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  

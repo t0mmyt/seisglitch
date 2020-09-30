@@ -4,22 +4,20 @@ seisglitch remove
 =================
 
 
-The remove function allows to remove the glitches from the waveform files. 
-As input the functions needs a glitch list as produced by the glitch detector module. 
-Multiple glitch lists can also be passed.
-To run the remover, activate your correct Python :ref:`environment <installation>`, fill the options
-in the ``config.yml`` under the section ``remove``, then run from terminal:
+The remove function allows to remove the glitches from the raw waveform files. 
+As input the functions needs a glitch list as produced by the glitch :ref:`detector module <detect>`. 
+Multiple output files of the detect function can also be passed (one file, multiple files, or multiple files :ref:`merged <merge>` into one)
+To run the remover, activate your correct Python :ref:`environment <installation>`, fill the ``remove`` options
+in the ``config.yml``, then run from terminal:
 ::
 
     seisglitch remove path/to/config.yml
 
 The glitch remover is now running according to your specifications.
-The general working principle of the glitch removal is described in our paper, Section Glitch Removal (MPS).
+Cleaned data can take up more storage, as glitch fitting for subsequent removal required to introduce float RAW values.
+The general working principle of the glitch removal is described in `Scholz et al`_, (2020_), Section Glitch Removal (MPS method).
 
-In the following, the glitch detector's parameters (that you find in the ``config.yml``) are explained 
-a bit more:
-
-Cleaned data can take up more storage, as fitting required to set important as glitch removal introduces float RAW values
+In the following, the glitch detector's parameters (that you find in the ``config.yml``) are detailed:
 
 
 * ``glitch_window_leftright``: in seconds, data window appended left and right to window of detected glitch (i.e., start and end time of glitches from the glitch detector files), building the overall window glitch fits are attempted. Whilst the glitch detection mostly delivers accurate glitch starts, meaning this parameter can be chosen smaller, for some glitches it can help increasing this parameter as the glitch onsets may not have been detected cleanly. 
@@ -33,4 +31,8 @@ Cleaned data can take up more storage, as fitting required to set important as g
 * ``var_reduction_total``: in %. Minimum total variance reduction to be achieved if fit (either only glitch or glitch+spike) shall be removed. 80% is default.
 * ``show_fit``: Attention, if True, an interactive plot is shown for each attempted fit on each component!
 * ``store_glitches``: If True, also the corrections that were subtracted from the data are saved to file.
-* ``plot_removal_statistic``: If True, two interactive plots are shown summarizing overall statistics of deglitching. These plots are not perfectionized though.
+* ``plot_removal_statistic``: If True, two interactive plots are shown summarizing overall statistics of deglitching. These plots are not perfected though.
+
+
+.. _Scholz et al: https://www.essoar.org/doi/10.1002/essoar.10503314.2
+.. _2020: https://www.essoar.org/doi/10.1002/essoar.10503314.2
