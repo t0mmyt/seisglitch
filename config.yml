@@ -21,7 +21,7 @@ detect:
       options: {'freqmin':0.001, 'freqmax':0.1, 'corners':3, 'zerophase':True}
       string: '0.001 < f < 0.1'           # name your filter as you like. This will be used for output information only.
     threshold: 0.5e-9                     # triggering threshold of derivative of filtered acceleration data. Unit therefore is m/s**3. More sensitive setting would be e.g.: 0.2e-9
-    plot_triggering: False                # if True, trigger plot is shown (one for each component. These glitch candidates are not yet time unified and checked against polarization)
+    plot_triggering: False                # if `True`, trigger plot is shown (one for each component. These glitch candidates are not yet time unified and checked against polarization)
     glitch_min_length: 5                  # In seconds. minimum distance in seconds between 2 glitches. Before that, no new glitch can be declared
     glitch_length: 25                     # In seconds. Only used to declare glitch end time. Choose < 100 s. For VBB 25s is fine, for SP 50 s is fine.
     glitch_min_polarization: 0.91         # applied to calculated polarization of gain corrected raw data rotated into ZN. Set:0 if not wished. Less sensitive setting would be e.g.: 0.95
@@ -31,22 +31,22 @@ detect:
 ### REMOVE GLITCH FUNCTION
 remove:                                   # all waveform files defined in top of this config file are attempted to be cleaned in given order
 
-  glitch_detector_files:                  # each detected glitch, no matter on which component detected, will attempted to be removed on each component!
+  glitch_detector_files:                  # each glitch, no matter on which component detected, will be attempted to be removed on each component!
     - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
 
   remover:                                # 'inventory_file' is taken from the detect module. From it the instrument response is extracted. ATTENTION: InSight meta-data use many epochs!
-    glitch_window_leftright      : 2      # in seconds, data window appended left and right to detected glitch, building the overall window the glitch fits are performed.
-    glitch_prepend_zeros         : 0      # in seconds, length of zeros prepended to glitch model. This can help improving fits. This time is added to to data window corresponding to 'glitch_window_leftright'.
+    glitch_window_leftright      : 2      # in seconds, data window appended left and right to detected glitch, building the overall window the glitch fits are performed in.
+    glitch_prepend_zeros         : 0      # in seconds, length of zeros prepended to glitch model. This can help improving fits. This time is added to to data window corresponding to `glitch_window_leftright`.
     glitch_interpolation_samples : 0      # integer, if not 0, data glitches are fitted with acceleration steps of non-zero rise times with this amount of samples maximum in between (attempted in steps of 10 samples). If not 0, algorithm is significantly slower!
     glitch_subsample_factor      : 1      # integer, determines how many times between two samples a glitch shall be modeled. For glitches 1 is OK. Default is one.
-    spike_fit                    : True   # If True, attempt to fit spike after glitch fit. If True, removal takes longer. If False, all other spike options are omitted.
+    spike_fit                    : True   # if `True`, attempt to fit spike after glitch fit. If `True`, removal takes longer. If False, all other spike options are omitted.
     spike_subsample_factor       : 2      # integer, determines how many times between two samples a glitch spike shall be modeled. For spikes 5 or higher may significantly improve their fits but is slower.
     spike_fit_samples_leftright  : 7      # samples left and right around fitted glitch onset where it is attempted to fit spike. Larger is slower. Default is 7.
     var_reduction_spike          : 2      # in %. Minimum spike variance reduction to be achieved if spike fit shall be removed. 2% is default.
     var_reduction_total          : 80     # in %. Minimum total variance reduction to be achieved if fit (either only glitch or glitch+spike) shall be removed. 80% is default
     show_fit                     : False  # Attention, if True, an interactive plot is shown for each attempted fit on each component!
-    store_glitches               : False  # If True, also the corrections that were subtracted from the data are saved to a different file (output will have same file format as input file).
-    plot_removal_statistic       : False  # If True, two interactive plots are shown summarising overall statistics of deglitching
+    store_glitches               : False  # if `True`, also the corrections that were subtracted from the data are saved to a different file (output will have same file format as input file).
+    plot_removal_statistic       : False  # if `True`, two interactive plots are shown summarising overall statistics of deglitching
 
 
 

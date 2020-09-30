@@ -24,10 +24,10 @@ The following plots show an example using a list of VBB glitches detected for 20
 The following two plots were produced by running ``glitch_overview_plot``.
 
 
-.. image:: _static/overview1.png
+.. image:: _static/overview_glitch_1.png
     :alt: glitch azimuth and incidence angles
 
-.. image:: _static/overview2.png
+.. image:: _static/overview_glitch_2.png
     :alt: glitch polarization sphere and histogram
 
 

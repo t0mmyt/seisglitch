@@ -54,7 +54,7 @@ def detect(*RAW_UVW,
     ACCfilter               = {'type' : 'bandpass',  'options' : {'freqmin':0.001, 'freqmax':0.1}, 'string':'0.001 < f < 0.1'},
     threshold               = 1e-10,
     plot_triggering         = False,
-    glitch_min_length         = 5, 
+    glitch_min_length       = 5, 
     glitch_length           = 20,
     glitch_min_polarization = 0.9, 
     **kwargs):

@@ -17,7 +17,7 @@ Data preparation
 
 Your waveform data should all comply with the following conditions:
 
-* each waveform file must contain all three seismic components (i.e., "U", "V", "W" of either the VBB or SP seismometer). That is, if you have individual files for each component you must merge them into **one** file before. For data retrieval, see e.g. :ref:`download`.
+* each waveform file must contain all three seismic components (i.e., "U", "V", "W" of either the VBB or SP seismometer). That is, if you have individual files for each component you must merge them into *one* file before. For data retrieval, see e.g. :ref:`download`.
 * each waveform file must be readable as seismological file (e.g. MSEED, SAC, ...)
 
 
