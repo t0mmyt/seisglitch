@@ -36,4 +36,4 @@ and:
     Mars from InSight Seismic Data.” Nature Geoscience 13, no. 3 (March 2020), 213–20. 
     https://doi.org/10.1038/s41561-020-0536-y.
 
-You can also help the Obspy developers by [citing](https://github.com/obspy/obspy/wiki#acknowledging) their work that this packages heavily relies on.
+You can also help the Obspy developers by [citing](https://github.com/obspy/obspy/wiki#acknowledging) their work that the seisglitch package heavily relies on.

@@ -54,11 +54,14 @@ used the corrected data provided along with this package, please consider citing
     Mars from InSight Seismic Data.” Nature Geoscience 13, no. 3 (March 2020), 213–20. 
     https://doi.org/10.1038/s41561-020-0536-y.
 
+You can also help the Obspy developers by citing_ their work that the seisglitch package heavily relies on.
+
 NOTE: Along with this package also come deglitched data for a selection of seismic events. 
 These corrected raw data will automatically be on your machine if you follow the :ref:`installation`.
 If you just want to quickly download the deglitched data, go here_.
 
 .. _ObsPy: https://github.com/obspy/obspy/wiki
+.. _citing: https://github.com/obspy/obspy/wiki#acknowledging
 .. _here: https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch/tree/master/DEGLITCHED_DATA
 """
 
