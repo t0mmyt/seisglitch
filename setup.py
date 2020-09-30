@@ -32,10 +32,8 @@ setup(
     name             = 'seisglitch',
     version          = version,
     keywords         = ["glitches", "data disturbances", "seismology", "planet Mars", "InSight mission", "VBB seismometer", "SP seismometer"],
-    description      = """
-                       Toolbox to detect, remove, and plot glitches on SEIS' seismometers VBB and SP.
-                       This code has been developed in the context of NASA's Discovery mission 'InSight'.
-                       """,
+    description      = """Toolbox to detect, remove, and plot glitches on SEIS' seismometers VBB and SP. This code has been developed in the context of NASA's Discovery mission 'InSight'.""",
+    long_description = """Toolbox to detect, remove, and plot glitches on SEIS' seismometers VBB and SP. This code has been developed in the context of NASA's Discovery mission 'InSight'.""",
     author           = 'John-Robert Scholz',
     maintainer       = 'John-Robert Scholz',
     maintainer_email = 'john.robert.scholz@gmail.com',
@@ -45,6 +43,8 @@ setup(
                         'Programming Language :: Python :: 3.7',
                         'License :: OSI Approved :: MIT License',
                         'Operating System :: OS Independent'],
+    platforms        = [],
+    setup_requires   = [],
     python_requires  =  '>=3.7',
     install_requires = ['numpy==1.16'],
     packages         = ['seisglitch'],
