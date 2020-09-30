@@ -694,9 +694,9 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
 
 
     ### FIGURE 1
-    fig1 = plt.figure(figsize=(17,8))
+    fig1 = plt.figure(figsize=(14,7))
     fig1.canvas.set_window_title('Glitch overview plot 1')
-    fig1.suptitle('Overview plotter: Sols=%s..%s, %s glitches' % (sols_range[0], sols_range[-1], len(all_glitches)), fontsize=11, y=0.99)
+    fig1.suptitle('Overview plotter: Sols=%s..%s, %s glitches' % (sols_range[0], sols_range[-1], len(all_glitches)), fontsize=12, y=0.99)
     fig1.subplots_adjust(wspace=0.4, hspace=0.4)
     fig1.canvas.mpl_connect('pick_event', onpick)
     if outfile:
@@ -734,13 +734,13 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
     sizes = normalise(sizes, scale_to_between=[5,20])
 
     ax   = fig1.add_subplot(121, polar=True)
-    ax.set_title('Back-azimuths', pad=20, size=10)
+    ax.set_title('Back-azimuths', pad=20, size=11)
     ax.spines['polar'].set_visible(False)
     ax.tick_params(pad=5)
 
     ax.set_theta_direction(-1)
     ax.set_theta_zero_location('N')
-    ax.set_thetagrids([0,15,37,70,90,105,114,135,157,180,251,255,270,277,345.5], labels=['','LSA/VBBV\n(15°)','LVL1\n(37°)', r'HP$^{3}$'+'\n(70°)','','SP2\n(105°)','WTS E\n(114°)',r'VBBU'+'\n(135°)','LVL2\n(157°)','','WTS W (251°)','VBBW\n(255°)','','LVL3\n(277°)','SP3/WTS N\n(345°)'], size=8)
+    ax.set_thetagrids([0,15,37,70,90,105,114,135,157,180,251,255,270,277,345.5], labels=['','LSA/VBBV\n(15°)','LVL1\n(37°)', r'HP$^{3}$'+'\n(70°)','','SP2\n(105°)','WTS E\n(114°)',r'VBBU'+'\n(135°)','LVL2\n(157°)','','WTS W (251°)','VBBW\n(255°)','','LVL3\n(277°)','SP3/WTS N\n(345°)'], size=10)
 
     #ax.set_rgrids([0.1,0.4,0.7,1], labels=['Hmin','','','Hmax'], size=6)
     ax.set_ylim( [min(sols_range)-0.1*(max(sols_range)-min(sols_range)), max(sols_range)+0.1*(max(sols_range)-min(sols_range))] )
@@ -758,7 +758,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
     sizes = normalise(sizes , scale_to_between=[5,20])
 
     ax = fig1.add_subplot(122, polar=True)
-    ax.set_title('Incidence angles', pad=20, size=10)
+    ax.set_title('Incidence angles', pad=20, size=11)
     ax.spines['polar'].set_visible(False)
     ax.tick_params(pad=5)
 
@@ -766,7 +766,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
     ax.set_theta_zero_location('N')
     ax.set_thetamin(0)
     ax.set_thetamax(180)
-    ax.set_thetagrids([0,48.5,60.5,90,131.5,119.5,180], labels=['0°','48.5°','VBB\n(60.5°)','90°','131.5°','VBB\n(119.5°)'], size=8)
+    ax.set_thetagrids([0,48.5,60.5,90,131.5,119.5,180], labels=['0°','48.5°','VBB\n(60.5°)','90°','131.5°','VBB\n(119.5°)'], size=10)
 
     #ax.set_rgrids([0.1,0.4,0.7,1], labels=['Zmin','','','Zmax'], fontsize=6)
     ax.set_ylim( [min(sols_range)-0.1*(max(sols_range)-min(sols_range)), max(sols_range)+0.1*(max(sols_range)-min(sols_range))] )
@@ -783,9 +783,9 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
 
 
     ### FIGURE 2
-    fig2 = plt.figure(figsize=(17,8))
+    fig2 = plt.figure(figsize=(14,7))
     fig2.canvas.set_window_title('Glitch overview plot 2')
-    fig2.suptitle('Overview plotter: Sols=%s..%s, %s glitches' % (sols_range[0], sols_range[-1], len(all_glitches)), fontsize=11, y=0.99)
+    fig2.suptitle('Overview plotter: Sols=%s..%s, %s glitches' % (sols_range[0], sols_range[-1], len(all_glitches)), fontsize=12, y=0.99)
     fig2.subplots_adjust(wspace=0.4, hspace=0.4)
     fig2.canvas.mpl_connect('pick_event', onpick)
 
@@ -802,7 +802,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
     sizes = normalise(sizes, scale_to_between=[5,20])
 
     ax = fig2.add_subplot(121, projection='3d')
-    ax.set_title('3-D Polarizations', y=1.10, size=10)
+    ax.set_title('3-D Polarizations', y=1.10, size=11)
     ax.view_init(elev=15., azim=-50)
     ax.set_xlabel('E', labelpad=2, fontsize=8)
     ax.set_ylabel('N', labelpad=2, fontsize=8)
