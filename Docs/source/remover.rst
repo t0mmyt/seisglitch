@@ -4,7 +4,7 @@ seisglitch remove
 =================
 
 
-The remove function allows you to remove the glitches from the waveform files. 
+The remove function allows to remove the glitches from the waveform files. 
 As input the functions needs a glitch list as produced by the glitch detector module. 
 Multiple glitch lists can also be passed.
 To run the remover, activate your correct Python :ref:`environment <installation>`, fill the options

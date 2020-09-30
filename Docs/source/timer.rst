@@ -4,7 +4,7 @@ seisglitch time
 ===============
 
 
-The time function allows you to convert times both ways between UTC (earth time) and InSight's local mean solar time (LMST).
+The time function allows to convert times both ways between UTC (earth time) and InSight's local mean solar time (LMST).
 Note that InSight landed on Mars on November 26, 2018 (Sol 0, a sol is a Martian day with around 24h 40m).
 
 The time formats should follow:

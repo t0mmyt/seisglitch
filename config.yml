@@ -4,7 +4,7 @@
 # Waveform formats understood: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-format
 # Use 'download' module of this toolbox to retrieve data and inventory if desired.
 inventory_file: 'IRIS'  
-waveform_files:
+waveform_files:                           # you can specify multiple files
   - Example/XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.mseed
 
 
@@ -52,11 +52,12 @@ remove:                                   # waveform files are those defined in 
 
 ### PLOT GLITCH FUNCTION
 plot:                                          # any waveform files maybe used are those defined in top of this config file
-  glitch_detector_files:                       # list here the files given by the detector module. These detected glitches will be use for plotting.
-    - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
+  glitch_detector_files:                       # list here the files given by the detector module. These detected glitches will be use for plotting. You can specify multiple files.
+    #- Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
+    - /home/scholz/Desktop/data/glitchesVBB_2019.txt
 
   plotter:                                     # general options that are used for all plot types specified further below.
-    show: True                                 # if False, no plots will be shown but stored if 'outfile' is specified for the desired plot (and 'run' is True).
+    show: True                                 # if False, no plots will be shown but stored if 'outfile' is specified for the desired plot (and `run` is True). This allows for quick automated plot generation.
     components: 'UVW'                          # select glitches of certain components only. Use '1' for glitches on one component only. Use 'U' for U-glitches only. 'UV' etc. works as well. Empty means 'UVW'.
     sols: []                                   # select glitches to range of sols (InSight frame). Give two integers; first minimum and second maximum Sol desired
     LMST_range: ['00:00:00', '24:00:00']       # select glitches to certain LMSTimes only. E.g.: ['17:17:15' to '1800' or '2000' to 030000]
@@ -80,14 +81,14 @@ plot:                                          # any waveform files maybe used a
     outfile:                                   # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored (if `run` is True). Path to file must exist.
 
   glitch_detector_plot:                        # plot original data + detected glitches. Only seismic input traces will be shown.
-    run: True                                  # Must be set to `True` if you want this plot.
+    run: False                                  # Must be set to `True` if you want this plot.
     window:                                    # window length in hours. Windows are slided in 95% steps. If not given, default is 25 hours (~1 sol).
     starttime:                                 # Start time (can use either UTC or LMST format) to truncate data (including glitches) to be plotted.
     endtime:                                   # End time (can use either UTC or LMST format) to truncate data (including glitches) to be plotted.
     outfile:                                   # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored (if `run` is True). Path to file must exist.
 
-  glitch_overview_plot:                        # plot glitch azimuths, incidences and histogram. Click on dots to get information printed into shell.
-    run: False                                 # Must be set to `True` if you want this plot.
+  glitch_overview_plot:                        # plot glitch azimuths, incidences and histogram. Click on dots to get information printed into shell and open polarization plot.
+    run: True                                 # Must be set to `True` if you want this plot.
     outfile:                                   # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored. Path to file must exist.
 
   glitch_SOLoverLMST_plot:                     # plot glitch sols over respective LMST times. Click on dots to get information printed into shell.
@@ -102,7 +103,7 @@ plot:                                          # any waveform files maybe used a
   glitch_ppol_plot:                            # plot linear polarization analysis (waveform data, inventory_file & glitch length are taken from detect module).
     run: False                                 # Must be set to `True` if you want this plot.
     glitch_start: '2019-05-23T02:23:16'        # in principle, you can specify here any time you like (must not actual be detected glitch, but given time should be available in waveform data).
-    glitch_length: 25                          # time length in s that polazitation analysis of glitch (or generally data) is performed on, starting from 'glitch_start'
+    glitch_length: 25                          # time length in s that polarization analysis of glitch (or generally data) is performed on, starting from 'glitch_start'
     outfile:                                   # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored (if `run` is True). Path to file must exist.
 
 

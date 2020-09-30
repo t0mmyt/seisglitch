@@ -3,7 +3,7 @@
 seisglitch detect
 =================
 
-The detect function allows you detect the glitches on the waveform files. 
+The detect function allows detect the glitches on the waveform files. 
 This is a necessary step if you want remove glitches (and spikes), as the removal function
 takes the output of the glitch detection as input. 
 The glitch detector is also responsible for the calculation of glitch azimuths and incidence angles that

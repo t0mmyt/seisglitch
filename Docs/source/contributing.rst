@@ -1,2 +1,2 @@
 .. _changes:
-.. include:: ../../CONTRIBUTIONS
+.. include:: ../../CONTRIBUTING
