@@ -25,7 +25,7 @@ In the following, the glitch detector's parameters (that you find in the ``confi
 * ``pre_filt``: used to deconvolute instrument response.
 * ``water_level``: used to deconvolute instrument response. If both specified (`pre_filt` as well), both are performed.
 * ``ACCfilter``: dictionary specifying the type of filter_ used for the acceleration data. There is no obvious reason to change the default (bandpass: 0.001 - 0.1 Hz).
-* ``threshold``: used to trigger glitches on the derivative of the filtered acceleration data (filtered jerk). Unit is therefore m/s**3. Applied to positive and negative filtered jerk.
+* ``threshold``: used to trigger glitches on the derivative of the filtered acceleration data (filtered jerk). Unit is therefore ms:sup:`-3`. Applied to positive and negative filtered jerk.
 * ``plot_triggering``: If `True`, a plot is shown in between that shows all glitch triggers that passed the threshold condition. These candidates are not yet checked against their polarization.
 * ``glitch_min_length``: In seconds. Defines the minimum length in which a new glitch cannot be detected once a glitch has been declared. 5 seconds is fine. This parameter allows to detect "poly-glitches".
 * ``glitch_length``: Fixed, in seconds. For VBB 25 seconds is fine, for SP 50 seconds is fine.
@@ -39,10 +39,10 @@ There are only two parameters that really affect the sensitivity of the glitch d
 * ``threshold``: the lower you choose it, the more often it triggers on the filtered jerk (remember, glitches are steps in acceleration, meaning their derivative should be like a delta-impulse whilst all other signals should not be delta-like). Obviously, at some stage, these triggers do not represent glitches anymore but signal / seismic noise. The threshold therefore should be chosen high enough to not trigger noise but low enough to detect small glitches, too (for smaller glitches, there are hundreds per Martian day in the VBB data). Keep further in mind that seismic amplitudes vary significantly during a Martian day (weather influence, amplitudes may change by a factor of 100 and more) so this complicates glitch detections. To circumvent, each glitch candidate is checked for its linear polarization (should be high for glitches). That is, the following parameter also has influence:
 * ``glitch_min_polarization``: can be between 0 and 1, where 1 means full linear polarization. The lower you choose it (e.g., 0.9), the more candidates will pass and be declared as glitch. In combination with ``threshold`` this should minimize potential false-positives, however, some certainly remain. Note the polarization analysis is performed on the gain corrected raw data rotated into the ZNE-system (no downsampling for this analysis).
 
-The following table summarizes good values:
+In our experience, for the VBB seismometer, ``threshold`` may range from 2E-09 to 0.5e-9  ms:sup:`-3`, i.e., the latter leading to more triggers (if the given filter is used: acausal, 3rd order, Butterworth 0.001-0.1 Hz). For SP, this parameter should generally be chosen a bit higher than for VBB, e.g. 5e-9  ms:sup:`-3`. Smaller thresholds take longer calculation times as more glitch candidates will be processed (e.g. checked for their polarization). However, typically the whole glitch detection may take up only 2 minutes per 24 hours of data. The reason is internally all input data are decimated to 2 (or 2.5) SPS data prior to detection. Only the polarization analysis of glitch candidates is performed on the raw, unfiltered input data in the sampling rate provided!  For the parameter ``glitch_min_polarization``, values may range 0.90 to 0.98, i.e. coarse to strict settings. That should work OK for both VBB and SP. The following table summarizes good values:*
 
 
-.. list-table:: Sensible ranges of the two most importanted glitch detection parameters.
+.. list-table:: Table 1: Sensible ranges of the two most important parameters influencing the glitch detection.
    :widths: 25 25 50 50
    :header-rows: 1
 
@@ -50,15 +50,15 @@ The following table summarizes good values:
      - 
      - ``threshold``
      - ``glitch_min_polarization``
-   * - VBB
+   * - **VBB**
      - strict
-     - 2E-09
+     - 2.0E-09
      - 0.98
    * - 
      - lax
-     - 0.5 E-09
+     - 0.5E-09
      - 0.90
-   * - SP
+   * - **SP**
      - strict
      - 
      - 
@@ -66,14 +66,6 @@ The following table summarizes good values:
      - lax
      - 
      - 
-
-In our experience, for the VBB seismometer, ``threshold`` may range from 2E-09 to 0.5e-9 m/s**3, i.e., the latter leading to more triggers 
-(if the given filter is used: acausal, 3rd order, Butterworth 0.001-0.1 Hz). 
-For SP, this parameter should generally be chosen a bit higher than for VBB, e.g. 5e-9 m/s**3.
-Smaller thresholds take longer calculation times as more glitch candidates will be processed (e.g. checked for their polarization).
-However, typically the whole glitch detection may take up only 2 minutes per 24 hours of data. The reason is internally all input data are decimated to 2 (or 2.5) SPS data prior to detection. 
-Only the polarization analysis of glitch candidates is performed on the raw, unfiltered input data in the sampling rate provided! 
-For the parameter ``glitch_min_polarization``, values may range 0.90 to 0.98, i.e. coarse to strict settings. That should work OK for both VBB and SP.
 
 
 .. _filter: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.filter.html
