@@ -5,19 +5,18 @@ seisglitch time
 
 
 The time function allows to convert times both ways between UTC (earth time) and InSight's local mean solar time (LMST).
-Note that InSight landed on Mars on November 26, 2018 (Sol 0, a sol is a Martian day with around 24h 40m).
+Note that InSight landed on Mars on November 26, 2018 (Sol 0). A sol is a Martian day with around 24h 40m.
 
 The time formats should follow:
 
-* UTC: 2019-05-23T02:23:16
+* UTC:  2019-05-23T02:23:16
 * LMST: 173M02:58:53 (where 173 is Sol 173 with respect to the InSight landing)
 
 In the ``config.yml`` you have two options:
 
 1. `file` - if you want to convert many times you can pass a text file with your times to be converted listed in the first column, or 
-2. `convert` - if you just want to convert one time you can pass it with the result immediately printed. 
+2. `convert` - if you just want to convert one time you can pass it with the result immediately printed into shell. 
 
-For specifics regarding each option see the config.yml. 
 After having entered the `time` options in the ``config.yml``,
 run the time function from terminal like so:
 ::

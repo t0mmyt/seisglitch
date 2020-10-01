@@ -57,7 +57,7 @@ There are only two parameters that really affect the sensitivity of the glitch d
      - 0.98
    * - 
      - lax
-     - 0.5 x 10: sup:`-9` ms: sup:`-3`
+     - 0.5 x 10 :sup:`-9` ms :sup:`-3`
      - 0.85
    * - **SP**
      - strict

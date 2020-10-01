@@ -7,8 +7,8 @@ seisglitch process
 The process function allows to apply some automated, basic processing to the targeted waveforms.
 Currently implemented is:
 
-* removing gain from seismic traces
-* removing instrument response of seismic traces
+* removing gain from seismic raw data
+* removing instrument response from seismic raw data
 * rotate non-orthogonal UVW components into ZNE-system
 * decimate data with FIR-coefficients
 
