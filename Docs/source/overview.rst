@@ -56,3 +56,4 @@ Access them from your terminal like so:
     seisglitch time path/to/config.yml
 
 Each of these seven functions has a dedicated section in the ``config.yml``.
+On the following pages, the seven functions are explained in more detail.

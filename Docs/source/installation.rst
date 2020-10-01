@@ -64,7 +64,7 @@ Open a terminal (Windows: Anaconda powershell) and type::
     git pull
     pip install .              # (or pip install -e .)
 
-If you are aiming only for the potentially updated MATLAB files or updated deglitched data, you just need to do::
+If you are aiming only for the potentially updated MATLAB files or more recent versions of deglitched data, you just need to do::
 
     cd your/seisglitch/folder  # see Installation
     git pull

@@ -58,7 +58,7 @@ used the corrected data provided along with this package, please consider citing
 
 You can also help the Obspy developers by citing_ their work that the seisglitch package heavily relies on.
 
-NOTE: Along with this package also come deglitched data for a selection of seismic events. 
+Note: Along with this package also come deglitched data for a selection of seismic events. 
 These corrected raw data will automatically be on your machine if you follow the :ref:`installation`.
 If you just want to quickly download the deglitched data, go here_.
 

@@ -22,8 +22,8 @@ run the plot function from terminal like so:
 The following plots show the VBB glitches detected for 2019, produced via the option ``glitch_overview_plot``.
 The used list of glitches is not distributed as part of this package but a 
 similar one is published in the Supplementary Information 1.
-In interactive mode you could click on the colored dots and information about the chosen glitch are printed
-into shell. Additionally a plot showing the glitch polarization is opened.
+For the first plot in interactive mode you could click on the colored dots and information about the chosen glitch are printed
+into shell. Additionally, a plot showing the glitch polarization analysis is opened.
 
 
 .. image:: _static/overview_glitch_1.png
