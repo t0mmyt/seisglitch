@@ -6,7 +6,7 @@ Overview
 Once ``seisglitch`` is :ref:`installed <installation>`, all you have to do is:
 
 * prepare the data
-* setup of ``config.yml`` file that came with the download
+* enter your options in the ``config.yml`` file that came with the download
 * execute the intended ``seisglitch`` function
 
 
@@ -15,11 +15,10 @@ Once ``seisglitch`` is :ref:`installed <installation>`, all you have to do is:
 Data preparation
 ^^^^^^^^^^^^^^^^
 
-Your waveform data should all comply with the following conditions:
+Your waveform files should all comply with the following conditions:
 
-* each waveform file must contain all three seismic components (i.e., "U", "V", "W" of either the VBB or SP seismometer). That is, if you have individual files for each component you must merge them into *one* file before. For data retrieval, see e.g. :ref:`download`.
+* each waveform file must contain all three seismic components (i.e., "U", "V", "W" of either the VBB or SP seismometer). That is, if you have individual files for each component you must merge them into *one* file before. For convenient data retrieval see the :ref:`download function <download>`.
 * each waveform file must be readable as seismological file (e.g. MSEED, SAC, ...)
-
 
 
 

@@ -27,13 +27,13 @@
 
 
 """
-SEISglitch is a seismological Python package based on the ObsPy_ library.
-Its purpose is to handle "glitches" (also referred to as "long-period disturbances") present in the raw seismic data of the VBB (very broadband) 
-and SP (short period) seismometers, both part of the **SEIS** instrument of NASA's "InSight" Discovery mission to planet Mars. 
-The package allows to detect glitches, plot them in different ways, and remove them from the seismic raw data. 
-SEISglitch corresponds to the MPS method detailed in Scholz et al. (2020, see below). All other methods
-(ISAE, UCLA, IPGP) were implemented in MATLAB and their essential scripts are also delivered with this software.
-SEISglitch comes further shipped with some useful features to ease data handling (e.g. download, processing, time conversion).
+*SEISglitch* is a seismological Python package based on the ObsPy_ library.
+Its purpose is to handle "glitches"  - also referred to as "long-period data disturbances" - present in the raw seismic data of the VBB (very broadband) 
+and SP (short period) seismometers, both part of the *SEIS* instrument of NASA's "InSight_" Discovery mission to planet Mars. 
+The package allows to detect and remove glitches from the seismic raw data, and provides plot funtionality to analyse their behaviour in detail. 
+SEISglitch corresponds to the 'MPS' method detailed in Scholz et al. (2020, see below). All other methods
+('ISAE', 'UCLA', 'IPGP') were implemented in MATLAB and their essential scripts are also shipped with this software.
+SEISglitch further comes with some useful features to ease data handling, e.g. download, processing, and time conversion.
 Potentially, major functionalities of this toolbox could also be used to treat the same 
 data disturbances occurring on other seismic stations, however, this has not been tested.
 
@@ -63,6 +63,7 @@ These corrected raw data will automatically be on your machine if you follow the
 If you just want to quickly download the deglitched data, go here_.
 
 .. _ObsPy: https://github.com/obspy/obspy/wiki
+.. _InSight: https://mars.nasa.gov/insight/
 .. _citing: https://github.com/obspy/obspy/wiki#acknowledging
 .. _here: https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch/tree/master/DEGLITCHED_DATA
 """
