@@ -43,9 +43,9 @@ data disturbances occurring on other seismic stations, however, this has not bee
 The package is based on the following, peer-reviewed paper: 
 ::
 
-    Scholz, J.‐R., Widmer‐Schnidrig, R., Davis, P., Lognonné, P., Pinot, B., Garcia, R. F., et al. (2020). 
-    Detection, analysis and removal of glitches from InSight’s seismic data from Mars. 
-    Earth and Space Science, 7, e2020EA001317‐T. 
+    Scholz, J.‐R., Widmer‐Schnidrig, R., Davis, P., Lognonné, P., Pinot, B., Garcia, R. F., 
+    et al. (2020). Detection, analysis and removal of glitches from InSight’s seismic 
+    data from Mars. Earth and Space Science, 7, e2020EA001317‐T. 
     https://doi.org/10.1029/2020EA001317
 
 If you find ``seisglitch`` useful, used the MATLAB alternatives, corrected data as to the considerations outlined in the paper, or 
