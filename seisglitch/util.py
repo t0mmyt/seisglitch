@@ -1288,8 +1288,11 @@ class marstime():
                 if len(LMST.split('M'))>1:
                     passed_hms = LMST.split('M')[1].replace(':','')
                     hms        = passed_hms + hms[len(passed_hms):]
-                self.LMST_time = UTCDateTime('1969-12-31T00:00:00.000000Z')+datetime.timedelta(days=sol, hours=int(hms[:2]), minutes=int(hms[2:4]), seconds=float(hms[4:]))
-                print(self.LMST_time)
+                self.LMST_time = UTCDateTime('1969-12-31T00:00:00.000000Z')     + \
+                                    datetime.timedelta(days = sol)              + \
+                                    datetime.timedelta(hours = int(hms[:2]))    + \
+                                    datetime.timedelta(minutes = int(hms[2:4])) + \
+                                    datetime.timedelta(seconds = float(hms[4:]))
             self._UTCify(strftime)    
     def __str__(self):
 

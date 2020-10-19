@@ -72,5 +72,5 @@ If you are aiming only for the potentially updated MATLAB files or more recent v
 
 .. _Anaconda: https://docs.anaconda.com/anaconda/install/
 .. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
-.. _Scholz et al: https://www.essoar.org/doi/10.1002/essoar.10503314.2
-.. _2020: https://www.essoar.org/doi/10.1002/essoar.10503314.2
+.. _Scholz et al: https://doi.org/10.1029/2020EA001317
+.. _2020: https://doi.org/10.1029/2020EA001317

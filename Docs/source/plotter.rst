@@ -33,5 +33,5 @@ into shell. Additionally, a plot showing the glitch polarization analysis is ope
     :alt: glitch polarization sphere and histogram
 
 
-.. _Scholz et al: https://www.essoar.org/doi/10.1002/essoar.10503314.2
-.. _2020: https://www.essoar.org/doi/10.1002/essoar.10503314.2
+.. _Scholz et al: https://doi.org/10.1029/2020EA001317
+.. _2020: https://doi.org/10.1029/2020EA001317

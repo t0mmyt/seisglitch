@@ -35,5 +35,5 @@ In the following, the glitch detector's parameters (that you find in the ``confi
 * ``plot_removal_statistic``: If `True`, two interactive plots are shown summarizing overall statistics of glitch(+spike) removal. These plots are not perfected though.
 
 
-.. _Scholz et al: https://www.essoar.org/doi/10.1002/essoar.10503314.2
-.. _2020: https://www.essoar.org/doi/10.1002/essoar.10503314.2
+.. _Scholz et al: https://doi.org/10.1029/2020EA001317
+.. _2020: https://doi.org/10.1029/2020EA001317

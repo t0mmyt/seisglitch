@@ -70,5 +70,5 @@ There are only two parameters that really affect the sensitivity of the glitch d
 
 
 .. _filter: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.filter.html
-.. _Scholz et al: https://www.essoar.org/doi/10.1002/essoar.10503314.2
-.. _2020: https://www.essoar.org/doi/10.1002/essoar.10503314.2
+.. _Scholz et al: https://doi.org/10.1029/2020EA001317
+.. _2020: https://doi.org/10.1029/2020EA001317
