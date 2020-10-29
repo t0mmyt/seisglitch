@@ -117,8 +117,8 @@ download:                            # Potentially can work not only for InSight
     location: '03'                   # typically, the continuous data returned are 02.BH? (20 SPS) or 03.BH? (10 SPS) for VBB, and 02.SH? (20 SPS) or 03.SH? (10 SPS) for SP
     channel: 'BH?'                   # for details on station, location and channels, see: Lognonné et al. (2019), DOI: 10.1007/s11214-018-0574-6.
     source: 'IPGP'                   # Waveform data source, for InSight 'IPGP or 'IRIS' (for more none-InSight possibilities, see: https://docs.obspy.org/packages/obspy.clients.fdsn.html)
-    username: ''                     # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
-    password: ''                     # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials.
+    username: ''                     # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials. Wrong credentials may appear as server outage.
+    password: ''                     # use accordant to source. Leave blank if none available. Note, restricted data may appear as not available with no credentials. Wrong credentials may appear as server outage.
     format_DATA: 'mseed'             # waveform format (see: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.write.html#supported-formats)
     format_INV: 'STATIONXML'         # inventory format, level=response (see: https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html)
     

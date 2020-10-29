@@ -28,6 +28,7 @@
 #####  python modules import  #####
 import os
 import re
+import io
 import sys
 import copy
 import time
@@ -57,6 +58,7 @@ from matplotlib.widgets import TextBox
 
 
 #####  obspy modules import  #####
+import obspy
 from obspy import read, read_inventory, UTCDateTime
 from obspy.core.stream import Stream, Trace
 from obspy.core.inventory import Inventory
@@ -64,6 +66,7 @@ from obspy.signal import rotate
 from obspy.clients.fdsn import Client
 from obspy.clients.fdsn.client import CustomRedirectHandler, NoRedirectionHandler, build_url
 from obspy.signal.filter import envelope
+from obspy.io.mseed.core import ObsPyMSEEDFilesizeTooLargeError
 
 
 ##### seisglitch modules import #####
@@ -71,10 +74,27 @@ from seisglitch.math import normalise, covariance_matrix, rotate_2D, unit_vector
 
 
 # Extended Obspy Stream class (adding some more functionality)
-def read2(file=None, **kwargs):
+def read2(file=None, reclen=512, chunksize=1000000, **kwargs):
     # wrapper to return Stream2 objects instead of ObsPy's Stream object.
-    st = read(file, **kwargs)
+    try:
+        st = read(file, **kwargs)
+    except ObsPyMSEEDFilesizeTooLargeError:
+        st        = Stream()
+        reclen    = reclen
+        chunksize = chunksize * reclen        # around 500 MB by default values
+        with io.open(file, "rb") as fh:
+            while True:
+                with io.BytesIO() as buf:
+                    c = fh.read(chunksize)
+                    if not c:
+                        break
+                    buf.write(c)
+                    buf.seek(0, 0)
+                    stream = read(buf, **kwargs)
+                    st += stream
+
     st = Stream2(st, file=file)
+
     return st
 class Stream2(Stream):
 
@@ -1456,16 +1476,22 @@ def UVW2ZNE(stream, minimum_sample_length=2, inventory_file=None):
     into ZNE-system.
 
     Passed stream object must contain UVW traces and no other traces.
-    A new stream object is returned.
+    A new stream2 object is returned.
     """
     
-    if stream.inventory:
-        inv = stream.inventory
-    else:
+    stream = stream.copy()
+    stream = Stream2(stream)
+
+    try:
+        if stream.inventory:
+            inv = stream.inventory
+        else:
+            raise Exception
+    except:
         if inventory_file:
             stream.set_inventory(verbose=False, source=inventory_file)
         else:
-            stream.set_inventory(verbose=False)
+            stream.set_inventory(verbose=False, source='IRIS')
         inv = stream.inventory
 
     pierced_streams = pierce_stream(stream, minimum_sample_length=minimum_sample_length)
