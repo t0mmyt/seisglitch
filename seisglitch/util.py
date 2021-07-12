@@ -377,7 +377,7 @@ class Stream2(Stream):
                     folder = os.path.dirname( self.origin )
                 else:
                     folder = os.getcwd()
-            name = '%s_%s_raw.%s' % (st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),file_format)
+            name = '%s_%s_raw.%s' % (st.times[0].strftime('%Y%m%dT%H%M'),st.times[1].strftime('%Y%m%dT%H%M'),file_format)
             outfile = os.path.join(folder, name)
 
             st.write(outfile)
@@ -2108,8 +2108,8 @@ def download_data(outdir=os.getcwd(),
     # Paths
     times            = st.times
     request          = '%s.%s.%s.%s' % (network, station, location, channel)
-    outfile_inv      = os.path.join(outdir, 'inventory_%s-%s.xml' % (st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M')))
-    outfile_raw      = os.path.join(outdir, '%s_%s_%s_raw.%s'     % (request,st.times[0].strftime('%Y-%m-%dT%H:%M'),st.times[1].strftime('%Y-%m-%dT%H:%M'),format_DATA))
+    outfile_inv      = os.path.join(outdir, 'inventory_%s-%s.xml' % (st.times[0].strftime('%Y%m%dT%H%M'),st.times[1].strftime('%Y%m%dT%H%M')))
+    outfile_raw      = os.path.join(outdir, '%s_%s_%s_raw.%s'     % (request,st.times[0].strftime('%Y%m%dT%H%M'),st.times[1].strftime('%Y%m%dT%H%M'),format_DATA))
 
     # Processing
     st.inventory.write(outfile_inv, format=format_INV)

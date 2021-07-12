@@ -5,7 +5,7 @@
 # Use 'download' module of this toolbox to retrieve data and inventory if desired.
 inventory_file: 'IRIS'  
 waveform_files:                           # you can specify multiple files
-  - Example/XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.mseed
+  - Example/XB.ELYSE.03.BH?_20190522T2318_20190523T2359_raw.mseed
 
 
 
@@ -18,7 +18,7 @@ detect:
     water_level: 60                       # if both options 'pre_filt' and 'water_level' are given, both are applied. Usually, you only want to use one option.
     ACCfilter:                            # this filter is applied to the accleration data. See ObsPy filters: https://docs.obspy.org/packages/autogen/obspy.core.stream.Stream.filter.html
       type : 'bandpass'
-      options: {'freqmin':0.001, 'freqmax':0.1, 'corners':3, 'zerophase':True}
+      options: {'freqmin':0.001, 'freqmax':0.1, 'corners':3, 'zerophase':True}  # Do not change unless you have a good reason!
       string: '0.001 < f < 0.1'           # name your filter as you like. This will be used for output information only.
     threshold: 0.5e-9                     # triggering threshold of derivative of filtered acceleration data. Unit therefore is m/s**3. More sensitive setting would be e.g.: 0.2e-9
     plot_triggering: False                # if `True`, trigger plot is shown (one for each component. These glitch candidates are not yet time unified and checked against polarization)
@@ -32,7 +32,7 @@ detect:
 remove:                                   # all waveform files defined in top of this config file are attempted to be cleaned in given order
 
   glitch_detector_files:                  # each glitch, no matter on which component detected, will be attempted to be removed on each component!
-    - Example/glitches_XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.txt  
+    - Example/glitches_XB.ELYSE.03.BH?_20190522T2318_20190523T2359_raw.txt
 
   remover:                                # 'inventory_file' is taken from the detect module. From it the instrument response is extracted. ATTENTION: InSight meta-data use many epochs!
     glitch_window_leftright      : 2      # in seconds, data window appended left and right to detected glitch, building the overall window the glitch fits are performed in.
@@ -44,16 +44,17 @@ remove:                                   # all waveform files defined in top of
     spike_fit_samples_leftright  : 7      # samples left and right around fitted glitch onset where it is attempted to fit spike. Larger is slower. Default is 7.
     var_reduction_spike          : 2      # in %. Minimum spike variance reduction to be achieved if spike fit shall be removed. 2% is default.
     var_reduction_total          : 80     # in %. Minimum total variance reduction to be achieved if fit (either only glitch or glitch+spike) shall be removed. 80% is default
-    show_fit                     : False  # Attention, if True, an interactive plot is shown for each attempted fit on each component!
-    store_glitches               : False  # if `True`, also the corrections that were subtracted from the data are saved to a different file (output will have same file format as input file).
+    show_fit                     : False   # Attention, if True, an interactive plot is shown for each attempted fit on each component!
+    store_glitches               : True  # if `True`, also the corrections that were subtracted from the data are saved to a different file (output will have same file format as input file).
     plot_removal_statistic       : False  # if `True`, two interactive plots are shown summarising overall statistics of deglitching
 
 
 
 ### PLOT GLITCH FUNCTION
 plot:                                          # any waveform files maybe used are those defined in top of this config file
+
   glitch_detector_files:                       # list here the files given by the detector module. These detected glitches will be use for plotting. You can specify multiple files.
-    - /home/scholz/Desktop/data/glitchesVBB_2019.txt
+    - Example/glitches_XB.ELYSE.03.BH?_20190522T2318_20190523T2359_raw.txt
 
   plotter:                                     # general options that are used for all plot types specified further below.
     show: True                                 # if False, no plots will be shown but stored if 'outfile' is specified for the desired plot (and `run` is True). This allows for quick automated plot generation.
@@ -72,22 +73,22 @@ plot:                                          # any waveform files maybe used a
 
   glitch_remove_plot:                          # plot comparison of deglitched and original data + detected glitches. Also non-seismic input traces will be shown.
     run: False                                 # Must be set to `True` if you want this plot.
-    original_data: Example/XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw.mseed
-    deglitch_data: Example/XB.ELYSE.03.BH?_2019-05-22T23:18_2019-05-23T23:59_raw_deglitched.mseed
+    original_data: Example/XB.ELYSE.02.BH?_2019-06-06T00:00_2019-06-06T05:59_raw.mseed
+    deglitch_data: Example/XB.ELYSE.02.BH?_2019-06-06T00:00_2019-06-06T05:59_raw_deglitched.mseed
     window:                                    # window length in hours. Windows are slided in 95% steps. If not given, default is 25 hours (~1 sol).
     starttime:                                 # Start time (can use either UTC or LMST format) to truncate data (including glitches) to be plotted.
     endtime:                                   # End time (can use either UTC or LMST format) to truncate data (including glitches) to be plotted.
     outfile:                                   # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored (if `run` is True). Path to file must exist.
 
   glitch_detector_plot:                        # plot original data + detected glitches. Only seismic input traces will be shown.
-    run: False                                  # Must be set to `True` if you want this plot.
+    run: True                                  # Must be set to `True` if you want this plot.
     window:                                    # window length in hours. Windows are slided in 95% steps. If not given, default is 25 hours (~1 sol).
     starttime:                                 # Start time (can use either UTC or LMST format) to truncate data (including glitches) to be plotted.
     endtime:                                   # End time (can use either UTC or LMST format) to truncate data (including glitches) to be plotted.
     outfile:                                   # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored (if `run` is True). Path to file must exist.
 
   glitch_overview_plot:                        # plot glitch azimuths, incidences and histogram. Click on dots to get information printed into shell and open polarization plot.
-    run: True                                 # Must be set to `True` if you want this plot.
+    run: False                                 # Must be set to `True` if you want this plot.
     outfile:                                   # If given (as absolute path + desired ending, e.g. '.png' or '.pdf') plot is stored. Path to file must exist.
 
   glitch_SOLoverLMST_plot:                     # plot glitch sols over respective LMST times. Click on dots to get information printed into shell.

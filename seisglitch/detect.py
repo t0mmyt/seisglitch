@@ -126,13 +126,13 @@ def detect(*RAW_UVW,
 
 
         ### VARIABLES
-        output_txt             = os.path.join( os.path.dirname(RAW_UVW[o]), 'glitches_' + '.'.join(os.path.basename(RAW_UVW[o]).split('.')[:-1]) + '.txt' )
-        glitches_text          = []
-        glitches               = []
-        total_data_time_UTC    = 0
-        total_data_time_LMST   = 0
-        glitch_counter         = 0
-        print_counter          = 0
+        output_txt           = os.path.join( os.path.dirname(RAW_UVW[o]), 'glitches_' + '.'.join(os.path.basename(RAW_UVW[o]).split('.')[:-1]) + '.txt' )
+        glitches_text        = []
+        glitches             = []
+        total_data_time_UTC  = 0
+        total_data_time_LMST = 0
+        glitch_counter       = 0
+        print_counter        = 0
 
         for stream2 in stream_select.slide(12*3600, (1-2*taper_length_per_side)*12*3600-60, offset=0, include_partial_windows=True, nearest_sample=True):
 

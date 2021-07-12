@@ -282,6 +282,7 @@ def select_glitches(glitch_files,
         return new_glitches
 
 
+
 ### PLOT SCRIPTS
 def plot_glitch_remover(*glitch_files, run=True, original_data=None, deglitch_data=None, window=None, starttime=None, endtime=None, show=True, outfile='', **kwargs):
     
@@ -420,10 +421,10 @@ def plot_glitch_remover(*glitch_files, run=True, original_data=None, deglitch_da
                                  axis        = axes[i])
 
         # twiny axis
-        axes[-1].callbacks.connect('xlim_changed', on_xlims_change)
         axis_twin = axes[-1].twiny()
-        ax1Xs     = axes[-1].get_xticks()
-        ax2Xs     = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
+        axes[-1].callbacks.connect('xlim_changed', on_xlims_change)
+        ax1Xs = axes[-1].get_xticks()
+        ax2Xs = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
         axis_twin.set_xticks(ax1Xs)
         axis_twin.set_xbound(axes[-1].get_xbound())
         axis_twin.set_xticklabels(ax2Xs)
@@ -572,10 +573,10 @@ def plot_glitch_detector(*glitch_files, run=True, waveform_files=[], window=None
                                      axis       = axes[i])
 
             # twiny axis
-            axes[-1].callbacks.connect('xlim_changed', on_xlims_change)
             axis_twin = axes[-1].twiny()
-            ax1Xs     = axes[-1].get_xticks()
-            ax2Xs     = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
+            axes[-1].callbacks.connect('xlim_changed', on_xlims_change)
+            ax1Xs = axes[-1].get_xticks()
+            ax2Xs = ['S'+marstime(mdates.num2date(time)).LMST_string.replace('M','\n') for time in ax1Xs]
             axis_twin.set_xticks(ax1Xs)
             axis_twin.set_xbound(axes[-1].get_xbound())
             axis_twin.set_xticklabels(ax2Xs)
@@ -766,7 +767,7 @@ def plot_glitch_overview(*glitch_files, run=True, waveform_files=[], outfile='',
     ax.set_theta_zero_location('N')
     ax.set_thetamin(0)
     ax.set_thetamax(180)
-    ax.set_thetagrids([0,48.5,60.5,90,131.5,119.5,180], labels=['0°','48.5°','VBB\n(60.5°)','90°','131.5°','VBB\n(119.5°)'], size=10)
+    ax.set_thetagrids([0, 48.5, 60.5, 90, 131.5, 119.5, 180], labels=['0°','48.5°','VBB\n(60.5°)','90°','131.5°','VBB\n(119.5°)', '180°'], size=10)
 
     #ax.set_rgrids([0.1,0.4,0.7,1], labels=['Zmin','','','Zmax'], fontsize=6)
     ax.set_ylim( [min(sols_range)-0.1*(max(sols_range)-min(sols_range)), max(sols_range)+0.1*(max(sols_range)-min(sols_range))] )

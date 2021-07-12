@@ -72,5 +72,5 @@ If you just want to quickly download the deglitched data, go here_.
 
 
 ### VERSION
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __author__  = 'John-Robert Scholz'

@@ -37,7 +37,7 @@ You can check the seisglitch version you have installed via::
 
     seisglitch -v
 
-**The most recent version is 1.0.0.**
+**The most recent version is 1.0.1.**
 
 ----
 
