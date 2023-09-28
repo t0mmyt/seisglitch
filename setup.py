@@ -46,7 +46,7 @@ setup(
     platforms        = [],
     setup_requires   = [],
     python_requires  =  '>=3.7',
-    install_requires = ['numpy==1.16'],
+    install_requires = ['numpy>=1.16'],
     packages         = ['seisglitch'],
     scripts          = [os.path.join('Scripts',file) for file in os.listdir('Scripts/')],
     url              = 'https://pss-gitlab.math.univ-paris-diderot.fr/data-processing-wg/seisglitch'
